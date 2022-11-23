@@ -1,0 +1,31 @@
+
+# Ignore all data files
+/data/
+/database/
+/result/
+
+*.txt
+*.csv
+*.tsv
+*.pkl
+*.npz
+*.gz
+*.torch
+
+*.log
+*.sh
+*.yaml
+*.rmd
+
+nohup.out
+
+
+io.py
+scratch.py
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+/build
+
