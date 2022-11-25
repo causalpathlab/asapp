@@ -24,3 +24,4 @@ def get_topic_top_genes(df_beta,top_n):
 	top_genes = generate_gene_vals(df_beta,top_n,top_genes,'top_genes')
 
 	return pd.DataFrame(top_genes,columns=['Topic','GeneType','Genes','Gene','Proportion'])
+
