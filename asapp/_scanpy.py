@@ -32,7 +32,7 @@ def run_scanpy(mtx,rows,cols,fn):
 
 	sc.pp.neighbors(adata, n_neighbors=10, n_pcs=40)
 	sc.tl.umap(adata)
-	sc.tl.leiden(adata,resolution=0.03)
+	sc.tl.leiden(adata)
 	sc.pl.umap(adata, color=['leiden'])
 	plt.savefig(fn+'_scanpy_raw_pipeline_umap.png');plt.close()
 
