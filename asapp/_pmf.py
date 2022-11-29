@@ -10,8 +10,8 @@ from scipy import special
 
 class PoissonMF():
     ''' Poisson matrix factorization with batch inference '''
-    def __init__(self, n_components=100, max_iter=100, tol=1e-6,
-                 smoothness=100, random_state=None, verbose=True,
+    def __init__(self, n_components=100, max_iter=50, tol=1e-6,
+                 smoothness=100, random_state=None, verbose=False,
                  **kwargs):
         ''' Poisson matrix factorization
         Arguments

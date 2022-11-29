@@ -68,8 +68,10 @@ class StepTree:
     def make_bulk(self):
         leafd = {}
         queue = []
-        queue.append(self.root.pos_child)
-        queue.append(self.root.neg_child)
+        if self.root.pos_child != None:
+            queue.append(self.root.pos_child)
+        if self.root.neg_child != None:
+            queue.append(self.root.neg_child)
         i = 0
         while queue:
             current_node = queue.pop(0)
