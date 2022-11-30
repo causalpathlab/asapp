@@ -7,8 +7,9 @@ import fastsca
 import logging
 import _rpstruct as rp
 import _pmf
+from sklearn.decomposition import NMF
 from sklearn import preprocessing
-from sklearn.metrics.cluster import contingency_matrix,silhouette_score
+from sklearn.metrics.cluster import contingency_matrix,silhouette_score,adjusted_rand_score,calinski_harabasz_score,davies_bouldin_score
 np.random.seed(42)
 
 experiment = '/projects/experiments/asapp/'
@@ -28,10 +29,13 @@ fn = sca.config.home + sca.config.experiment +sca.config.output + sca.config.sam
 def rum_model_with_gt():
     min_leaf = 1000
     max_depth = 10
-    n_iter = 5
+    n_iter = 10
 
-    clust_mix = []
+    clust_max = []
     clust_val = []
+    g_cmax = 0
+    g_df_index = pd.DataFrame()
+    g_B = []
 
     for iter in range(n_iter):
 
@@ -65,6 +69,10 @@ def rum_model_with_gt():
         B = m.gamma_b
         T = m.gamma_t
 
+        model = NMF(n_components=10, init='random', random_state=0)
+        T = model.fit_transform(df.to_numpy())
+        B = model.components_
+
         bulk_index = {}
         for key, value in bulkd.items(): 
             bulk_index[key] = value
@@ -79,20 +87,32 @@ def rum_model_with_gt():
         df_rp = pd.DataFrame(cell_topic_assignment,columns=['tree_leaf','cell','label'])
         df_match = pd.DataFrame(contingency_matrix(df_rp.tree_leaf,df_rp.label))
         df_match = df_match.div(df_match.sum(axis=1), axis=0)
-        clust_mix.append(df_match.max(1).values)
 
-        clust_val.append(df_match.max(axis=1).sum()/df_match.shape[0])
+        c_cmax = df_match.max(axis=1).sum()/df_match.shape[0]
+        clust_val.append([df_match.shape[0],
+            c_cmax,
+            adjusted_rand_score(df_rp.tree_leaf,df_rp.label),
+            calinski_harabasz_score(sca.data.mtx,df_rp.label),
+            davies_bouldin_score(sca.data.mtx,df_rp.label)
+            ])
 
-        scaler = preprocessing.StandardScaler().fit(B)
-        rp_mat = scaler.transform(B)
 
-        print('completed...'+str(iter))
+        if c_cmax < g_cmax:
+            break
+        else:
+            clust_max.append(df_match.max(1).values)
+            g_cmax = c_cmax
+            g_df_index = df_index
+            g_B = B
+            scaler = preprocessing.StandardScaler().fit(B)
+            rp_mat = scaler.transform(B)
+            print('completed...'+str(iter))
 
-    pd.DataFrame(clust_mix).to_csv(fn+"_cluster_trace.csv.gz",compression='gzip',index=False)
-    pd.DataFrame(clust_val).to_csv(fn+"_cluster_val_trace.csv.gz",compression='gzip',index=False)
+    pd.DataFrame(clust_max).to_csv(fn+"_cluster_trace_NMF.csv.gz",compression='gzip',index=False)
+    pd.DataFrame(clust_val,columns=['dim','cmax','adj_rs','cal_sc','dav_sc']).to_csv(fn+"_cluster_val_trace_NMF.csv.gz",compression='gzip',index=False)
 
-    df_index.to_csv(fn+"_"+str(n_iter)+"_rp_bulk_index.csv.gz",compression='gzip',index=False)
-    pd.DataFrame(B).to_csv(fn+"_"+str(n_iter)+"_beta.csv.gz",compression='gzip',index=False)
+    g_df_index.to_csv(fn+"_"+str(n_iter)+"_rp_bulk_index_NMF.csv.gz",compression='gzip',index=False)
+    pd.DataFrame(g_B).to_csv(fn+"_"+str(n_iter)+"_beta_NMF.csv.gz",compression='gzip',index=False)
 
 def rum_model_no_gt():
     min_leaf = 250
@@ -143,7 +163,13 @@ def rum_model_no_gt():
             for i in row[pd.Series(row).notna()].values: cell_topic_assignment[ sca.data.rows[int(i)]]=indx
 
         tree_label = [ cell_topic_assignment[x] for x in sca.data.rows]
-        clust_val.append(silhouette_score(sca.data.mtx,tree_label))
+
+        eval = []
+        eval.append(df_index.shape[0])
+        eval.append(iter)
+        eval.append(calinski_harabasz_score(sca.data.mtx,tree_label))
+        eval.append(davies_bouldin_score(sca.data.mtx,tree_label))
+        clust_val.append(eval)
 
         scaler = preprocessing.StandardScaler().fit(B)
         rp_mat = scaler.transform(B)
@@ -154,4 +180,4 @@ def rum_model_no_gt():
     df_index.to_csv(fn+"_"+str(n_iter)+"_rp_bulk_index.csv.gz",compression='gzip',index=False)
     pd.DataFrame(B).to_csv(fn+"_"+str(n_iter)+"_beta.csv.gz",compression='gzip',index=False)
 
-rum_model_no_gt()
+rum_model_with_gt()
