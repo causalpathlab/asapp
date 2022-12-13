@@ -6,7 +6,7 @@ import numpy as np
 import fastsca
 import logging
 import _rpstruct as rp
-import _pmf
+import _pnmf
 from sklearn.decomposition import NMF
 from sklearn import preprocessing
 from sklearn.metrics.cluster import contingency_matrix,silhouette_score,adjusted_rand_score,calinski_harabasz_score,davies_bouldin_score
@@ -64,7 +64,7 @@ def rum_model_with_gt():
         df = pd.DataFrame.from_dict(bulk,orient='index')
 
 
-        m = _pmf.PoissonMF(n_components=max_depth)
+        m = _pnmf.PoissonMF(n_components=max_depth)
         m.fit(df.to_numpy())
         B = m.gamma_b
         T = m.gamma_t

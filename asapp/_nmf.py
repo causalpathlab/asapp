@@ -1,5 +1,7 @@
 import numpy as np
 
+## different least squares method 
+
 ## multiplicative update
 def mu(A,k,n_iter,delta=1e-5,tol=0.1):
 	W = np.random.rand(A.shape[0],k)
@@ -137,8 +139,41 @@ def als_activeset(A,k,n_iter,delta=1e-5,tol=0.1):
 	H = np.random.rand(k,A.shape[1])
 	loss = []
 	for n in range(n_iter):
+		print(n)
 		H = as_solver(W, A)[0]
 		W = as_solver(H.T, A.T)[0].T
+		frob_norm = np.linalg.norm(A - np.dot(W,H), 'fro')
+		# print("iteration " + str(n + 1) + ": " + str(frob_norm))
+		loss.append(frob_norm)
+		if frob_norm<tol: break
+
+	return {'W':W,'H':H,'loss':loss}
+
+
+## non negative lasso method 
+
+def lasso_solver_cwise(B,y):
+
+	from sklearn import linear_model
+
+	clf = linear_model.Lasso(alpha=0.1,positive=True)
+	clf.fit(B,y)
+	return clf.coef_
+
+def lasso_solver(B, Y):
+	return [np.array([lasso_solver_cwise(B, column) for column in Y.T]).T]
+
+def als_lasso(A,k,n_iter,delta=1e-5,tol=0.1):
+	
+	W = np.random.rand(A.shape[0],k)
+	H = np.random.rand(k,A.shape[1])
+	loss = []
+	for n in range(n_iter):
+		print(n)
+
+		H = lasso_solver(W, A)[0]
+		W = lasso_solver(H.T, A.T)[0].T
+
 		frob_norm = np.linalg.norm(A - np.dot(W,H), 'fro')
 		# print("iteration " + str(n + 1) + ": " + str(frob_norm))
 		loss.append(frob_norm)

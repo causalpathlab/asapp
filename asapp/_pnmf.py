@@ -103,7 +103,6 @@ class PoissonMF():
         X_new : array-like, shape(n_samples, n_filters)
             Transformed data, as specified by attr.
         '''
-
         if not hasattr(self, 'Eb'):
             raise ValueError('There are no pre-trained components.')
         n_samples, n_feats = X.shape
