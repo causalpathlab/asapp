@@ -142,6 +142,7 @@ class PoissonMF():
             ratio, np.exp(self.Elogb).T)
         self.rho_t = self.a * self.c + np.sum(self.Eb, axis=1)
         self.Et, self.Elogt = _compute_expectations(self.gamma_t, self.rho_t)
+        # print(self.gamma_t.shape,self.rho_t.shape,self.Et.shape, self.Elogt.shape )
         self.c = 1. / np.mean(self.Et)
 
     def _update_beta(self, X):
@@ -150,6 +151,7 @@ class PoissonMF():
             np.exp(self.Elogt).T, ratio)
         self.rho_b = self.b + np.sum(self.Et, axis=0, keepdims=True).T
         self.Eb, self.Elogb = _compute_expectations(self.gamma_b, self.rho_b)
+        # print(self.gamma_b.shape,self.rho_b.shape,self.Eb.shape, self.Elogb.shape )
 
     def _xexplog(self):
         '''
