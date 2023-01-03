@@ -209,5 +209,93 @@ def _compute_expectations(alpha, beta):
     return (alpha / beta, special.psi(alpha) - np.log(beta))
 
 def _gamma_term(a, b, shape, rate, Ex, Elogx):
-    return np.sum((a - shape) * Elogx - (b - rate) * Ex + (special.gammaln(shape) - shape * np.log(rate)))
+    return np.sum((a - shape) * Elogx - (b - rate) * Ex +
+        (special.gammaln(shape) - shape * np.log(rate)))
+
+class DCPoissonMFB(DCPoissonMF):
+    ''' Poisson matrix factorization with stochastic inference '''
+    def __init__(self, n_components=100, batch_size=32, n_pass=10,
+                 max_iter=10, tol=0.0005, shuffle=True, smoothness=100,
+                 random_state=None, verbose=False,
+                 **kwargs):
+
+        self.n_components = n_components
+        self.batch_size = batch_size
+        self.n_pass = n_pass
+        self.max_iter = max_iter
+        self.tol = tol
+        self.shuffle = shuffle
+        self.smoothness = smoothness
+        self.random_state = random_state
+        self.verbose = verbose
+
+        if type(self.random_state) is int:
+            np.random.seed(self.random_state)
+        elif self.random_state is not None:
+            np.random.setstate(self.random_state)
+
+        self._parse_args(**kwargs)
+        self._parse_args_batch(**kwargs)
+
+    def _parse_args_batch(self, **kwargs):
+        self.t0 = float(kwargs.get('t0', 1.))
+        self.kappa = float(kwargs.get('kappa', 0.6))
+
+    def fit(self, X):
+        n_samples, n_feats = X.shape
+        self._scale = float(n_samples) / self.batch_size
+        self._init_beta(n_feats)
+        self.bound = list()
+        for count in range(self.n_pass):
+            if self.verbose:
+                print('Iteration %d: passing through the data...' % count)
+            indices = np.arange(n_samples)
+            if self.shuffle:
+                np.random.shuffle(indices)
+            X_shuffled = X[indices]
+            for (i, istart) in enumerate(range(0, n_samples,self.batch_size), 1):
+                print('\tMinibatch %d:' % i)
+                iend = min(istart + self.batch_size, n_samples)
+                self.set_learning_rate(iter=i)
+                mini_batch = X_shuffled[istart: iend]
+                self.partial_fit(mini_batch)
+                self.bound.append(self._stoch_bound(mini_batch))
+        return self
+
+    def partial_fit(self, X):
+
+        self.transform(X)
+
+        ratio = X / self._xexplog()
+        
+        self.beta_a = (1 - self.rho) * self.beta_a + self.rho * \
+            (self.b_a + self._scale * np.exp(self.Elogbeta) * np.dot(np.exp(self.Elogtheta).T, ratio))
+        
+        bb = np.tile(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
+        self.beta_b = (1 - self.rho) * self.beta_b + self.rho * \
+            (self.b_a + self._scale * np.multiply(bb.reshape(self.n_components,self.n_feats).T,self.EF.T).T)
+
+        self.Ebeta, self.Elogbeta = _compute_expectations(self.beta_a, self.beta_b)
+
+        return self
+
+    def set_learning_rate(self, iter=None, rho=None):
+        if rho is not None:
+            self.rho = rho
+        elif iter is not None:
+            self.rho = (iter + self.t0)**(-self.kappa)
+        else:
+            raise ValueError('invalid learning rate.')
+        return self
+
+    def _stoch_bound(self, X):
+        bound = np.sum(X * np.log(self._xexplog()) - self.Etheta.dot(self.Ebeta))
+        bound += _gamma_term(self.t_a, self.t_a * self.t_c,
+                             self.theta_a, self.theta_b,
+                             self.Etheta, self.Elogtheta)
+        bound += self.n_components * X.shape[0] * self.t_a * np.log(self.t_c)
+        bound *= self._scale
+        bound += _gamma_term(self.b_a, self.b_a, self.beta_a, self.beta_b,
+                             self.Ebeta, self.Elogbeta)
+        return bound
 

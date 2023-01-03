@@ -2,7 +2,7 @@ import numpy as np
 from scipy import special
 
 class DCPoissonMF():
-    def __init__(self, n_components=10, max_iter=10, tol=1e-3,
+    def __init__(self, n_components=10, max_iter=10, tol=1e-6,
                  smoothness=100, random_state=None, verbose=True,
                  **kwargs):
 
@@ -55,6 +55,9 @@ class DCPoissonMF():
         self.Etheta, self.Elogtheta = _compute_expectations(self.theta_a, self.theta_b)
         self.t_c = 1. / np.mean(self.Etheta)
     
+    def _init_aux(self):
+        self.aux = np.ones((self.theta_a.shape[1],self.theta_a.shape[0],self.beta_a.shape[1]))
+
     def _update_depth(self, X):
         self.D_a = self.df_a + np.sum(X, axis=1,keepdims=True)
         self.D_b = self.df_b + np.sum(self.EF, axis=1, keepdims=True)
@@ -108,6 +111,25 @@ class DCPoissonMF():
         self.ED = self.ED * S
 
     ### model
+    def _update_aux(self,esp=1e-7):
+        
+        #### using digamma 
+        theta = special.psi(self.theta_a) - np.log(self.theta_b)
+        beta = special.psi(self.beta_a) - np.log(self.beta_b)
+        aux = np.einsum('ik,jk->ijk', np.exp(theta), np.exp(beta).T) + esp
+        self.aux = aux / (np.sum(aux, axis=2)[:, :, np.newaxis])
+
+        #### using precalculated explog
+        # aux = np.zeros((self.theta_a.shape[1],self.theta_a.shape[0],self.beta_a.shape[1]))
+        # for i in range(self.aux.shape[0]):
+        #     theta = self.Elogtheta[:,i].reshape(self.Elogtheta.shape[0],-1)
+        #     beta = self.Elogbeta[i,:].reshape(self.Elogbeta.shape[1],-1).T
+        #     aux[i,:,:] = np.dot(np.exp(theta),np.exp(beta)) + 1e-7
+        # k_sum = aux.sum(axis=0)
+        # for i in range(self.aux.shape[0]):
+        #     self.aux[i,:,:] = aux[i,:,:]/k_sum  
+
+
 
     def _xexplog(self):
         '''
@@ -116,50 +138,38 @@ class DCPoissonMF():
         return np.dot(np.exp(self.Elogtheta), np.exp(self.Elogbeta))
 
     def _update_theta(self, X):
-        ratio = X / self._xexplog()        
-        self.theta_a = self.t_a + np.exp(self.Elogtheta) * np.dot(ratio, np.exp(self.Elogbeta).T)
 
-        ## base model 
-        # self.theta_b = np.tile((self.t_a * self.t_c + np.sum(self.Ebeta, axis=1)).T,self.n_samples).reshape(self.n_samples,self.n_components)
-
+        self.theta_a = self.t_a + np.einsum('ij,ijk->ik',X,self.aux)
         ## dc model 
+        # self.theta_b =  self.t_a * self.t_c + self.ED * np.einsum('j,jk->ik',self.EF,self.Ebeta,),self.n_samples).T,
+
+        # self.theta_a = self.t_a + np.dot(X,self.aux.sum(axis=0))
+        # ## dc model 
         self.theta_b =  self.t_a * self.t_c + np.multiply(np.tile(np.dot(self.Ebeta,self.EF.T),self.n_samples).T,self.ED)
         
         self.Etheta, self.Elogtheta = _compute_expectations(self.theta_a, self.theta_b)
         self.t_c = 1. / np.mean(self.Etheta)
 
     def _update_beta(self, X):
-        ratio = X / self._xexplog()
-        self.beta_a = self.b_a + np.exp(self.Elogbeta) * np.dot(np.exp(self.Elogtheta).T, ratio)
-
-        ## base model 
-        # self.beta_b = np.tile((self.b_a + np.sum(self.Etheta, axis=0, keepdims=True).T),self.n_feats).reshape(self.n_components,self.n_feats)
-        
+        self.beta_a = self.b_a + np.einsum('ij,ijk->kj',X,self.aux)
         ## dc model 
         bb = np.tile(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
         self.beta_b = self.b_a + np.multiply(bb.reshape(self.n_components,self.n_feats).T,self.EF.T).T
 
+        # self.beta_a = self.b_a + np.dot(self.aux.sum(axis=1).T,X)
+        # ## dc model 
+        # bb = np.tile(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
+        # self.beta_b = self.b_a + np.multiply(bb.reshape(self.n_components,self.n_feats).T,self.EF.T).T
+
         self.Ebeta, self.Elogbeta = _compute_expectations(self.beta_a, self.beta_b)
 
-    
-    def _bound(self, X):
-        bound = np.sum(X * np.log(self._xexplog()) - self.Etheta.dot(self.Ebeta))
-        bound += _gamma_term(self.t_a, self.t_a * self.t_c,
-                             self.theta_a, self.theta_b,
-                             self.Etheta, self.Elogtheta)
-        bound += self.n_components * X.shape[0] * self.t_a * np.log(self.t_c)
-        bound += _gamma_term(self.b_a, self.b_a, self.beta_a, self.beta_b,
-                             self.Ebeta, self.Elogbeta)
-        return bound
-    
+                
     def fit(self, X):
-        
         self.n_samples, self.n_feats = X.shape
-
         self.fit_null(X)
-
         self._init_beta(self.n_feats)
         self._init_theta(self.n_samples)
+        self._init_aux()
         print(self.theta_a.shape,self.theta_b.shape,self.Etheta.shape,self.Elogtheta.shape)
         print(self.beta_a.shape,self.beta_b.shape,self.Ebeta.shape,self.Elogbeta.shape)
         self._update(X)
@@ -184,10 +194,14 @@ class DCPoissonMF():
     def _update(self, X, update_beta=True):
         old_bd = -np.inf
         for i in range(self.max_iter):
+            self._update_aux()
             self._update_theta(X)
             if update_beta:
+                self._update_aux()
                 self._update_beta(X)
-            bound = self._bound(X)
+            # bound = self._bound(X)
+            bound = self._elbo(X)
+
             # break
             improvement = (bound - old_bd) / abs(old_bd)
             if self.verbose:
@@ -195,12 +209,36 @@ class DCPoissonMF():
                                  'Old objective: %.2f\t'
                                  'Improvement: %.5f' % (i, bound, old_bd,
                                                         improvement))
-            if improvement < self.tol:
-                break
+            # if improvement < self.tol:
+            #     break
             old_bd = bound
         if self.verbose:
             print('\n')
         pass
+    
+
+    def _elbo(self,X):
+
+        elbo = 0.0
+        E_aux = np.einsum('ij,ijk->ijk', X, self.aux)
+        t_b = self.t_a * self.t_c
+
+        E_log_pt = self.t_a * np.log(t_b) - special.gammaln(self.t_a) + (self.t_a -1)*self.Elogtheta - t_b*self.Etheta
+        E_log_pb = self.b_a * np.log(self.b_a) - special.gammaln(self.b_a) + (self.b_a -1)*self.Elogbeta - self.b_a*self.Ebeta
+
+        E_log_qt = self.theta_a * np.log(self.theta_b) - special.gammaln(self.theta_a) + (self.theta_a -1)*self.Elogtheta - self.theta_b*self.Etheta
+        E_log_qb = self.beta_a * np.log(self.beta_a) - special.gammaln(self.beta_a) + (self.beta_a -1)*self.Elogbeta - self.beta_a*self.Ebeta
+
+        elbo += np.sum(np.einsum('ijk,ik->i', E_aux,self.Elogtheta)) + np.einsum('ijk,jk->i', E_aux,self.Elogbeta.T)
+        elbo -= np.einsum('ik,jk->i', self.Etheta,self.Ebeta.T)
+        elbo += np.sum(E_log_pt)
+        elbo += np.sum(E_log_pb)
+        elbo -= np.sum(special.gammaln(X + 1.))
+        elbo -= np.sum(np.einsum('ijk->i', E_aux * np.log(self.aux)))
+        elbo -= np.sum(E_log_qt)
+        elbo -= np.sum(E_log_qb)
+        
+        return np.mean(elbo)
 
 def _compute_expectations(alpha, beta):
     '''
@@ -208,6 +246,4 @@ def _compute_expectations(alpha, beta):
     '''
     return (alpha / beta, special.psi(alpha) - np.log(beta))
 
-def _gamma_term(a, b, shape, rate, Ex, Elogx):
-    return np.sum((a - shape) * Elogx - (b - rate) * Ex + (special.gammaln(shape) - shape * np.log(rate)))
 

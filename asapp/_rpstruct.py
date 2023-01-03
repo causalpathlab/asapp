@@ -85,7 +85,25 @@ class StepTree:
                     queue.append(current_node.pos_child) 
         return leafd  
 
-
+    def make_bulk_depth(self,max_depth):
+        leafd = {}
+        queue = []
+        if self.root.pos_child != None:
+            queue.append(self.root.pos_child)
+        if self.root.neg_child != None:
+            queue.append(self.root.neg_child)
+        i = 0
+        while queue and i<max_depth:
+            current_node = queue.pop(0)
+            if current_node.pos_child == None and current_node.neg_child == None: 
+                leafd[i] = current_node.indxs
+                i +=1
+            else:            
+                if current_node.neg_child != None:
+                    queue.append(current_node.neg_child)
+                if current_node.pos_child != None:
+                    queue.append(current_node.pos_child) 
+        return leafd  
 
 
 

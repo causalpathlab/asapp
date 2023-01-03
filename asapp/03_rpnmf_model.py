@@ -6,11 +6,12 @@ import numpy as np
 import fastsca
 import logging
 import _rpstruct as rp
-import _pnmf
+import _pnmf,_dcpnmf
 from sklearn.decomposition import NMF
 from sklearn import preprocessing
 from sklearn.metrics.cluster import contingency_matrix,silhouette_score,adjusted_rand_score,calinski_harabasz_score,davies_bouldin_score
 np.random.seed(42)
+import gc
 
 experiment = '/projects/experiments/asapp/'
 server = Path.home().as_posix()
@@ -29,7 +30,7 @@ fn = sca.config.home + sca.config.experiment +sca.config.output + sca.config.sam
 def rum_model_with_gt():
     min_leaf = 1000
     max_depth = 10
-    n_iter = 10
+    n_iter = 3
 
     clust_max = []
     clust_val = []
@@ -64,14 +65,10 @@ def rum_model_with_gt():
         df = pd.DataFrame.from_dict(bulk,orient='index')
 
 
-        m = _pnmf.PoissonMF(n_components=max_depth)
+        m = _dcpnmf.DCPoissonMF(n_components=max_depth,verbose=True)
         m.fit(df.to_numpy())
-        B = m.gamma_b
-        T = m.gamma_t
-
-        model = NMF(n_components=10, init='random', random_state=0)
-        T = model.fit_transform(df.to_numpy())
-        B = model.components_
+        B = m.Ebeta
+        T = m.Etheta
 
         bulk_index = {}
         for key, value in bulkd.items(): 
@@ -107,77 +104,79 @@ def rum_model_with_gt():
             scaler = preprocessing.StandardScaler().fit(B)
             rp_mat = scaler.transform(B)
             print('completed...'+str(iter))
+            del tree
+            gc.collect()
 
-    pd.DataFrame(clust_max).to_csv(fn+"_cluster_trace_NMF.csv.gz",compression='gzip',index=False)
-    pd.DataFrame(clust_val,columns=['dim','cmax','adj_rs','cal_sc','dav_sc']).to_csv(fn+"_cluster_val_trace_NMF.csv.gz",compression='gzip',index=False)
+    pd.DataFrame(clust_max).to_csv(fn+"_cluster_trace.csv.gz",compression='gzip',index=False)
+    pd.DataFrame(clust_val,columns=['dim','cmax','adj_rs','cal_sc','dav_sc']).to_csv(fn+"_cluster_val_trace.csv.gz",compression='gzip',index=False)
 
-    g_df_index.to_csv(fn+"_"+str(n_iter)+"_rp_bulk_index_NMF.csv.gz",compression='gzip',index=False)
-    pd.DataFrame(g_B).to_csv(fn+"_"+str(n_iter)+"_beta_NMF.csv.gz",compression='gzip',index=False)
+    g_df_index.to_csv(fn+"_"+str(n_iter)+"_rp_bulk_index.csv.gz",compression='gzip',index=False)
+    pd.DataFrame(g_B).to_csv(fn+"_"+str(n_iter)+"_beta.csv.gz",compression='gzip',index=False)
 
-def rum_model_no_gt():
-    min_leaf = 250
-    max_depth = 5
-    n_iter = 10
+# def rum_model_no_gt():
+#     min_leaf = 250
+#     max_depth = 10
+#     n_iter = 10
 
-    clust_val = []
+#     clust_val = []
 
-    for iter in range(n_iter):
+#     for iter in range(n_iter):
 
-        print('starting...'+str(iter))
+#         print('starting...'+str(iter))
 
-        if iter ==0:
-            rp_mat = []
-            for i in range(max_depth):
-                rp_mat.append(np.random.normal(size = (sca.data.mtx.shape[1],1)).flatten())
+#         if iter ==0:
+#             rp_mat = []
+#             for i in range(max_depth):
+#                 rp_mat.append(np.random.normal(size = (sca.data.mtx.shape[1],1)).flatten())
 
-            rp_mat = np.asarray(rp_mat)
-            print(rp_mat.shape)
+#             rp_mat = np.asarray(rp_mat)
+#             print(rp_mat.shape)
 
-        tree = rp.StepTree(sca.data.mtx,rp_mat)
-        tree.build_tree(min_leaf,max_depth)
-        bulkd = tree.make_bulk()
-        print(len(bulkd))
-        sum = 0
-        for k in bulkd.keys(): sum += len(bulkd[k])
-        print(sum)
-
-
-        bulk = {}
-        for key, value in bulkd.items(): 
-            bulk[key] = np.asarray(sca.data.mtx[value].sum(0))[0]
-        df = pd.DataFrame.from_dict(bulk,orient='index')
+#         tree = rp.StepTree(sca.data.mtx,rp_mat)
+#         tree.build_tree(min_leaf,max_depth)
+#         bulkd = tree.make_bulk()
+#         print(len(bulkd))
+#         sum = 0
+#         for k in bulkd.keys(): sum += len(bulkd[k])
+#         print(sum)
 
 
-        m = _pmf.PoissonMF(n_components=max_depth)
-        m.fit(df.to_numpy())
-        B = m.gamma_b
-        T = m.gamma_t
+#         bulk = {}
+#         for key, value in bulkd.items(): 
+#             bulk[key] = np.asarray(sca.data.mtx[value].sum(0))[0]
+#         df = pd.DataFrame.from_dict(bulk,orient='index')
 
-        bulk_index = {}
-        for key, value in bulkd.items(): 
-            bulk_index[key] = value
-        df_index = pd.DataFrame.from_dict(bulk_index,orient='index')
+
+#         m = _dcpnmf.DCPoissonMF(n_components=max_depth,verbose=True)
+#         m.fit(df.to_numpy())
+#         B = m.Ebeta
+#         T = m.Etheta
+
+#         bulk_index = {}
+#         for key, value in bulkd.items(): 
+#             bulk_index[key] = value
+#         df_index = pd.DataFrame.from_dict(bulk_index,orient='index')
         
-        cell_topic_assignment = {}
-        for indx,row in df_index.iterrows():
-            for i in row[pd.Series(row).notna()].values: cell_topic_assignment[ sca.data.rows[int(i)]]=indx
+#         cell_topic_assignment = {}
+#         for indx,row in df_index.iterrows():
+#             for i in row[pd.Series(row).notna()].values: cell_topic_assignment[ sca.data.rows[int(i)]]=indx
 
-        tree_label = [ cell_topic_assignment[x] for x in sca.data.rows]
+#         tree_label = [ cell_topic_assignment[x] for x in sca.data.rows]
 
-        eval = []
-        eval.append(df_index.shape[0])
-        eval.append(iter)
-        eval.append(calinski_harabasz_score(sca.data.mtx,tree_label))
-        eval.append(davies_bouldin_score(sca.data.mtx,tree_label))
-        clust_val.append(eval)
+#         eval = []
+#         eval.append(df_index.shape[0])
+#         eval.append(iter)
+#         eval.append(calinski_harabasz_score(sca.data.mtx,tree_label))
+#         eval.append(davies_bouldin_score(sca.data.mtx,tree_label))
+#         clust_val.append(eval)
 
-        scaler = preprocessing.StandardScaler().fit(B)
-        rp_mat = scaler.transform(B)
+#         scaler = preprocessing.StandardScaler().fit(B)
+#         rp_mat = scaler.transform(B)
 
-        print('completed...'+str(iter))
+#         print('completed...'+str(iter))
 
-    pd.DataFrame(clust_val).to_csv(fn+"_cluster_val_trace.csv.gz",compression='gzip',index=False)
-    df_index.to_csv(fn+"_"+str(n_iter)+"_rp_bulk_index.csv.gz",compression='gzip',index=False)
-    pd.DataFrame(B).to_csv(fn+"_"+str(n_iter)+"_beta.csv.gz",compression='gzip',index=False)
+#     pd.DataFrame(clust_val).to_csv(fn+"_cluster_val_trace.csv.gz",compression='gzip',index=False)
+#     df_index.to_csv(fn+"_"+str(n_iter)+"_rp_bulk_index.csv.gz",compression='gzip',index=False)
+#     pd.DataFrame(B).to_csv(fn+"_"+str(n_iter)+"_beta.csv.gz",compression='gzip',index=False)
 
 rum_model_with_gt()

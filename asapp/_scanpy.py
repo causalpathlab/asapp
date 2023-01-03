@@ -36,9 +36,17 @@ def run_scanpy(mtx,rows,cols,fn):
 	sc.pl.umap(adata, color=['leiden'])
 	plt.savefig(fn+'_scanpy_raw_pipeline_umap.png');plt.close()
 
-	df_leiden = pd.DataFrame(adata.obs['leiden']) 
-	df_leiden.index=adata.obs[0]
-	df_leiden = df_leiden.reset_index()
-	df_leiden.columns = ['cell','label']
-	df_leiden.to_csv(fn+'_scanpy_label.csv.gz',index=False, compression='gzip')
+	df_label= pd.DataFrame(adata.obs)
+	df_label = df_label.rename(columns={0:'cell'}) 
+	df_label = df_label[['cell','leiden']]
+
+	df_leiden = pd.DataFrame(adata.obsm['X_umap']) 
+	df_leiden.columns = ['umap1','umap2']  
+
+	df_label['umap1'] = df_leiden['umap1'].values
+	df_label['umap2'] = df_leiden['umap2'].values
+
+	df_label = df_label.rename(columns={'leiden':'label'}) 
+
+	df_label.to_csv(fn+'_scanpy_label.csv.gz',index=False, compression='gzip')
 
