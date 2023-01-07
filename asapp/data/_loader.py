@@ -28,3 +28,17 @@ def load_data(sca):
 	rows = csr_matrix((mtx_data,mtx_indices,mtx_indptr),shape=(len(row_ids),mtx_dim))
 	
 	sca.data.mtx= rows.todense()
+
+def sim_data(sca,N,K,P):
+	import _sim
+	H = _sim.generate_H(N, K)
+	W = _sim.generate_W(P, K)
+	R = np.matmul(H.T, W.T) 
+	X = np.random.poisson(R)
+
+	sca.data.rows = ['c_'+str(i) for i in range(N) ]
+	sca.data.cols = ['g_'+str(i) for i in range(P) ]
+	sca.data.mtx = np.asmatrix(X)
+
+	return H,W
+

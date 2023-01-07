@@ -2,7 +2,7 @@ import numpy as np
 from scipy import special
 
 class DCPoissonMF():
-    def __init__(self, n_components=10, max_iter=10, tol=1e-3,
+    def __init__(self, n_components=10, max_iter=25, tol=1e-6,
                  smoothness=100, random_state=None, verbose=True,
                  **kwargs):
 
@@ -67,21 +67,18 @@ class DCPoissonMF():
         self.EF, self.ElogF = _compute_expectations(self.F_a, self.F_b)
 
     def _update_null(self, X):
-        print('updaing null model....')
+        print('updating null model....')
         old_bd = -np.inf
         for i in range(self.max_iter):
             self._update_depth(X)
             self._update_frequency(X)
             bound = self._bound_null(X)
             improvement = (bound - old_bd) / abs(old_bd)
-            if self.verbose:
-                print('\r\tAfter ITERATION: %d\tObjective: %.2f\t'
+            print('\r\tAfter ITERATION: %d\tObjective: %.2f\t'
                                  'Old objective: %.2f\t'
                                  'Improvement: %.5f' % (i, bound, old_bd,
                                                         improvement))
                                                         
-                frob_norm = np.linalg.norm(X - np.dot(self.ED,self.EF), 'fro')
-                print(frob_norm)
             if improvement < self.tol:
                 break
             old_bd = bound
@@ -153,19 +150,16 @@ class DCPoissonMF():
         return bound
     
     def fit(self, X):
-        
         self.n_samples, self.n_feats = X.shape
-
         self.fit_null(X)
-
         self._init_beta(self.n_feats)
         self._init_theta(self.n_samples)
-        print(self.theta_a.shape,self.theta_b.shape,self.Etheta.shape,self.Elogtheta.shape)
-        print(self.beta_a.shape,self.beta_b.shape,self.Ebeta.shape,self.Elogbeta.shape)
         self._update(X)
         return self
 
     def transform(self, X, attr=None):
+        print('generating single cell topic proportion from bulk model....')
+        
         self.n_samples, self.n_feats = X.shape    
         if not hasattr(self, 'Ebeta'):
             raise ValueError('There are no pre-trained components.')
@@ -177,29 +171,37 @@ class DCPoissonMF():
 
         self.fit_null(X)
         self._init_theta(self.n_samples)
-        self._update(X, update_beta=False)
+
+        print('updating bulk to sc model....')
+        self.bound_sc = []
+        prev_bound = -np.inf
+        for i in range(self.max_iter):
+            self._update_theta(X)
+            curr_bound = self._bound(X)
+            self.bound_sc.append(curr_bound)
+            print('updating bulk to sc model....'+str(i))
+            # if ((curr_bound - prev_bound) / abs(prev_bound)) < self.tol:
+            #     break
+            # else:
+            prev_bound = curr_bound
         return getattr(self, attr)
 
 
     def _update(self, X, update_beta=True):
-        old_bd = -np.inf
+        print('updating full model....')
+        self.bound = []
+        prev_bound = -np.inf
         for i in range(self.max_iter):
             self._update_theta(X)
             if update_beta:
                 self._update_beta(X)
-            bound = self._bound(X)
-            # break
-            improvement = (bound - old_bd) / abs(old_bd)
-            if self.verbose:
-                print('\r\tAfter ITERATION: %d\tObjective: %.2f\t'
-                                 'Old objective: %.2f\t'
-                                 'Improvement: %.5f' % (i, bound, old_bd,
-                                                        improvement))
-            if improvement < self.tol:
-                break
-            old_bd = bound
-        if self.verbose:
-            print('\n')
+            curr_bound = self._bound(X)
+            self.bound.append(curr_bound)
+            print('updating full model....'+str(i))
+            # if ((curr_bound - prev_bound) / abs(prev_bound)) < self.tol:
+            #     break
+            # else:
+            prev_bound = curr_bound
         pass
 
 def _compute_expectations(alpha, beta):

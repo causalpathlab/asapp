@@ -2,7 +2,7 @@ import numpy as np
 from scipy import special
 
 class DCPoissonMF():
-    def __init__(self, n_components=10, max_iter=10, tol=1e-3,
+    def __init__(self, n_components=10, max_iter=25, tol=1e-3,
                  smoothness=100, random_state=None, verbose=True,
                  **kwargs):
 
@@ -129,8 +129,8 @@ class DCPoissonMF():
         self.t_c = 1. / np.mean(self.Etheta)
 
     def _update_beta(self, X):
-        ratio = X / self._xexplog()
         self.beta_a = self.b_a + np.exp(self.Elogbeta) * np.dot(np.exp(self.Elogtheta).T, ratio)
+        ratio = X / self._xexplog()
 
         ## base model 
         # self.beta_b = np.tile((self.b_a + np.sum(self.Etheta, axis=0, keepdims=True).T),self.n_feats).reshape(self.n_components,self.n_feats)
@@ -215,7 +215,7 @@ def _gamma_term(a, b, shape, rate, Ex, Elogx):
 class DCPoissonMFB(DCPoissonMF):
     ''' Poisson matrix factorization with stochastic inference '''
     def __init__(self, n_components=100, batch_size=32, n_pass=10,
-                 max_iter=10, tol=0.0005, shuffle=True, smoothness=100,
+                 max_iter=50, tol=0.0005, shuffle=True, smoothness=100,
                  random_state=None, verbose=False,
                  **kwargs):
 
@@ -245,6 +245,7 @@ class DCPoissonMFB(DCPoissonMF):
         n_samples, n_feats = X.shape
         self._scale = float(n_samples) / self.batch_size
         self._init_beta(n_feats)
+        self.fit_null(X)
         self.bound = list()
         for count in range(self.n_pass):
             if self.verbose:

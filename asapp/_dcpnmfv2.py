@@ -2,7 +2,7 @@ import numpy as np
 from scipy import special
 
 class DCPoissonMF():
-    def __init__(self, n_components=10, max_iter=10, tol=1e-6,
+    def __init__(self, n_components=10, max_iter=50, tol=1e-6,
                  smoothness=100, random_state=None, verbose=True,
                  **kwargs):
 
@@ -111,12 +111,12 @@ class DCPoissonMF():
         self.ED = self.ED * S
 
     ### model
-    def _update_aux(self,esp=1e-7):
+    def _update_aux(self,eps=1e-7):
         
         #### using digamma 
         theta = special.psi(self.theta_a) - np.log(self.theta_b)
         beta = special.psi(self.beta_a) - np.log(self.beta_b)
-        aux = np.einsum('ik,jk->ijk', np.exp(theta), np.exp(beta).T) + esp
+        aux = np.einsum('ik,jk->ijk', np.exp(theta), np.exp(beta).T) + eps
         self.aux = aux / (np.sum(aux, axis=2)[:, :, np.newaxis])
 
         #### using precalculated explog
@@ -140,6 +140,7 @@ class DCPoissonMF():
     def _update_theta(self, X):
 
         self.theta_a = self.t_a + np.einsum('ij,ijk->ik',X,self.aux)
+        
         ## dc model 
         # self.theta_b =  self.t_a * self.t_c + self.ED * np.einsum('j,jk->ik',self.EF,self.Ebeta,),self.n_samples).T,
 
@@ -170,8 +171,6 @@ class DCPoissonMF():
         self._init_beta(self.n_feats)
         self._init_theta(self.n_samples)
         self._init_aux()
-        print(self.theta_a.shape,self.theta_b.shape,self.Etheta.shape,self.Elogtheta.shape)
-        print(self.beta_a.shape,self.beta_b.shape,self.Ebeta.shape,self.Elogbeta.shape)
         self._update(X)
         return self
 
@@ -209,8 +208,8 @@ class DCPoissonMF():
                                  'Old objective: %.2f\t'
                                  'Improvement: %.5f' % (i, bound, old_bd,
                                                         improvement))
-            # if improvement < self.tol:
-            #     break
+            if improvement < self.tol:
+                break
             old_bd = bound
         if self.verbose:
             print('\n')
