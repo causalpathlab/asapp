@@ -133,6 +133,8 @@ class DCStepTree:
             dcvec = np.asarray(np.dot(current_dcmat,current_rp_mat))
 
             rpdcvec = rpvec - dcvec
+            # rpdcvec = np.log(rpvec+1) - np.log(dcvec+1)
+            
             pos = []
             neg = []
             for indx,val in enumerate(rpdcvec.flatten()):

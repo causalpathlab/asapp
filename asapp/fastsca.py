@@ -31,7 +31,7 @@ class FASTSCA:
     def loaddata(self):
         _loader.load_data(self)
 
-def run_asapp(sca,min_leaf=10,max_depth=10,save=None):
+def run_asapp(sca,min_leaf,max_depth,n_components,max_iter,save=None):
     rp_mat = []
     for i in range(max_depth):
         rp_mat.append(np.random.normal(size = (sca.data.mtx.shape[1],1)).flatten())
@@ -51,17 +51,17 @@ def run_asapp(sca,min_leaf=10,max_depth=10,save=None):
     for key, value in bulkd.items(): 
         bulk[key] = np.asarray(sca.data.mtx[value].sum(0))[0]
 
-    m = _dcpnmf.DCPoissonMF(n_components=max_depth)    
+    m = _dcpnmf.DCPoissonMF(n_components=n_components,max_iter=max_iter)    
     m.fit(pd.DataFrame.from_dict(bulk,orient='index').to_numpy())
 
-    m.transform(np.asarray(sca.data.mtx))
+    m.transform(np.asarray(sca.data.mtx),max_iter)
 
     if save:
         save_model(sca,m,save)
     return m
 
 
-def run_dcasapp(sca,min_leaf=10,max_depth=10,n_components=10,save=None):
+def run_dcasapp(sca,min_leaf,max_depth,n_components,max_iter,save=None):
 
     model = _dcnpnmf.DCNPoissonMF()
     model.fit_null(np.asarray(sca.data.mtx))
@@ -91,13 +91,13 @@ def run_dcasapp(sca,min_leaf=10,max_depth=10,n_components=10,save=None):
         bulk[key] = np.asarray(sca.data.mtx[value].sum(0))[0]
 
 
-    m = _dcpnmf.DCPoissonMF(n_components=n_components)    
+    m = _dcpnmf.DCPoissonMF(n_components=n_components,max_iter=max_iter)    
 
     logger.info('running dcpnmf bulk model...n_components..'+str(n_components))
     m.fit(pd.DataFrame.from_dict(bulk,orient='index').to_numpy())
 
     logger.info('running dcpnmf single cell model...')
-    m.transform(np.asarray(sca.data.mtx))
+    m.transform(np.asarray(sca.data.mtx),max_iter)
 
     if save:
         logger.info('saving model...')
@@ -106,9 +106,9 @@ def run_dcasapp(sca,min_leaf=10,max_depth=10,n_components=10,save=None):
         return m
 
 
-def run_scNMF(sca,save=None):
+def run_scNMF(sca,n_components,max_iter,save=None):
     X = np.asarray(sca.data.mtx)
-    model = _dcpnmf.DCPoissonMF(n_components=10,max_iter=50)
+    model = _dcpnmf.DCPoissonMF(n_components,max_iter)
     model.fit(X)
     if save:
         save_model(sca,model,save,'sc')

@@ -2,7 +2,7 @@ import numpy as np
 from scipy import special
 
 class DCPoissonMF():
-    def __init__(self, n_components=10, max_iter=25, tol=1e-6,
+    def __init__(self, n_components=10, max_iter=50, tol=1e-6,
                  smoothness=100, random_state=None, verbose=True,
                  **kwargs):
 
@@ -157,10 +157,13 @@ class DCPoissonMF():
         self._update(X)
         return self
 
-    def transform(self, X, attr=None):
+    def transform(self, X, max_iter,attr=None):
         print('generating single cell topic proportion from bulk model....')
         
-        self.n_samples, self.n_feats = X.shape    
+        self.n_samples, self.n_feats = X.shape 
+
+        self.max_iter = max_iter
+           
         if not hasattr(self, 'Ebeta'):
             raise ValueError('There are no pre-trained components.')
         if self.n_feats != self.Ebeta.shape[1]:
