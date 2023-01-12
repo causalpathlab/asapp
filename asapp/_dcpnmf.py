@@ -1,9 +1,12 @@
 import numpy as np
 from scipy import special
+import logging
+logger = logging.getLogger(__name__)
+
 
 class DCPoissonMF():
     def __init__(self, n_components=10, max_iter=50, tol=1e-6,
-                 smoothness=100, random_state=None, verbose=True,
+                 smoothness=100, random_state=None, 
                  **kwargs):
 
         self.n_components = n_components
@@ -11,7 +14,6 @@ class DCPoissonMF():
         self.tol = tol
         self.smoothness = smoothness
         self.random_state = random_state
-        self.verbose = verbose
 
         if type(self.random_state) is int:
             np.random.seed(self.random_state)
@@ -67,23 +69,15 @@ class DCPoissonMF():
         self.EF, self.ElogF = _compute_expectations(self.F_a, self.F_b)
 
     def _update_null(self, X):
-        print('updating null model....')
         old_bd = -np.inf
         for i in range(self.max_iter):
             self._update_depth(X)
             self._update_frequency(X)
             bound = self._bound_null(X)
-            improvement = (bound - old_bd) / abs(old_bd)
-            print('\r\tAfter ITERATION: %d\tObjective: %.2f\t'
-                                 'Old objective: %.2f\t'
-                                 'Improvement: %.5f' % (i, bound, old_bd,
-                                                        improvement))
-                                                        
+            improvement = (bound - old_bd) / abs(old_bd)                                                        
             if improvement < self.tol:
                 break
             old_bd = bound
-        if self.verbose:
-            print('\n')
         pass
 
     def fit_null(self, X):
@@ -107,35 +101,20 @@ class DCPoissonMF():
     ### model
 
     def _xexplog(self):
-        '''
-        sum_k exp(E[log theta_{ik} * beta_{kd}])
-        '''
         return np.dot(np.exp(self.Elogtheta), np.exp(self.Elogbeta))
 
     def _update_theta(self, X):
         ratio = X / self._xexplog()        
         self.theta_a = self.t_a + np.exp(self.Elogtheta) * np.dot(ratio, np.exp(self.Elogbeta).T)
-
-        ## base model 
-        # self.theta_b = np.tile((self.t_a * self.t_c + np.sum(self.Ebeta, axis=1)).T,self.n_samples).reshape(self.n_samples,self.n_components)
-
-        ## dc model 
         self.theta_b =  self.t_a * self.t_c + np.multiply(np.tile(np.dot(self.Ebeta,self.EF.T),self.n_samples).T,self.ED)
-        
         self.Etheta, self.Elogtheta = _compute_expectations(self.theta_a, self.theta_b)
         self.t_c = 1. / np.mean(self.Etheta)
 
     def _update_beta(self, X):
         ratio = X / self._xexplog()
         self.beta_a = self.b_a + np.exp(self.Elogbeta) * np.dot(np.exp(self.Elogtheta).T, ratio)
-
-        ## base model 
-        # self.beta_b = np.tile((self.b_a + np.sum(self.Etheta, axis=0, keepdims=True).T),self.n_feats).reshape(self.n_components,self.n_feats)
-        
-        ## dc model 
         bb = np.tile(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
         self.beta_b = self.b_a + np.multiply(bb.reshape(self.n_components,self.n_feats).T,self.EF.T).T
-
         self.Ebeta, self.Elogbeta = _compute_expectations(self.beta_a, self.beta_b)
 
     
@@ -158,40 +137,26 @@ class DCPoissonMF():
         return self
 
     def transform(self, X, max_iter,attr=None):
-        print('generating single cell topic proportion from bulk model....')
-        
         self.n_samples, self.n_feats = X.shape 
-
-        self.max_iter = max_iter
-           
-        if not hasattr(self, 'Ebeta'):
-            raise ValueError('There are no pre-trained components.')
-        if self.n_feats != self.Ebeta.shape[1]:
-            raise ValueError('The dimension of the transformed data '
-                             'does not match with the existing components.')
-        if attr is None:
-            attr = 'Etheta'
-
+        self.max_iter = max_iter           
         self.fit_null(X)
         self._init_theta(self.n_samples)
-
-        print('updating bulk to sc model....')
         self.bound_sc = []
         prev_bound = -np.inf
         for i in range(self.max_iter):
             self._update_theta(X)
             curr_bound = self._bound(X)
             self.bound_sc.append(curr_bound)
-            print('updating bulk to sc model....'+str(i))
             # if ((curr_bound - prev_bound) / abs(prev_bound)) < self.tol:
             #     break
             # else:
             prev_bound = curr_bound
-        return getattr(self, attr)
-
 
     def _update(self, X, update_beta=True):
-        print('updating full model....')
+        if update_beta:
+            logging.info('updating full model....')
+        else:
+            logging.info('updating theta only....')
         self.bound = []
         prev_bound = -np.inf
         for i in range(self.max_iter):
@@ -200,7 +165,6 @@ class DCPoissonMF():
                 self._update_beta(X)
             curr_bound = self._bound(X)
             self.bound.append(curr_bound)
-            print('updating full model....'+str(i))
             # if ((curr_bound - prev_bound) / abs(prev_bound)) < self.tol:
             #     break
             # else:
@@ -208,11 +172,98 @@ class DCPoissonMF():
         pass
 
 def _compute_expectations(alpha, beta):
-    '''
-    Given x ~ Gam(alpha, beta), compute E[x] and E[log x]
-    '''
     return (alpha / beta, special.psi(alpha) - np.log(beta))
 
 def _gamma_term(a, b, shape, rate, Ex, Elogx):
     return np.sum((a - shape) * Elogx - (b - rate) * Ex + (special.gammaln(shape) - shape * np.log(rate)))
 
+
+class DCPoissonMFB(DCPoissonMF):
+    ''' Poisson matrix factorization with stochastic inference '''
+    def __init__(self, n_components=100, batch_size=32, n_pass=2,
+                 max_iter=5 , tol=0.0005, shuffle=True, smoothness=100,
+                 random_state=None,
+                 **kwargs):
+
+        self.n_components = n_components
+        self.batch_size = batch_size
+        self.n_pass = n_pass
+        self.max_iter = max_iter
+        self.tol = tol
+        self.shuffle = shuffle
+        self.smoothness = smoothness
+        self.random_state = random_state
+
+        if type(self.random_state) is int:
+            np.random.seed(self.random_state)
+        elif self.random_state is not None:
+            np.random.setstate(self.random_state)
+
+        self._parse_args(**kwargs)
+        self._parse_args_batch(**kwargs)
+
+    def _parse_args_batch(self, **kwargs):
+        self.t0 = float(kwargs.get('t0', 1.))
+        self.kappa = float(kwargs.get('kappa', 0.6))
+
+    def fit(self, X):
+        n_samples, n_feats = X.shape
+        self._scale = float(n_samples) / self.batch_size
+        self._init_beta(n_feats)
+        self.fit_null(X)
+        self.bound = []
+        for count in range(self.n_pass):
+            if count%10==0:
+                logging.info('Pass over entire data round...'+str(count))
+            indices = np.arange(n_samples)
+            if self.shuffle:
+                np.random.shuffle(indices)
+            X_shuffled = X[indices]
+            bound = []
+            for (i, istart) in enumerate(range(0, n_samples,self.batch_size), 1):
+                iend = min(istart + self.batch_size, n_samples)
+                self.set_learning_rate(iter=i)
+                mini_batch = X_shuffled[istart: iend]
+                self.partial_fit(mini_batch)
+                bound.append(self._bound(mini_batch))
+            self.bound.append(np.mean(bound))
+        return self
+
+    def partial_fit(self, X):
+        self.partial_fit_theta(X,self.max_iter)
+        self._update_beta(X)
+        # ratio = X / self._xexplog()
+        # self.beta_a = (1 - self.rho) * self.beta_a + self.rho * \
+        #     (self.b_a + self._scale * np.exp(self.Elogbeta) * np.dot(np.exp(self.Elogtheta).T, ratio))
+        # bb = np.tile(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
+        # self.beta_b = (1 - self.rho) * self.beta_b + self.rho * \
+        #     (self.b_a + self._scale * np.multiply(bb.reshape(self.n_components,self.n_feats).T,self.EF.T).T)
+        # self.Ebeta, self.Elogbeta = _compute_expectations(self.beta_a, self.beta_b)
+
+    def set_learning_rate(self, iter=None, rho=None):
+        if rho is not None:
+            self.rho = rho
+        elif iter is not None:
+            self.rho = (iter + self.t0)**(-self.kappa)
+        else:
+            raise ValueError('invalid learning rate.')
+        return self
+
+    # def _stoch_bound(self, X):
+    #     bound = np.sum(X * np.log(self._xexplog()) - self.Etheta.dot(self.Ebeta))
+    #     bound += _gamma_term(self.t_a, self.t_a * self.t_c,
+    #                          self.theta_a, self.theta_b,
+    #                          self.Etheta, self.Elogtheta)
+    #     bound += self.n_components * X.shape[0] * self.t_a * np.log(self.t_c)
+    #     bound += _gamma_term(self.b_a, self.b_a, self.beta_a, self.beta_b,
+    #                          self.Ebeta, self.Elogbeta)
+    #     return bound
+
+
+    def partial_fit_theta(self, X, max_iter):
+        self.n_samples, self.n_feats = X.shape 
+        self.max_iter = max_iter
+        self.fit_null(X)
+        self._init_theta(self.n_samples)
+        for i in range(self.max_iter):
+            self._update_theta(X)
