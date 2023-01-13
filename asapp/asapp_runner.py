@@ -3,10 +3,16 @@ from collections import namedtuple
 from pathlib import Path
 import pandas as pd
 import numpy as np
-import fastsca
 import logging
-import _dcpnmf
-np.random.seed(42)
+from scannotation import ASAPP
+from util._dataloader import DataSet
+from util import _topics
+
+
+import matplotlib.pylab as plt
+import seaborn as sns
+import colorcet as cc
+
 
 experiment = '/projects/experiments/asapp/'
 server = Path.home().as_posix()
@@ -14,33 +20,37 @@ experiment_home = server+experiment
 experiment_config = read_config(experiment_home+'config.yaml')
 args = namedtuple('Struct',experiment_config.keys())(*experiment_config.values())
 
-sca = fastsca.FASTSCA()
-sca.config = args
+dl = DataSet()
+dl.config = args
+dl.initialize_path()
+print(dl.inpath)
+print(dl.outpath)
 
-fn = sca.config.home + sca.config.experiment +sca.config.output + sca.config.sample_id+'/'+sca.config.sample_id
 
-
-logging.basicConfig(filename=fn+'_model.log',
+logging.basicConfig(filename=dl.outpath+'_model.log',
 						format='%(asctime)s %(levelname)-8s %(message)s',
 						level=logging.INFO,
 						datefmt='%Y-%m-%d %H:%M:%S')
 
 
 
-# for real data
-# sca.initdata()
-# sca.loaddata()
-# print(sca.data.mtx.shape)
 
-# for sim data
-X = pd.read_csv(fn+'_X.csv.gz')
-sca.data.mtx = np.asmatrix(X)
+## for sim data
+N=1000
+K=10
+P=2000
+X = pd.read_csv(dl.inpath+'_X.csv.gz')
+dl.mtx = np.asmatrix(X)
+dl.rows = ['c_'+str(i) for i in range(N) ]
+dl.cols = ['g_'+str(i) for i in range(P) ]
 
 
-### batch
-fastsca.run_dcasapp(sca,min_leaf=10,max_depth=10,n_components=10,max_iter=5,n_pass=50,mode='batch',save=fn)
-fastsca.run_scNMF(sca,n_components=10,max_iter=5,n_pass=25,batch_size=256,mode='batch',save=fn+'_sc')
+asap = ASAPP(adata=dl)
+asap.generate_bulk()
+asap.factorize()
+asap.save_model()
 
-### all
-# fastsca.run_dcasapp(sca,min_leaf=1,max_depth=10,n_components=10,max_iter=100,mode='all',save=fn)
-# fastsca.run_scNMF(sca,n_components=10,max_iter=50,mode='all',save=fn+'_sc')
+dl.outpath += '_sc'
+asapsc = ASAPP(adata=dl,experiment_mode='sc')
+asapsc.factorize()
+asapsc.save_model()
