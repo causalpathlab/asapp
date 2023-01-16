@@ -40,7 +40,7 @@ class DataSet:
 			self.data.mtx= rows.todense()
 
 		def sim_data(self,N,K,P):
-			import experiments.asapp.asapp.util._sim as _sim
+			from util import _sim as _sim
 			H = _sim.generate_H(N, K)
 			W = _sim.generate_W(P, K)
 			R = np.matmul(H.T, W.T) 

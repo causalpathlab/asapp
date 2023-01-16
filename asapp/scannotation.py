@@ -1,3 +1,4 @@
+from model import _dcpmfv2
 from util import _dataloader
 import pandas as pd
 import numpy as np
@@ -36,12 +37,12 @@ class ASAPP:
         adata : DataSet,
         tree_min_leaf : int = 10,
         tree_max_depth : int = 10,
-        factorization_mode : Literal['batch','all']='batch',
+        factorization_mode : Literal['batch','all']='all',
         experiment_mode : Literal['bulk','sc']='bulk',
         n_components : int = 10,
-        max_iter : int = 10,
-        n_pass : int = 10,
-        batch_size : int = 32
+        max_iter : int = 50,
+        n_pass : int = 25,
+        batch_size : int = 64
     ):
         self.adata = adata
         self.tree_min_leaf = tree_min_leaf
@@ -95,7 +96,7 @@ class ASAPP:
     def factorize(self):
         if self.factorization_mode =='batch':
             logger.info('factorization mode...batch')
-            self.model = _dcpmf.DCPoissonMFBatch(n_components=self.n_components,max_iter=self.max_iter,n_pass=self.n_pass,batch_size=self.batch_size)    
+            self.model = _dcpmfv2.DCPoissonMFBatch(n_components=self.n_components,max_iter=self.max_iter,n_pass=self.n_pass,batch_size=self.batch_size)    
             if self.experiment_mode=='bulk':
                 logger.info('running bulk model..with..n_components..'+str(self.n_components))
                 self.model.fit(self.bulk_mat)
@@ -109,7 +110,8 @@ class ASAPP:
             
         else:
             logger.info('factorization mode...all')
-            self.model = _dcpmf.DCPoissonMF(n_components=self.n_components,max_iter=self.max_iter)
+            # self.model = _dcpmf.DCPoissonMF(n_components=self.n_components,max_iter=self.max_iter)
+            self.model = _dcpmfv2.DCPoissonMF(n_components=self.n_components, verbose=True,max_iter=self.max_iter)
             if self.experiment_mode=='bulk':    
                 logger.info('running bulk model..with..n_components..'+str(self.n_components))
                 self.model.fit(self.bulk_mat)
@@ -117,7 +119,7 @@ class ASAPP:
                 self.model.transform(np.asarray(self.adata.mtx),self.max_iter)
             elif self.experiment_mode=='sc':    
                 logger.info('running sc model..with..n_components..'+str(self.n_components))
-                self.model.fit(self.bulk_mat)
+                self.model.fit(np.asarray(self.adata.mtx))
                 logger.info('running sc model for single cell theta...')
                 self.model.transform(np.asarray(self.adata.mtx),self.max_iter)
 
@@ -130,7 +132,5 @@ class ASAPP:
         pd.DataFrame(self.model.Ebeta,columns=self.adata.cols).to_csv(self.adata.outpath+'_model_beta.csv.gz',compression='gzip')
         pd.DataFrame(self.model.Etheta,index=self.adata.rows).to_csv(self.adata.outpath+'_model_theta.csv.gz',compression='gzip')
         pd.DataFrame(self.model.bound).to_csv(self.adata.outpath+'_model_bulk_trace.csv.gz',compression='gzip')
-        if self.experiment_mode == 'bulk':
-            pd.DataFrame(self.model.bound_sc).to_csv(self.adata.outpath+'_model_sc_trace.csv.gz',compression='gzip')
 
 

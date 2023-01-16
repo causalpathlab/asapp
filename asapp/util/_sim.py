@@ -5,7 +5,7 @@ def sample_gamma(shape, rate, size):
 	return np.random.gamma(shape, 1./rate, size=size)
 
 def generate_H(N, K, alpha=1., eps=2.):
-	H = sample_gamma(alpha, 1., size=(K, N))
+	H = sample_gamma(alpha, 1., size=(N,K))
 	for k in range(K):
 		size = H[k:k+1, int(k*N/K):int((k+1)*N/K)].shape
 		H[k:k+1, int(k*N/K):int((k+1)*N/K)] =  sample_gamma(np.random.random(1)/10, 1./1000., size=size)

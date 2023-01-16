@@ -1,3 +1,5 @@
+
+
 import numpy as np
 from scipy import special
 import logging
@@ -17,6 +19,8 @@ class DCNullPoissonMF():
             np.random.seed(self.random_state)
         elif self.random_state is not None:
             np.random.setstate(self.random_state)
+        else:
+            np.random.seed(42)
 
         self._parse_args(**kwargs)
 
@@ -80,7 +84,7 @@ class DCNullPoissonMF():
         self.ED = self.ED * S
 
 class DCPoissonMF(DCNullPoissonMF):
-    def __init__(self, n_components=10,max_iter=50, tol=1e-6,
+    def __init__(self, n_components=10, max_iter=50, tol=1e-6,
                  smoothness=100, random_state=None, verbose=True,
                  **kwargs):
 
@@ -103,10 +107,8 @@ class DCPoissonMF(DCNullPoissonMF):
     def _parse_args(self, **kwargs):
         self.df_a = float(kwargs.get('df_a', 0.1))
         self.df_b = float(kwargs.get('df_b', 0.1))
-        self.t_a = float(kwargs.get('t_a', 0.5))
-        self.b_a = float(kwargs.get('b_a', 0.5))
-        self.t_b = float(kwargs.get('t_a', 1.0))
-        self.b_b = float(kwargs.get('b_a', 10.))
+        self.t_a = float(kwargs.get('t_a', 0.1))
+        self.b_a = float(kwargs.get('b_a', 0.1))
 
     def _init_beta(self, n_feats):
         self.beta_a = self.smoothness \
@@ -114,7 +116,6 @@ class DCPoissonMF(DCNullPoissonMF):
         self.beta_b = self.smoothness \
             * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(self.n_components, n_feats))
         self.Ebeta, self.Elogbeta = _compute_expectations(self.beta_a, self.beta_b)
-        self.d = 1. / np.mean(self.Ebeta)
 
     def _init_theta(self, n_samples):
         self.theta_a = self.smoothness \
@@ -122,95 +123,150 @@ class DCPoissonMF(DCNullPoissonMF):
         self.theta_b = self.smoothness \
             * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(n_samples,self.n_components))
         self.Etheta, self.Elogtheta = _compute_expectations(self.theta_a, self.theta_b)
-        self.c = 1. / np.mean(self.Etheta)
+        self.t_c = 1. / np.mean(self.Etheta)
     
+    def _init_aux(self):
+        self.aux = np.ones((self.theta_a.shape[1],self.theta_a.shape[0],self.beta_a.shape[1]))
+
     ### model
+    def _update_aux(self,eps=1e-7):
+        
+        #### using digamma 
+        theta = special.psi(self.theta_a) - np.log(self.theta_b)
+        beta = special.psi(self.beta_a) - np.log(self.beta_b)
+        aux = np.einsum('ik,jk->ijk', np.exp(theta), np.exp(beta).T) + eps
+        self.aux = aux / (np.sum(aux, axis=2)[:, :, np.newaxis])
+
+        #### using precalculated explog
+        # aux = np.zeros((self.theta_a.shape[1],self.theta_a.shape[0],self.beta_a.shape[1]))
+        # for i in range(self.aux.shape[0]):
+        #     theta = self.Elogtheta[:,i].reshape(self.Elogtheta.shape[0],-1)
+        #     beta = self.Elogbeta[i,:].reshape(self.Elogbeta.shape[1],-1).T
+        #     aux[i,:,:] = np.dot(np.exp(theta),np.exp(beta)) + 1e-7
+        # k_sum = aux.sum(axis=0)
+        # for i in range(self.aux.shape[0]):
+        #     self.aux[i,:,:] = aux[i,:,:]/k_sum  
+
+
 
     def _xexplog(self):
         return np.dot(np.exp(self.Elogtheta), np.exp(self.Elogbeta))
 
     def _update_theta(self, X):
-        ratio = X / self._xexplog()        
-        self.theta_a = self.t_a + np.multiply(np.exp(self.Elogtheta) , np.dot(ratio, np.exp(self.Elogbeta).T))
-        self.theta_b =  self.t_b + np.multiply(np.tile(np.dot(self.Ebeta,self.EF.T),self.n_samples).T,self.ED)
+        self.theta_a = self.t_a + np.einsum('ij,ijk->ik',X,self.aux)
+        self.theta_b =  self.t_a * self.t_c + np.multiply(np.tile(np.dot(self.Ebeta,self.EF.T),self.n_samples).T,self.ED)
         self.Etheta, self.Elogtheta = _compute_expectations(self.theta_a, self.theta_b)
         self.t_c = 1. / np.mean(self.Etheta)
 
     def _update_beta(self, X):
-        ratio = X / self._xexplog()
-        self.beta_a = self.b_a + np.multiply(np.exp(self.Elogbeta) , np.dot(np.exp(self.Elogtheta).T, ratio))
+        self.beta_a = self.b_a + np.einsum('ij,ijk->kj',X,self.aux)
         bb = np.tile(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
-        self.beta_b = self.b_b + np.multiply(bb.reshape(self.n_components,self.n_feats).T,self.EF.T).T
+        self.beta_b = self.b_a + np.multiply(bb.reshape(self.n_components,self.n_feats).T,self.EF.T).T
         self.Ebeta, self.Elogbeta = _compute_expectations(self.beta_a, self.beta_b)
-        self.t_d = 1. / np.mean(self.Ebeta)
 
-    
-    def _bound(self, X):
-        bound = np.sum(np.multiply(X, np.log(self._xexplog()) - self.Etheta.dot(self.Ebeta)))
-        bound += _gamma_term(self.t_a, self.t_a * self.t_c,
-                             self.theta_a, self.theta_b,
-                             self.Etheta, self.Elogtheta)
-        bound += self.n_components * X.shape[0] * self.t_a * np.log(self.t_c)
-        bound += _gamma_term(self.b_a, self.b_a, self.beta_a, self.beta_b,
-                             self.Ebeta, self.Elogbeta)
-        return bound
-    
+                
     def fit(self, X):
         self.n_samples, self.n_feats = X.shape
         self.fit_null(X)
         self._init_beta(self.n_feats)
         self._init_theta(self.n_samples)
+        self._init_aux()
         self._update(X)
         return self
 
-    def transform(self, X,attr=None):
-        self.n_samples, self.n_feats = X.shape 
+    def transform(self, X, attr=None):
+        self.n_samples, self.n_feats = X.shape    
+        if not hasattr(self, 'Ebeta'):
+            raise ValueError('There are no pre-trained components.')
+        if self.n_feats != self.Ebeta.shape[1]:
+            raise ValueError('The dimension of the transformed data '
+                             'does not match with the existing components.')
+        if attr is None:
+            attr = 'Etheta'
+
         self.fit_null(X)
         self._init_theta(self.n_samples)
-        self.bound_sc = []
-        prev_bound = -np.inf
+        
+        # self._update(X, update_beta=False)
+        old_bd = -np.inf
+        self.bound_t = []
         for i in range(self.max_iter):
+            self._update_aux()
             self._update_theta(X)
-            current_bound = self._bound(X)
-            self.bound_sc.append(current_bound)
-            improvement = (current_bound - prev_bound)/abs(prev_bound)
+            # bound = self._bound(X)
+            bound = self._elbo(X)
+            self.bound_t.append(bound)
+            # break
+            improvement = (bound - old_bd) / abs(old_bd)
             if self.verbose:
                 print('\r\tAfter ITERATION: %d\tObjective: %.2f\t'
                                  'Old objective: %.2f\t'
-                                 'Improvement: %.5f' % (i, current_bound, prev_bound,
+                                 'Improvement: %.5f' % (i, bound, old_bd,
                                                         improvement))
-            # if improvement<self.tol:
+            # if improvement < self.tol:
             #     break
-            prev_bound = current_bound
+            old_bd = bound
+        if self.verbose:
+            print('\n')
         pass
+
+
 
     def _update(self, X, update_beta=True):
-        if update_beta:
-            logging.info('updating full model....')
-        else:
-            logging.info('updating theta only....')
+        old_bd = -np.inf
         self.bound = []
-        prev_bound = -np.inf
         for i in range(self.max_iter):
+            self._update_aux()
             self._update_theta(X)
             if update_beta:
+                self._update_aux()
                 self._update_beta(X)
-            current_bound = self._bound(X)
-            self.bound.append(current_bound)
-            improvement = (current_bound - prev_bound)/abs(prev_bound)
+            # bound = self._bound(X)
+            bound = self._elbo(X)
+            self.bound.append(bound)
+            improvement = (bound - old_bd) / abs(old_bd)
             if self.verbose:
                 print('\r\tAfter ITERATION: %d\tObjective: %.2f\t'
-                                    'Old objective: %.2f\t'
-                                    'Improvement: %.5f' % (i, current_bound, prev_bound,
-                                                            improvement))
-                # if improvement<self.tol:
-                #     break
-                prev_bound = current_bound
+                                 'Old objective: %.2f\t'
+                                 'Improvement: %.5f' % (i, bound, old_bd,
+                                                        improvement))
+            # if improvement < self.tol:
+            #     break
+            old_bd = bound
+        if self.verbose:
+            print('\n')
         pass
+    
 
+    def _elbo(self,X):
+
+        elbo = 0.0
+        E_aux = np.einsum('ij,ijk->ijk', X, self.aux)
+        t_b = self.t_a * self.t_c
+
+        E_log_pt = self.t_a * np.log(t_b) - special.gammaln(self.t_a) + (self.t_a -1)*self.Elogtheta - t_b*self.Etheta
+        E_log_pb = self.b_a * np.log(self.b_a) - special.gammaln(self.b_a) + (self.b_a -1)*self.Elogbeta - self.b_a*self.Ebeta
+
+        E_log_qt = self.theta_a * np.log(self.theta_b) - special.gammaln(self.theta_a) + (self.theta_a -1)*self.Elogtheta - self.theta_b*self.Etheta
+        E_log_qb = self.beta_a * np.log(self.beta_a) - special.gammaln(self.beta_a) + (self.beta_a -1)*self.Elogbeta - self.beta_a*self.Ebeta
+
+        elbo += np.sum(np.einsum('ijk,ik->i', E_aux,self.Elogtheta)) + np.einsum('ijk,jk->i', E_aux,self.Elogbeta.T)
+        elbo -= np.einsum('ik,jk->i', self.Etheta,self.Ebeta.T)
+        elbo += np.sum(E_log_pt)
+        elbo += np.sum(E_log_pb)
+        elbo -= np.sum(special.gammaln(X + 1.))
+        elbo -= np.sum(np.einsum('ijk->i', E_aux * np.log(self.aux)))
+        elbo -= np.sum(E_log_qt)
+        elbo -= np.sum(E_log_qb)
+        
+        return np.mean(elbo)
+
+def _compute_expectations(alpha, beta):
+    return (alpha / beta, special.psi(alpha) - np.log(beta))
+
+ ##  method: Stochastic online variational inference
 class DCPoissonMFBatch(DCPoissonMF):
-    ''' Poisson matrix factorization with stochastic inference '''
-    def __init__(self, n_components=10, batch_size=32, n_pass=15,
+    def __init__(self, n_components=10, batch_size=32, n_pass=25,
                  max_iter=5 , tol=1e-6, shuffle=True, smoothness=100,
                  random_state=None,verbose=True,
                  **kwargs):
@@ -229,6 +285,8 @@ class DCPoissonMFBatch(DCPoissonMF):
             np.random.seed(self.random_state)
         elif self.random_state is not None:
             np.random.setstate(self.random_state)
+        else:
+            np.random.seed(42)
 
         self._parse_args(**kwargs)
         self._parse_args_batch(**kwargs)
@@ -249,12 +307,15 @@ class DCPoissonMFBatch(DCPoissonMF):
             if self.shuffle:
                 np.random.shuffle(indices)
             X_shuffled = X[indices]
+            bound = []
             for (i, istart) in enumerate(range(0, n_samples,self.batch_size), 1):
                 iend = min(istart + self.batch_size, n_samples)
                 self.set_learning_rate(iter=i)
                 mini_batch = X_shuffled[istart: iend]
                 self.partial_fit(mini_batch)
-                self.bound.append(self._stoch_bound(mini_batch))
+                bound.append(self._elbo(mini_batch))
+            
+            self.bound.append(np.mean(bound))
         return self
 
     def partial_fit(self, X):
@@ -263,44 +324,46 @@ class DCPoissonMFBatch(DCPoissonMF):
         self.n_samples, self.n_feats = X.shape
         self.fit_null(X)
         self._init_theta(self.n_samples)
+        self._init_aux()
         for i in range(self.max_iter):
+            self._update_aux()
             self._update_theta(X)
 
-        ## optimize global
-        ratio = X / self._xexplog()
+        ## update global
         self.beta_a = (1 - self.rho) * self.beta_a + self.rho * \
-            (self.b_a + self._scale * np.multiply(np.exp(self.Elogbeta) , np.dot(np.exp(self.Elogtheta).T, ratio)))        
+            (self.b_a + self._scale * np.einsum('ij,ijk->kj',X,self.aux))
         bb = np.tile(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
         self.beta_b = (1 - self.rho) * self.beta_b + self.rho * \
-            (self.b_b + self._scale * np.multiply(bb.reshape(self.n_components,self.n_feats).T,self.EF.T).T)
+            (self.b_a + self._scale * np.multiply(bb.reshape(self.n_components,self.n_feats).T,self.EF.T).T)
         self.Ebeta, self.Elogbeta = _compute_expectations(self.beta_a, self.beta_b)
-        self.t_d = 1. / np.mean(self.Ebeta)
 
 
+    def set_learning_rate(self, iter):
+        self.rho = (iter + self.t0)**(-self.kappa)
 
-    def set_learning_rate(self, iter=None, rho=None):
-        if rho is not None:
-            self.rho = rho
-        elif iter is not None:
-            self.rho = (iter + self.t0)**(-self.kappa)
-        else:
-            raise ValueError('invalid learning rate.')
-        return self
 
-    def _stoch_bound(self, X):
-        bound = np.sum(np.multiply(X, np.log(self._xexplog()) - self.Etheta.dot(self.Ebeta)))
-        bound += _gamma_term(self.t_a, self.t_a * self.t_c,
-                             self.theta_a, self.theta_b,
-                             self.Etheta, self.Elogtheta)
-        bound += self.n_components * X.shape[0] * self.t_a * np.log(self.t_c)
-        bound *= self._scale
-        bound += _gamma_term(self.b_a, self.b_a, self.beta_a, self.beta_b,
-                             self.Ebeta, self.Elogbeta)
-        return bound
-    
-def _compute_expectations(alpha, beta):
-    return (alpha / beta, special.psi(alpha) - np.log(beta))
+    def _elbo(self,X):
 
-def _gamma_term(a, b, shape, rate, Ex, Elogx):
-    return np.sum(np.multiply((a - shape) , Elogx) - np.multiply((b - rate) , Ex) + (special.gammaln(shape) - np.multiply(shape , np.log(rate))))
+        elbo = 0.0
+        E_aux = np.einsum('ij,ijk->ijk', X, self.aux)
+        t_b = self.t_a * self.t_c
 
+        E_log_pt = self.t_a * np.log(t_b) - special.gammaln(self.t_a) + (self.t_a -1)*self.Elogtheta - t_b*self.Etheta
+        E_log_pb = self.b_a * np.log(self.b_a) - special.gammaln(self.b_a) + (self.b_a -1)*self.Elogbeta - self.b_a*self.Ebeta
+
+        E_log_qt = self.theta_a * np.log(self.theta_b) - special.gammaln(self.theta_a) + (self.theta_a -1)*self.Elogtheta - self.theta_b*self.Etheta
+        E_log_qb = self.beta_a * np.log(self.beta_a) - special.gammaln(self.beta_a) + (self.beta_a -1)*self.Elogbeta - self.beta_a*self.Ebeta
+
+        elbo += np.sum(np.einsum('ijk,ik->i', E_aux,self.Elogtheta)) + np.einsum('ijk,jk->i', E_aux,self.Elogbeta.T)
+        elbo -= np.einsum('ik,jk->i', self.Etheta,self.Ebeta.T)
+        elbo += np.sum(E_log_pt)
+        elbo += np.sum(E_log_pb)
+        elbo -= np.sum(special.gammaln(X + 1.))
+        elbo -= np.sum(np.einsum('ijk->i', E_aux * np.log(self.aux)))
+        elbo -= np.sum(E_log_qt)
+        elbo -= np.sum(E_log_qb)
+        
+        return np.mean(elbo)
+
+
+ ##  method: Memoized online variational inference
