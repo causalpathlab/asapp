@@ -1,10 +1,10 @@
-from model import _dcpmfv2
+from model import _dcpmf
 from util import _dataloader
 import pandas as pd
 import numpy as np
 import logging
 from typing import Literal
-from model import _dcpmf, _rpstruct as rp
+from model import _rpstruct as rp
 from util._dataloader import DataSet
 np.random.seed(42)
 
@@ -96,7 +96,7 @@ class ASAPP:
     def factorize(self):
         if self.factorization_mode =='batch':
             logger.info('factorization mode...batch')
-            self.model = _dcpmfv2.DCPoissonMFBatch(n_components=self.n_components,max_iter=self.max_iter,n_pass=self.n_pass,batch_size=self.batch_size)    
+            self.model = _dcpmf.DCPoissonMFBatch(n_components=self.n_components,max_iter=self.max_iter,n_pass=self.n_pass,batch_size=self.batch_size)    
             if self.experiment_mode=='bulk':
                 logger.info('running bulk model..with..n_components..'+str(self.n_components))
                 self.model.fit(self.bulk_mat)
@@ -110,8 +110,7 @@ class ASAPP:
             
         else:
             logger.info('factorization mode...all')
-            # self.model = _dcpmf.DCPoissonMF(n_components=self.n_components,max_iter=self.max_iter)
-            self.model = _dcpmfv2.DCPoissonMF(n_components=self.n_components, verbose=True,max_iter=self.max_iter)
+            self.model = _dcpmf.DCPoissonMF(n_components=self.n_components,max_iter=self.max_iter)
             if self.experiment_mode=='bulk':    
                 logger.info('running bulk model..with..n_components..'+str(self.n_components))
                 self.model.fit(self.bulk_mat)
