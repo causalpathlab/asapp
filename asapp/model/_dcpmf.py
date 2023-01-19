@@ -1,15 +1,17 @@
 import numpy as np
 from scipy import special
+from sklearn.base import BaseEstimator, TransformerMixin
 import logging
 logger = logging.getLogger(__name__)
 
-class DCNullPoissonMF():
-    def __init__(self,  max_iter=25, tol=1e-6, smoothness=100, random_state=None,verbose=False,**kwargs):
+
+
+class DCNullPoissonMF(BaseEstimator, TransformerMixin):
+    def __init__(self,  max_iter=10, tol=1e-6, smoothness=100, random_state=None,**kwargs):
         self.max_iter = max_iter
         self.tol = tol
         self.smoothness = smoothness
         self.random_state = random_state
-        self.verbose = verbose
         self._parse_args(**kwargs)
         self._set_random()
 
@@ -60,7 +62,6 @@ class DCNullPoissonMF():
             if improvement < self.tol:
                 break
             old_bd = bound
-        pass
 
     def fit_null(self, X):
         n_samples, n_feats = X.shape
@@ -68,7 +69,6 @@ class DCNullPoissonMF():
         self._init_depth(n_samples)
         self._update_null(X)
         self._update_baseline()
-        return self
 
     def _bound_null(self, X):
         lmbda = np.dot(self.ED,(self.EF))
@@ -85,16 +85,13 @@ class DCNullPoissonMF():
 
 class DCPoissonMF(DCNullPoissonMF):
     def __init__(self, n_components=10, max_iter=50, tol=1e-6,
-                 smoothness=100, random_state=None, verbose=True,
+                 smoothness=100, random_state=None,
                  **kwargs):
-
         self.n_components = n_components
         self.max_iter = max_iter
         self.tol = tol
         self.smoothness = smoothness
         self.random_state = random_state
-        self.verbose = verbose
-
         self._parse_args(**kwargs)
         self._set_random()
 
@@ -120,13 +117,27 @@ class DCPoissonMF(DCNullPoissonMF):
         self.t_c = 1. / np.mean(self.Etheta)
     
     def _init_aux(self):
-        self.aux = np.ones((self.theta_a.shape[1],self.theta_a.shape[0],self.beta_a.shape[1]))
+        self.aux = np.ones((self.theta_a.shape[0],self.beta_a.shape[1],self.theta_a.shape[1]))
 
-    def _update_aux(self,eps=1e-7):
+    def _update_aux(self):
         theta = special.digamma(self.theta_a) - np.log(self.theta_b)
         beta = special.digamma(self.beta_a) - np.log(self.beta_b)
-        aux = np.einsum('ik,jk->ijk', np.exp(theta), np.exp(beta).T) + eps
+        aux = np.einsum('ik,jk->ijk', np.exp(theta), np.exp(beta).T) 
         self.aux = aux / (np.sum(aux, axis=2)[:, :, np.newaxis])
+
+        ##### exp-normalize-trick
+        # try1:
+        # aux = np.einsum('ik,jk->ijk', theta, beta.T) 
+        # aux = np.exp(aux - np.max(aux,axis=2)[:,:,np.newaxis])        
+        # self.aux = aux / (np.sum(aux, axis=2)[:,:,np.newaxis])
+
+        # try2:
+        # aux = np.einsum('ik,jk->ik', theta, beta.T) 
+        # largest = np.max(aux,axis=1)
+        # aux = np.exp(aux -largest)
+        # aux = aux/(np.sum(aux,axis=1)[:,np.newaxis])
+        # self.aux=aux
+
 
     def _xexplog(self):
         return np.dot(np.exp(self.Elogtheta), np.exp(self.Elogbeta))
@@ -150,44 +161,28 @@ class DCPoissonMF(DCNullPoissonMF):
         self._init_theta(self.n_samples)
         self._init_aux()
         self._update(X)
-        return self
 
-    def transform(self, X, attr=None):
+    def predict_theta(self, X, predict_iter):
         self.n_samples, self.n_feats = X.shape    
         self.fit_null(X)
+        self._init_aux()
         self._init_theta(self.n_samples)
-        
-        old_bd = -np.inf
         self.bound_t = []
-        for i in range(self.max_iter):
+        for _ in range(predict_iter):
             self._update_aux()
             self._update_theta(X)
-            bound = self._elbo(X)
-            self.bound_t.append(bound)
-            improvement = (bound - old_bd) / abs(old_bd)
-            if self.verbose:
-                print('\r\tAfter ITERATION: %d\tObjective: %.2f\t' 'Old objective: %.2f\t'
-                                 'Improvement: %.5f' % (i, bound, old_bd,improvement))
-            old_bd = bound
-        pass
+            self.bound_t.append(self._llk(X))
+        return self.Etheta,self.ED,self.EF
 
     def _update(self, X, update_beta=True):
-        old_bd = -np.inf
         self.bound = []
-        for i in range(self.max_iter):
+        for _ in range(self.max_iter):
             self._update_aux()
             self._update_theta(X)
             if update_beta:
                 self._update_aux()
                 self._update_beta(X)
-            bound = self._elbo(X)
-            self.bound.append(bound)
-            improvement = (bound - old_bd) / abs(old_bd)
-            if self.verbose:
-                print('\r\tAfter ITERATION: %d\tObjective: %.2f\t' 'Old objective: %.2f\t'
-                                 'Improvement: %.5f' % (i, bound, old_bd,improvement))
-            old_bd = bound
-        pass
+            self.bound.append(self._llk(X))
     
     def _elbo(self,X):
         elbo = 0.0
@@ -207,9 +202,10 @@ class DCPoissonMF(DCNullPoissonMF):
         elbo -= np.sum(E_log_qb)
         return np.mean(elbo)
 
+    def _llk(self,X):
+        return np.mean(np.sum(X * np.log(self._xexplog()) - self.Etheta.dot(self.Ebeta)) - special.gammaln(X + 1))
 
- ##  method: Stochastic online variational inference
-class DCPoissonMFBatch(DCPoissonMF):
+class DCPoissonMFSVB(DCPoissonMF):
     def __init__(self, n_components=10, batch_size=32, n_pass=25,
                  max_iter=5 , tol=1e-6, shuffle=True, smoothness=100,
                  random_state=None,verbose=True,
@@ -238,9 +234,9 @@ class DCPoissonMFBatch(DCPoissonMF):
         self._scale = float(n_samples) / self.batch_size
         self._init_beta(n_feats)
         self.bound = []
-        for count in range(self.n_pass):
-            if count%10==0:
-                logging.info('Pass over entire data round...'+str(count))
+        for p in range(self.n_pass):
+            # if p%10==0:
+            logging.info('Pass over entire data round...'+str(p))
             indices = np.arange(n_samples)
             if self.shuffle:
                 np.random.shuffle(indices)
@@ -252,12 +248,10 @@ class DCPoissonMFBatch(DCPoissonMF):
                 mini_batch = X_shuffled[istart: iend]
                 self.partial_fit(mini_batch)
                 bound.append(self._elbo(mini_batch))
-            
             self.bound.append(np.mean(bound))
         return self
 
     def partial_fit(self, X):
-
         ## optimize local parameters for minibatch
         self.n_samples, self.n_feats = X.shape
         self.fit_null(X)
@@ -278,8 +272,7 @@ class DCPoissonMFBatch(DCPoissonMF):
     def set_learning_rate(self, iter):
         self.rho = (iter + self.t0)**(-self.kappa)
 
- ##  method: Memoized online variational inference
-class DCPoissonMFMemBatch(DCPoissonMF):
+class DCPoissonMFMVB(DCPoissonMF):
     def __init__(self, n_components=10, batch_size=32, n_pass=25,
                  max_iter=5 , tol=1e-6, shuffle=True, smoothness=100,
                  random_state=None,verbose=True,
@@ -323,9 +316,9 @@ class DCPoissonMFMemBatch(DCPoissonMF):
         self._init_beta(self.n_feats)
         self.initialize_mem(X)
         self.bound = []
-        for count in range(self.n_pass):
-            if count%10==0:
-                logging.info('Pass over entire data round...'+str(count))
+        for p in range(self.n_pass):
+            if p%10==0:
+                logging.info('Pass over entire data round...'+str(p))
             bound = []
             for batch_id in self.batch_ids:
                 self.partial_fit(self.mb_x[batch_id],batch_id)
