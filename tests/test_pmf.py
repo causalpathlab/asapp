@@ -1,6 +1,12 @@
+import sys
+sys.path.insert(1, '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/asapp/')
+
+import cProfile
+
 from model import _dcpmf
 import numpy as np
-np.random.seed(42)
+# from model import _dcpmf_jax as _dcpmf
+# import jax.numpy as np
 
 from scipy import stats
 from sklearn.metrics import mean_squared_error as mse
@@ -13,8 +19,8 @@ np.random.seed(42)
 
 def generate_data(N,K,M,mode):    
 
-    if mode=='block':    
-        from util import _sim as _sim
+    if mode=='b':    
+        from data import _sim 
         H = _sim.generate_H(N, K)
         W = _sim.generate_W(M, K)
         X = stats.poisson.rvs(H.dot(W.T))
@@ -28,19 +34,19 @@ def generate_data(N,K,M,mode):
 
 def dcpmf(X,K,max_iter):
     pmf = _dcpmf.DCPoissonMF(n_components=K,max_iter=max_iter,verbose=True)
-    pmf.fit(X)
+    pmf.fit(np.asarray(X))
     return pmf
 
-def dcpmf_batch(X,K,max_iter,n_pass):
-    pmf = _dcpmf.DCPoissonMFBatch(n_components=K,max_iter=max_iter,n_pass=n_pass,verbose=True)
-    pmf.fit(X)
-    pmf.transform(X)
+def dcpmf_batch(X,K,max_iter,max_pred_iter,n_pass):
+    pmf = _dcpmf.DCPoissonMFSVB(n_components=K,max_iter=max_iter,max_pred_iter=max_pred_iter,n_pass=n_pass,verbose=True)
+    pmf.fit(np.asarray(X))
+    # pmf.predict_theta(np.asarray(X),max_iter)
     return pmf
 
-def dcpmf_membatch(X,K,max_iter,n_pass):
-    pmf = _dcpmf.DCPoissonMFMemBatch(n_components=K,max_iter=max_iter,n_pass=n_pass,verbose=True)
+def dcpmf_membatch(X,K,max_iter,max_pred_iter,n_pass):
+    pmf = _dcpmf.DCPoissonMFMVB(n_components=K,max_iter=max_iter,max_pred_iter=max_pred_iter,n_pass=n_pass,verbose=True)
     pmf.fit(X)
-    pmf.transform(X)
+    # pmf.predict_theta(X,max_iter)
     return pmf
 
 def test_dcpmf():
@@ -49,13 +55,14 @@ def test_dcpmf():
     K=5
     M=200
     max_iter = 200
+    max_pred_iter = 200
     n_pass = 200
 
-    H,W,X = generate_data(N,K,M,mode='bloc')
+    H,W,X = generate_data(N,K,M,mode='a')
 
     pmf = dcpmf(X,K,max_iter)
-    pmfb = dcpmf_batch(X,K,max_iter,n_pass)
-    pmfmb = dcpmf_membatch(X,K,max_iter,n_pass)
+    pmfb = dcpmf_batch(X,K,max_iter,max_pred_iter,n_pass)
+    pmfmb = dcpmf_membatch(X,K,max_iter,max_pred_iter,n_pass)
 
     # assert_allclose(H,pmf.Etheta,rtol=1e-4)
 
@@ -78,5 +85,25 @@ def test_dcpmf():
     plt.savefig('test_pmf.png')
 
 
-test_dcpmf()
+# test_dcpmf()
+
+if __name__ == '__main__':
+
+    N=1000
+    K=10
+    M=1200
+    max_iter = 100
+    max_pred_iter = 50
+    n_pass = 50
+
+    H,W,X = generate_data(N,K,M,mode='a')
+
+    mode = sys.argv[1]
+    if mode == 'nobatch':
+        cProfile.run('dcpmf(X,K,max_iter)',filename='nobatch.profile')
+    elif mode == 'online':
+        cProfile.run('dcpmf_batch(X,K,max_iter,max_pred_iter,n_pass)',filename='onlinebatch.profile')
+    elif mode == 'mem':
+        cProfile.run( 'dcpmf_membatch(X,K,max_iter,max_pred_iter,n_pass)',filename='membatch.profile')
+
 

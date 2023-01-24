@@ -1,4 +1,4 @@
-from model import _dcpmf
+from model import _dcpmf_aux as _dcpmf
 from data._dataloader import DataSet
 import pandas as pd
 import jax.numpy as jnp
@@ -153,7 +153,7 @@ class ASAPP:
 
     def factorize(self):
         
-        logger.info('Model with no aux')
+        logger.info('Model with aux')
         logger.info(self.__dict__)
 
         if self.generate_pbulk:

@@ -1,4 +1,8 @@
 import numpy as np
+from model import _rpqr
+import logging
+logger = logging.getLogger(__name__)
+
 
 class Node:
     def __init__(self):
@@ -13,7 +17,7 @@ class StepTree:
         self.mat = mat
         self.rp_mat = rp_mat
         self.add_root()
-
+    
     def add_root(self):
         root = Node()
         root.level = 0
@@ -106,6 +110,52 @@ class DCStepTree(StepTree):
             dcvec = np.asarray(np.dot(current_dcmat,current_rp_mat))
 
             rpdcvec = rpvec - dcvec
+            
+            pos = []
+            neg = []
+            for indx,val in enumerate(rpdcvec.flatten()):
+                if val>= 0 : pos.append(cnode.indxs[indx])
+                else : neg.append(cnode.indxs[indx])
+            
+            if len(pos)>0:
+                new_pos_node = Node()
+                new_pos_node.indxs = pos
+                new_pos_node.level = cnode.level + 1
+                cnode.pos_child = new_pos_node
+                if len(pos)>min_leaf:
+                    self.add_node(new_pos_node,min_leaf,max_depth)
+
+            if len(neg)>0:
+                new_neg_node = Node()
+                new_neg_node.indxs = neg
+                new_neg_node.level = cnode.level + 1
+                cnode.neg_child = new_neg_node 
+                if len(neg)>min_leaf:
+                    self.add_node(new_neg_node,min_leaf,max_depth)
+
+class QRStepTree(StepTree):
+    def __init__(self,mat,rp_mat,dc_mat):
+        self.root = None
+        self.mat = mat
+        self.rp_mat = rp_mat
+        self.dc_mat = dc_mat
+        self.convert_to_basis()
+        self.add_root()
+    
+    def convert_to_basis(self):
+        self.mat = _rpqr.get_qr_basis(self.mat,self.rp_mat.shape[1])
+        logger.info('Using QR factorization...data matrix is '+str(self.mat.shape))
+
+    def add_node(self,cnode,min_leaf,max_depth):
+
+        if cnode.level < max_depth: 
+            
+            current_rp_mat = self.rp_mat[cnode.level,:][:,np.newaxis]
+
+            current_mat = self.mat[cnode.indxs]
+            rpvec = np.asarray(np.dot(current_mat,current_rp_mat))
+
+            rpdcvec = rpvec
             
             pos = []
             neg = []

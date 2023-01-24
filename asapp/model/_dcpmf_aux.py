@@ -1,6 +1,5 @@
 import sys
 import numpy as np
-# from numba import jit
 from scipy import special
 from sklearn.base import BaseEstimator, TransformerMixin
 import logging
@@ -117,22 +116,39 @@ class DCPoissonMF(DCNullPoissonMF):
         self.Etheta, self.Elogtheta = self._compute_expectations(self.theta_a, self.theta_b)
         self.t_c = 1. / np.mean(self.Etheta)
     
+    def _init_aux(self):
+        self.aux = np.ones((self.theta_a.shape[0],self.beta_a.shape[1],self.theta_a.shape[1]))
+
+    def _update_aux(self):
+        aux = np.einsum('ik,jk->ijk', np.exp(self.Elogtheta), np.exp(self.Elogbeta).T) 
+        self.aux = aux / (np.sum(aux, axis=2)[:, :, np.newaxis])
+
+        ##### exp-normalize-trick
+        # try1:
+        # aux = np.einsum('ik,jk->ijk', theta, beta.T) 
+        # aux = np.exp(aux - np.max(aux,axis=2)[:,:,np.newaxis])        
+        # self.aux = aux / (np.sum(aux, axis=2)[:,:,np.newaxis])
+
+        # try2:
+        # aux = np.einsum('ik,jk->ik', theta, beta.T) 
+        # largest = np.max(aux,axis=1)
+        # aux = np.exp(aux -largest)
+        # aux = aux/(np.sum(aux,axis=1)[:,np.newaxis])
+        # self.aux=aux
+
+
     def _xexplog(self):
         return np.dot(np.exp(self.Elogtheta), np.exp(self.Elogbeta))
 
-    def _update_xaux(self,X):
-        self.xaux = X / self._xexplog()
-
     def _update_theta(self, X):
-        self.theta_a = self.t_a +  np.exp(self.Elogtheta) * np.dot(self.xaux, np.exp(self.Elogbeta).T)
-        bb = np.repeat(np.dot(self.Ebeta,self.EF.T),self.n_samples,axis=1).T
-        self.theta_b =  self.t_a * self.t_c + np.multiply(bb,self.ED)
+        self.theta_a = self.t_a + np.einsum('ij,ijk->ik',X,self.aux)
+        self.theta_b =  self.t_a * self.t_c + np.multiply(np.tile(np.dot(self.Ebeta,self.EF.T),self.n_samples).T,self.ED)
         self.Etheta, self.Elogtheta = self._compute_expectations(self.theta_a, self.theta_b)
         self.t_c = 1. / np.mean(self.Etheta)
 
     def _update_beta(self, X):
-        self.beta_a = self.b_a +  np.exp(self.Elogbeta) * np.dot(np.exp(self.Elogtheta).T, self.xaux)
-        bb = np.repeat(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
+        self.beta_a = self.b_a + np.einsum('ij,ijk->kj',X,self.aux)
+        bb = np.tile(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
         self.beta_b = self.b_a + np.multiply(bb.reshape(self.n_components,self.n_feats).T,self.EF.T).T
         self.Ebeta, self.Elogbeta = self._compute_expectations(self.beta_a, self.beta_b)
                 
@@ -141,60 +157,49 @@ class DCPoissonMF(DCNullPoissonMF):
         self.fit_null(X)
         self._init_beta(self.n_feats)
         self._init_theta(self.n_samples)
+        self._init_aux()
         self._update(X)
 
+    def predict_theta(self, X, predict_iter):
+        self.n_samples, self.n_feats = X.shape    
+        self.fit_null(X)
+        self._init_aux()
+        self._init_theta(self.n_samples)
+        for _ in range(predict_iter):
+            self._update_aux()
+            self._update_theta(X)
+        return self.Etheta,self.ED,self.EF
 
     def _update(self, X, update_beta=True):
         self.bound = []
         for _ in range(self.max_iter):
-            self._update_xaux(X)
+            self._update_aux()
             self._update_theta(X)
             if update_beta:
-                self._update_xaux(X)
+                self._update_aux()
                 self._update_beta(X)
             self.bound.append(self._llk(X))
     
-    def predict_theta(self, X, predict_iter):
-        self.n_samples, self.n_feats = X.shape    
-        self.fit_null(X)
-        self._init_theta(self.n_samples)
-        self._update_xaux(X)
-        for _ in range(predict_iter):
-            self._update_xaux(X)
-            self._update_theta(X)
-        
-        return {'theta_a':self.theta_a,
-                'theta_b':self.theta_b,
-                'depth_a':self.D_a,
-                'depth_b':self.D_b,
-                'freq_a':self.F_a,
-                'freq_b':self.F_b}
-
-    # def _elbo(self,X):
-    #     elbo = 0.0
-    #     E_aux = np.einsum('ij,ijk->ijk', X, self.aux)
-    #     t_b = self.t_a * self.t_c
-    #     E_log_pt = self.t_a * np.log(t_b) - special.gammaln(self.t_a) + (self.t_a -1)*self.Elogtheta - t_b*self.Etheta
-    #     E_log_pb = self.b_a * np.log(self.b_a) - special.gammaln(self.b_a) + (self.b_a -1)*self.Elogbeta - self.b_a*self.Ebeta
-    #     E_log_qt = self.theta_a * np.log(self.theta_b) - special.gammaln(self.theta_a) + (self.theta_a -1)*self.Elogtheta - self.theta_b*self.Etheta
-    #     E_log_qb = self.beta_a * np.log(self.beta_a) - special.gammaln(self.beta_a) + (self.beta_a -1)*self.Elogbeta - self.beta_a*self.Ebeta
-    #     elbo += np.sum(np.einsum('ijk,ik->i', E_aux,self.Elogtheta)) + np.einsum('ijk,jk->i', E_aux,self.Elogbeta.T)
-    #     elbo -= np.einsum('ik,jk->i', self.Etheta,self.Ebeta.T)
-    #     elbo += np.sum(E_log_pt)
-    #     elbo += np.sum(E_log_pb)
-    #     elbo -= np.sum(special.gammaln(X + 1.))
-    #     elbo -= np.sum(np.einsum('ijk->i', E_aux * np.log(self.aux)))
-    #     elbo -= np.sum(E_log_qt)
-    #     elbo -= np.sum(E_log_qb)
-    #     return np.mean(elbo)
+    def _elbo(self,X):
+        elbo = 0.0
+        E_aux = np.einsum('ij,ijk->ijk', X, self.aux)
+        t_b = self.t_a * self.t_c
+        E_log_pt = self.t_a * np.log(t_b) - special.gammaln(self.t_a) + (self.t_a -1)*self.Elogtheta - t_b*self.Etheta
+        E_log_pb = self.b_a * np.log(self.b_a) - special.gammaln(self.b_a) + (self.b_a -1)*self.Elogbeta - self.b_a*self.Ebeta
+        E_log_qt = self.theta_a * np.log(self.theta_b) - special.gammaln(self.theta_a) + (self.theta_a -1)*self.Elogtheta - self.theta_b*self.Etheta
+        E_log_qb = self.beta_a * np.log(self.beta_a) - special.gammaln(self.beta_a) + (self.beta_a -1)*self.Elogbeta - self.beta_a*self.Ebeta
+        elbo += np.sum(np.einsum('ijk,ik->i', E_aux,self.Elogtheta)) + np.einsum('ijk,jk->i', E_aux,self.Elogbeta.T)
+        elbo -= np.einsum('ik,jk->i', self.Etheta,self.Ebeta.T)
+        elbo += np.sum(E_log_pt)
+        elbo += np.sum(E_log_pb)
+        elbo -= np.sum(special.gammaln(X + 1.))
+        elbo -= np.sum(np.einsum('ijk->i', E_aux * np.log(self.aux)))
+        elbo -= np.sum(E_log_qt)
+        elbo -= np.sum(E_log_qb)
+        return np.mean(elbo)
 
     def _llk(self,X):
         return np.mean(np.sum(X * np.log(self._xexplog()) - self.Etheta.dot(self.Ebeta)) - special.gammaln(X + 1))
-
-# @jit(nopython=True)
-# def updtheta_calc(t,a,b):
-#     return np.exp(t) * np.dot(a, np.exp(b).T)
-
 
 class DCPoissonMFSVB(DCPoissonMF):
     def __init__(self, n_components=10, batch_size=32, n_pass=25,
@@ -247,15 +252,15 @@ class DCPoissonMFSVB(DCPoissonMF):
         self.n_samples, self.n_feats = X.shape
         self.fit_null(X)
         self._init_theta(self.n_samples)
-        self._update_xaux(X)
+        self._init_aux()
         for i in range(self.max_iter):
-            self._update_xaux(X)
+            self._update_aux()
             self._update_theta(X)
 
         ## update global
         self.beta_a = (1 - self.rho) * self.beta_a + self.rho * \
-            (self.b_a + self._scale * np.exp(self.Elogbeta) * np.dot(np.exp(self.Elogtheta).T, self.xaux))
-        bb = np.repeat(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
+            (self.b_a + self._scale * np.einsum('ij,ijk->kj',X,self.aux))
+        bb = np.tile(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
         self.beta_b = (1 - self.rho) * self.beta_b + self.rho * \
             (self.b_a + self._scale * np.multiply(bb.reshape(self.n_components,self.n_feats).T,self.EF.T).T)
         self.Ebeta, self.Elogbeta = self._compute_expectations(self.beta_a, self.beta_b)
@@ -323,9 +328,9 @@ class DCPoissonMFMVB(DCPoissonMF):
         self.n_samples, self.n_feats = X.shape
         self.fit_null(X)
         self._init_theta(self.n_samples)
-        self._update_xaux(X)
+        self._init_aux()
         for _ in range(self.max_iter):
-            self._update_xaux(X)
+            self._update_aux()
             self._update_theta(X)
 
         ## subtract batch from global
@@ -333,8 +338,8 @@ class DCPoissonMFMVB(DCPoissonMF):
         self.all_beta_ab['b'] -= self.mb_beta_ab[batch_id]['b']
 
         ## update batch 
-        self.mb_beta_ab[batch_id]['a'] = np.exp(self.Elogbeta) * np.dot(np.exp(self.Elogtheta).T, self.xaux)
-        bb = np.repeat(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
+        self.mb_beta_ab[batch_id]['a'] = np.einsum('ij,ijk->kj',X,self.aux)
+        bb = np.tile(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
         self.mb_beta_ab[batch_id]['b'] = np.multiply(bb.reshape(self.n_components,self.n_feats).T,self.EF.T).T
 
         ## add batch to global
