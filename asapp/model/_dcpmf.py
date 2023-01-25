@@ -29,17 +29,13 @@ class DCNullPoissonMF(BaseEstimator, TransformerMixin):
         self.df_b = float(kwargs.get('df_b', 0.1))
 
     def _init_frequency(self, n_feats):
-        self.F_a = self.smoothness \
-            * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(1, n_feats))
-        self.F_b = self.smoothness \
-            * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(1, n_feats))
+        self.F_a = self.smoothness * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(1, n_feats))
+        self.F_b = self.smoothness * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(1, n_feats))
         self.EF, self.ElogF = self._compute_expectations(self.F_a, self.F_b)
 
     def _init_depth(self, n_samples):
-        self.D_a = self.smoothness \
-            * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(n_samples, 1))
-        self.D_b = self.smoothness \
-            * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(n_samples,1))
+        self.D_a = self.smoothness * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(n_samples, 1))
+        self.D_b = self.smoothness * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(n_samples,1))
         self.ED, self.ElogD = self._compute_expectations(self.D_a, self.D_b)
 
     def _update_depth(self, X):
@@ -58,11 +54,11 @@ class DCNullPoissonMF(BaseEstimator, TransformerMixin):
         for _ in range(self.max_iter):
             self._update_depth(X)
             self._update_frequency(X)
-            bound = self._bound_null(X)
-            improvement = (bound - old_bd) / abs(old_bd)                                                        
+            llk = self._llk_null(X)
+            improvement = (llk - old_bd) / abs(old_bd)                                                        
             if improvement < self.tol:
                 break
-            old_bd = bound
+            old_bd = llk
 
     def fit_null(self, X):
         n_samples, n_feats = X.shape
@@ -71,10 +67,10 @@ class DCNullPoissonMF(BaseEstimator, TransformerMixin):
         self._update_null(X)
         self._update_baseline()
 
-    def _bound_null(self, X):
+    def _llk_null(self, X):
         lmbda = np.dot(self.ED,(self.EF))
-        bound = np.sum(X * np.log(lmbda) - lmbda)
-        return bound
+        llk = np.sum(X * np.log(lmbda) - lmbda)
+        return llk
 
     def _update_baseline(self):
         S = np.sum(self.EF)
@@ -103,17 +99,13 @@ class DCPoissonMF(DCNullPoissonMF):
         self.b_a = float(kwargs.get('b_a', 0.1))
 
     def _init_beta(self, n_feats):
-        self.beta_a = self.smoothness \
-            * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(self.n_components, n_feats))
-        self.beta_b = self.smoothness \
-            * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(self.n_components, n_feats))
+        self.beta_a = self.smoothness * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(self.n_components, n_feats))
+        self.beta_b = self.smoothness * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(self.n_components, n_feats))
         self.Ebeta, self.Elogbeta = self._compute_expectations(self.beta_a, self.beta_b)
 
     def _init_theta(self, n_samples):
-        self.theta_a = self.smoothness \
-            * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(n_samples, self.n_components))
-        self.theta_b = self.smoothness \
-            * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(n_samples,self.n_components))
+        self.theta_a = self.smoothness * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(n_samples, self.n_components))
+        self.theta_b = self.smoothness * np.random.gamma(self.smoothness, 1. / self.smoothness,size=(n_samples,self.n_components))
         self.Etheta, self.Elogtheta = self._compute_expectations(self.theta_a, self.theta_b)
         self.t_c = 1. / np.mean(self.Etheta)
     
@@ -123,14 +115,14 @@ class DCPoissonMF(DCNullPoissonMF):
     def _update_xaux(self,X):
         self.xaux = X / self._xexplog()
 
-    def _update_theta(self, X):
+    def _update_theta(self):
         self.theta_a = self.t_a +  np.exp(self.Elogtheta) * np.dot(self.xaux, np.exp(self.Elogbeta).T)
         bb = np.repeat(np.dot(self.Ebeta,self.EF.T),self.n_samples,axis=1).T
         self.theta_b =  self.t_a * self.t_c + np.multiply(bb,self.ED)
         self.Etheta, self.Elogtheta = self._compute_expectations(self.theta_a, self.theta_b)
         self.t_c = 1. / np.mean(self.Etheta)
 
-    def _update_beta(self, X):
+    def _update_beta(self):
         self.beta_a = self.b_a +  np.exp(self.Elogbeta) * np.dot(np.exp(self.Elogtheta).T, self.xaux)
         bb = np.repeat(np.sum(np.multiply(self.Etheta,self.ED),axis=0),self.n_feats)
         self.beta_b = self.b_a + np.multiply(bb.reshape(self.n_components,self.n_feats).T,self.EF.T).T
@@ -145,14 +137,14 @@ class DCPoissonMF(DCNullPoissonMF):
 
 
     def _update(self, X, update_beta=True):
-        self.bound = []
+        self.llk = []
         for _ in range(self.max_iter):
             self._update_xaux(X)
-            self._update_theta(X)
+            self._update_theta()
             if update_beta:
                 self._update_xaux(X)
-                self._update_beta(X)
-            self.bound.append(self._llk(X))
+                self._update_beta()
+            self.llk.append(self._llk(X))
     
     def predict_theta(self, X, predict_iter):
         self.n_samples, self.n_feats = X.shape    
@@ -161,7 +153,7 @@ class DCPoissonMF(DCNullPoissonMF):
         self._update_xaux(X)
         for _ in range(predict_iter):
             self._update_xaux(X)
-            self._update_theta(X)
+            self._update_theta()
         
         return {'theta_a':self.theta_a,
                 'theta_b':self.theta_b,
@@ -189,12 +181,7 @@ class DCPoissonMF(DCNullPoissonMF):
     #     return np.mean(elbo)
 
     def _llk(self,X):
-        return np.mean(np.sum(X * np.log(self._xexplog()) - self.Etheta.dot(self.Ebeta)) - special.gammaln(X + 1))
-
-# @jit(nopython=True)
-# def updtheta_calc(t,a,b):
-#     return np.exp(t) * np.dot(a, np.exp(b).T)
-
+        return np.sum(X * np.log(self._xexplog()) - self.Etheta.dot(self.Ebeta))
 
 class DCPoissonMFSVB(DCPoissonMF):
     def __init__(self, n_components=10, batch_size=32, n_pass=25,
@@ -224,7 +211,7 @@ class DCPoissonMFSVB(DCPoissonMF):
         n_samples, n_feats = X.shape
         self._scale = float(n_samples) / self.batch_size
         self._init_beta(n_feats)
-        self.bound = []
+        self.llk = []
         for p in range(self.n_pass):
             # if p%10==0:
             logging.info('Pass over entire data round...'+str(p))
@@ -232,14 +219,14 @@ class DCPoissonMFSVB(DCPoissonMF):
             if self.shuffle:
                 np.random.shuffle(indices)
             X_shuffled = X[indices]
-            bound = []
+            llk = 0.0
             for (i, istart) in enumerate(range(0, n_samples,self.batch_size), 1):
                 iend = min(istart + self.batch_size, n_samples)
                 self.set_learning_rate(iter=i)
                 mini_batch = X_shuffled[istart: iend]
                 self.partial_fit(mini_batch)
-                bound.append(self._llk(mini_batch))
-            self.bound.append(np.mean(bound))
+                llk += self._llk(mini_batch)
+            self.llk.append(np.sum(llk))
         return self
 
     def partial_fit(self, X):
@@ -250,7 +237,7 @@ class DCPoissonMFSVB(DCPoissonMF):
         self._update_xaux(X)
         for i in range(self.max_iter):
             self._update_xaux(X)
-            self._update_theta(X)
+            self._update_theta()
 
         ## update global
         self.beta_a = (1 - self.rho) * self.beta_a + self.rho * \
@@ -306,15 +293,15 @@ class DCPoissonMFMVB(DCPoissonMF):
         self.n_samples, self.n_feats = X.shape
         self._init_beta(self.n_feats)
         self.initialize_mem(X)
-        self.bound = []
+        self.llk = []
         for p in range(self.n_pass):
             if p%10==0:
                 logging.info('Pass over entire data round...'+str(p))
-            bound = []
+            llk = 0.0
             for batch_id in self.batch_ids:
                 self.partial_fit(self.mb_x[batch_id],batch_id)
-                bound.append(self._llk(self.mb_x[batch_id]))
-            self.bound.append(np.mean(bound))
+                llk += self._llk(self.mb_x[batch_id])
+            self.llk.append(np.sum(llk))
         return self
 
     def partial_fit(self, X,batch_id):
@@ -326,7 +313,7 @@ class DCPoissonMFMVB(DCPoissonMF):
         self._update_xaux(X)
         for _ in range(self.max_iter):
             self._update_xaux(X)
-            self._update_theta(X)
+            self._update_theta()
 
         ## subtract batch from global
         self.all_beta_ab['a'] -= self.mb_beta_ab[batch_id]['a']

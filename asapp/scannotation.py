@@ -1,12 +1,10 @@
-from model import _dcpmf
-from data._dataloader import DataSet
 import pandas as pd
-import jax.numpy as jnp
 import numpy as np
 import logging
 from typing import Literal
-from model import _rpstruct as rp, _rpqr as rpqr
-np.random.seed(42)
+from data._dataloader import DataSet
+from model import _dcpmf
+from model import _rpstruct as rp
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +39,10 @@ class ASAPP:
         self,
         adata : DataSet,
         generate_pbulk : bool = True,
-        pbulk_method : Literal['tree','qr']='tree',
+        pbulk_method : Literal['tree','qr']='qr',
         tree_min_leaf : int = 10,
         tree_max_depth : int = 10,
         factorization : Literal['VB','SVB','MVB']='VB',
-        n_components : int = 10,
         max_iter : int = 50,
         max_pred_iter : int = 50,
         n_pass : int = 50,
@@ -58,14 +55,12 @@ class ASAPP:
         self.tree_min_leaf = tree_min_leaf
         self.tree_max_depth = tree_max_depth
         self.factorization = factorization
-        self.n_components = n_components
         self.max_iter = max_iter
         self.max_pred_iter = max_pred_iter
         self.n_pass = n_pass
         self.batch_size = batch_size
         self.chunk_size = data_chunk
 
-    
     def generate_degree_correction_mat(self,X):
         logger.info('Running degree correction null model...')
         null_model = _dcpmf.DCNullPoissonMF()
@@ -77,8 +72,7 @@ class ASAPP:
     def generate_random_projection_mat(self,X_cols):
         rp_mat = []
         for _ in range(self.tree_max_depth):
-            rp_mat.append(np.random.normal(size = (X_cols,1)).flatten())                      # DC/QR
-            # rp_mat.append(np.random.normal(size = (self.tree_max_depth,1)).flatten())
+            rp_mat.append(np.random.normal(size = (X_cols,1)).flatten())                      
         rp_mat = np.asarray(rp_mat)
         logger.info('Random projection matrix :' + str(rp_mat.shape))
         return rp_mat
@@ -87,28 +81,15 @@ class ASAPP:
     def generate_pbulk_mat(self,X,rp_mat,dc_mat):
         
         if self.pbulk_method =='qr':
-            logger.info('Running random projection tree and generating pseudo-bulk data')
-            rproj = rpqr.RPQR(X,rp_mat,dc_mat)
-            return rproj.get_psuedobulk()
+            logger.info('Running randomizedQR factorization to generate pseudo-bulk data')
+            return rp.get_rpqr_psuedobulk(X,rp_mat.T)
         
         elif self.pbulk_method =='tree':
-            logger.info('Running random projection tree and generating pseudo-bulk data')
-            tree = rp.DCStepTree(X,rp_mat,dc_mat)                                               # DC/QR
-            # tree = rp.QRStepTree(X,rp_mat,dc_mat)                                               # DC/QR
+            logger.info('Running random projection tree to generate pseudo-bulk data')
+            tree = rp.DCStepTree(X,rp_mat,dc_mat)                                               
             tree.build_tree(self.tree_min_leaf,self.tree_max_depth)
-            pbulkd = tree.make_bulk()
-
-            #count total number of cells in tree and create pbulk data
-            sum = 0
-            pbulk = {}
-            for key, value in pbulkd.items():
-                sum += len(value) 
-                pbulk[key] = np.asarray(self.adata.mtx[value].sum(0))[0]
-            logger.info('Total number of cells in the tree : ' + str(sum))    
-            
-            pbulk_mat = pd.DataFrame.from_dict(pbulk,orient='index').to_numpy()
-            logger.info('Pseudo-bulk matrix :' + str(pbulk_mat.shape))
-            return pbulk_mat
+            tree.make_bulk()
+            return tree.get_rptree_psuedobulk()
 
     def _generate_pbulk(self):
         n_samples = self.adata.mtx.shape[0]
@@ -116,7 +97,7 @@ class ASAPP:
             logger.info('Total number is sample ' + str(n_samples) +'..modelling entire dataset')
             dc_mat = self.generate_degree_correction_mat(self.adata.mtx)
             rp_mat = self.generate_random_projection_mat(self.adata.mtx.shape[1])
-            self.pbulk_mat = self.generate_pbulk_mat(self.adata.mtx, rp_mat,dc_mat)
+            self.pbulk_mat = self.generate_pbulk_mat(self.adata.mtx, rp_mat,dc_mat).to_numpy()
         else:
             logger.info('Total number of sample is ' + str(n_samples) +'..modelling '+str(self.chunk_size) +' chunk of dataset')
             total_batches = int(n_samples/self.chunk_size)+1
@@ -140,20 +121,19 @@ class ASAPP:
     def _model_setup(self):
         if self.factorization =='VB':
             logger.info('Factorization mode...VB')
-            self.model = _dcpmf.DCPoissonMF(n_components=self.n_components,max_iter=self.max_iter)
+            self.model = _dcpmf.DCPoissonMF(n_components=self.tree_max_depth,max_iter=self.max_iter)
 
         elif self.factorization =='SVB':
             logger.info('Factorization mode...SVB')
-            self.model = _dcpmf.DCPoissonMFSVB(n_components=self.n_components,max_iter=self.max_iter,n_pass=self.n_pass,batch_size=self.batch_size)                
+            self.model = _dcpmf.DCPoissonMFSVB(n_components=self.tree_max_depth,max_iter=self.max_iter,n_pass=self.n_pass,batch_size=self.batch_size)                
         
         elif self.factorization =='MVB':
             logger.info('Factorization mode...MVB')
-            self.model = _dcpmf.DCPoissonMFMVB(n_components=self.n_components,max_iter=self.max_iter,n_pass=self.n_pass,batch_size=self.batch_size)    
+            self.model = _dcpmf.DCPoissonMFMVB(n_components=self.tree_max_depth,max_iter=self.max_iter,n_pass=self.n_pass,batch_size=self.batch_size)    
             
 
     def factorize(self):
         
-        logger.info('Model with no aux')
         logger.info(self.__dict__)
 
         if self.generate_pbulk:
@@ -162,10 +142,10 @@ class ASAPP:
         self._model_setup()
 
         if self.generate_pbulk:
-            logger.info('Modelling pseudo-bulk data with n_components..'+str(self.n_components))
+            logger.info('Modelling pseudo-bulk data with n_components..'+str(self.tree_max_depth))
             self.model.fit(self.pbulk_mat)
         else:
-            logger.info('Modelling all data with n_components..'+str(self.n_components))
+            logger.info('Modelling all data with n_components..'+str(self.tree_max_depth))
             self.model.fit(np.asarray(self.adata.mtx))
         
 
@@ -180,8 +160,8 @@ class ASAPP:
             indices = np.arange(n_samples)
             total_batches = int(n_samples/self.chunk_size)+1
             self.model.predicted_params = {}
-            self.model.predicted_params['theta_a'] = np.empty(shape=(0,self.n_components))
-            self.model.predicted_params['theta_b'] = np.empty(shape=(0,self.n_components))
+            self.model.predicted_params['theta_a'] = np.empty(shape=(0,self.tree_max_depth))
+            self.model.predicted_params['theta_b'] = np.empty(shape=(0,self.tree_max_depth))
             self.model.predicted_params['depth_a'] = np.empty(shape=(0,1))
             self.model.predicted_params['depth_b'] = np.empty(shape=(0,1))
             for (i, istart) in enumerate(range(0, n_samples,self.chunk_size), 1):

@@ -8,8 +8,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import logging
-from scannotation import ASAPP as asapnoaux
-from scannotation_aux import ASAPP as asapaux
+from scannotation import ASAPP 
 from data._dataloader import DataSet
 from util import _topics
 
@@ -46,7 +45,7 @@ logging.basicConfig(filename=dl.outpath+'_model.log',
 
 
 
-## for sim data
+#########for sim data
 # N = 1000
 # K = 10
 # P = 2000
@@ -55,36 +54,20 @@ logging.basicConfig(filename=dl.outpath+'_model.log',
 # dl.rows = ['c_'+str(i) for i in range(N) ]
 # dl.cols = ['g_'+str(i) for i in range(P) ]
 
-## for real data 
+####### for real data 
 dl.initialize_data()
 dl.load_data()
 
-asap = asapaux(adata=dl,tree_min_leaf=1, tree_max_depth=10,factorization='VB', max_iter=50)
+asap = ASAPP(adata=dl,tree_max_depth=10,factorization='VB', max_iter=50)
 asap.factorize()
 asap.predict(dl.mtx)
-
-
-joblib.dump(asap.model,dl.outpath+'_model_avb.pkl')
-logging.info('saved model.')
-
-asap = asapaux(adata=dl,tree_min_leaf=1,tree_max_depth=10,factorization='MVB',max_iter=50,max_pred_iter=25,n_pass=50,batch_size=64)
-asap.factorize()
-asap.predict(dl.mtx)
-
-joblib.dump(asap.model,dl.outpath+'_model_amvb.pkl')
-logging.info('saved model.')
-
-asap = asapnoaux(adata=dl,tree_min_leaf=1, tree_max_depth=10,factorization='VB', max_iter=50)
-asap.factorize()
-asap.predict(dl.mtx)
-
 
 joblib.dump(asap.model,dl.outpath+'_model_vb.pkl')
 logging.info('saved model.')
 
-asap = asapnoaux(adata=dl,tree_min_leaf=1,tree_max_depth=10,factorization='MVB',max_iter=50,max_pred_iter=25,n_pass=50,batch_size=64)
-asap.factorize()
-asap.predict(dl.mtx)
+# asap = ASAPP(adata=dl,tree_min_leaf=1,tree_max_depth=10,factorization='MVB',max_iter=50,max_pred_iter=25,n_pass=50,batch_size=64)
+# asap.factorize()
+# asap.predict(dl.mtx)
 
-joblib.dump(asap.model,dl.outpath+'_model_mvb.pkl')
-logging.info('saved model.')
+# joblib.dump(asap.model,dl.outpath+'_model_mvb.pkl')
+# logging.info('saved model.')
