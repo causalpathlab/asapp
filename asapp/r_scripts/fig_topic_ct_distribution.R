@@ -11,9 +11,15 @@ source("Util.R")
 
 summary_plot_v1 <- function(df,f) {
 
-  col_vector <- c("orange", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941","yellowgreen" , "#7A4900","#FFDBE5",  "#0000A6")
+  # col_vector <- c("orange", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941","yellowgreen" , "#7A4900","#FFDBE5",  "#0000A6")
+
+  n <- 60
+  qual_col_pals = brewer.pal.info[brewer.pal.info$category == 'qual',]
+  col_vector = unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
+# pie(rep(1,n), col=sample(col_vector, n))
 
   df$topic = as.factor(df$topic)
+  df$cell_type = as.factor(df$cell_type)
  p = ggplot(df, aes(fill=cell_type, y=ncount, x=topic)) + scale_fill_manual("Cell type ",values=col_vector)+
     geom_bar(position="stack", stat="identity") +
       labs(x = "Topics", y = "Celltype distribution")+

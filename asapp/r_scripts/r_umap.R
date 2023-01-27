@@ -1,7 +1,7 @@
 library(umap)
-df = read.table('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/hbcc/hbcc_model_theta.csv.gz',sep=',',row.names=1,header=TRUE)
+df = read.table('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/lung/lung_model_theta.csv.gz',sep=',',row.names=1,header=TRUE)
 head(df)
 dfumap=umap(df)
 library(readr)
-write.csv(dfumap$layout,'/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/hbcc/hbcc_umap.csv')
-exit()
+write.csv(dfumap$layout,'/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/lung/lung_umap.csv')
+

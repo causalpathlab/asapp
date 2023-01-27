@@ -10,7 +10,7 @@ def run_scanpy(mtx,rows,cols,fn):
 		pd.DataFrame(rows),
 		pd.DataFrame(cols))
 
-	# sc.pp.filter_cells(adata, min_genes=200)
+	sc.pp.filter_cells(adata, min_genes=25)
 	sc.pp.filter_genes(adata, min_cells=3)
 	adata.var['mt'] = adata.var_names.str.startswith('MT-')  
 	sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
@@ -32,7 +32,7 @@ def run_scanpy(mtx,rows,cols,fn):
 
 	sc.pp.neighbors(adata, n_neighbors=10, n_pcs=40)
 	sc.tl.umap(adata)
-	sc.tl.leiden(adata)
+	sc.tl.leiden(adata,resolution=0.02)
 	sc.pl.umap(adata, color=['leiden'])
 	plt.savefig(fn+'_scanpy_raw_pipeline_umap.png');plt.close()
 
