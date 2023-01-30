@@ -10,7 +10,6 @@ import numpy as np
 import logging
 from scannotation import ASAPP 
 from data._dataloader import DataSet
-from util import _topics
 
 
 import matplotlib.pylab as plt
@@ -29,8 +28,8 @@ experiment_config = read_config(experiment_home+'config.yaml')
 args = namedtuple('Struct',experiment_config.keys())(*experiment_config.values())
 
 
-
-dl = DataSet()
+data_ondisk = True
+dl = DataSet(data_ondisk)
 dl.config = args
 dl.initialize_path()
 print(dl.inpath)
@@ -55,7 +54,7 @@ logging.basicConfig(filename=dl.outpath+'_model.log',
 # dl.cols = ['g_'+str(i) for i in range(P) ]
 
 ####### for real data 
-# dl.initialize_data()
+dl.initialize_data()
 # dl.load_data()
 
 asap = ASAPP(adata=dl,tree_max_depth=10,factorization='VB', max_iter=50)
