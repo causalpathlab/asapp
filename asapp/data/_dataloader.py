@@ -1,6 +1,8 @@
 import pandas as  pd
 import numpy as np
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix,csc_matrix
+import scipy.io as sp_io
+import tables
 
 class DataSet:
 		def __init__(self):
@@ -46,9 +48,45 @@ class DataSet:
 			R = np.matmul(H.T, W.T) 
 			X = np.random.poisson(R)
 
+
 			self.rows = ['c_'+str(i) for i in range(N) ]
 			self.cols = ['g_'+str(i) for i in range(P) ]
 			self.mtx = np.asmatrix(X)
 
 			return H,W
 
+
+		def get_datalist_ondisk(self):
+
+			self.diskfile = self.inpath+'.h5'
+
+			with tables.open_file(self.diskfile, 'r') as f:
+				group_list = []
+				for group in f.walk_groups():
+					try:
+						shape = getattr(group, 'shape').read()
+						group_list.append([group._v_name,shape])
+					except tables.NoSuchNodeError:
+						# This exists to bypass the root node, which has no data.
+						pass
+			return group_list
+
+		def get_batch_from_disk(self,group_name,li,hi):
+			with tables.open_file(self.diskfile, 'r') as f:
+				for group in f.walk_groups():
+					if group_name in group._v_name:
+						data = getattr(group, 'data').read()
+						indices = getattr(group, 'indices').read()
+						indptr = getattr(group, 'indptr').read()
+						shape = getattr(group, 'shape').read()
+
+						dat = []
+
+						if len(indptr) < hi: hi = len(indptr)-1
+
+						for ci in range(li,hi,1):
+							dat.append(np.asarray(csc_matrix((data[indptr[ci]:indptr[ci+1]], indices[indptr[ci]:indptr[ci+1]], np.array([0,len(indices[indptr[ci]:indptr[ci+1]])])), shape=(shape[0],1)).todense()).flatten())
+						return dat
+
+
+			

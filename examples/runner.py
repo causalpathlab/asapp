@@ -55,8 +55,8 @@ logging.basicConfig(filename=dl.outpath+'_model.log',
 # dl.cols = ['g_'+str(i) for i in range(P) ]
 
 ####### for real data 
-dl.initialize_data()
-dl.load_data()
+# dl.initialize_data()
+# dl.load_data()
 
 asap = ASAPP(adata=dl,tree_max_depth=10,factorization='VB', max_iter=50)
 asap.factorize()
