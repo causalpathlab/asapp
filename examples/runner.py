@@ -57,7 +57,7 @@ logging.basicConfig(filename=dl.outpath+'_model.log',
 dl.initialize_data()
 # dl.load_data()
 
-asap = ASAPP(adata=dl,tree_max_depth=10,factorization='VB', max_iter=50)
+asap = ASAPP(adata=dl,tree_max_depth=5,factorization='VB', max_iter=50)
 asap.factorize()
 asap.predict(dl.mtx)
 

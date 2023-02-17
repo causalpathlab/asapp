@@ -93,63 +93,83 @@ class ASAPP:
 			tree.make_bulk()
 			return tree.get_rptree_psuedobulk()
 
+
+	def _generate_pbulk_batch(self,n_samples):
+
+		total_batches = int(n_samples/self.chunk_size)+1
+		indices = np.arange(n_samples)
+		np.random.shuffle(indices)
+		X_shuffled = self.adata.mtx[indices]
+		self.pbulk_mat = pd.DataFrame()
+		for (i, istart) in enumerate(range(0, n_samples,self.chunk_size), 1):
+			iend = min(istart + self.chunk_size, n_samples)
+			mini_batch = X_shuffled[istart: iend]
+			dc_mat = self.generate_degree_correction_mat(mini_batch)
+			rp_mat = self.generate_random_projection_mat(mini_batch.shape[1])
+			batch_pbulk = self.generate_pbulk_mat(mini_batch, rp_mat,dc_mat)
+			self.pbulk_mat = pd.concat([self.pbulk_mat, batch_pbulk], axis=0, ignore_index=True)
+			logger.info('completed...' + str(i)+ ' of '+str(total_batches))
+		self.pbulk_mat= self.pbulk_mat.to_numpy()
+		logger.info('Final pseudo-bulk matrix :' + str(self.pbulk_mat.shape))
+
+	def _generate_pbulk_ondisk(self):
+			
+		group_list = self.adata.get_ondisk_datalist()
+		
+		# divide main chunk size by total groups in dataset
+		per_group_batch_size = int(self.chunk_size/len(group_list))
+
+		# decide maximum data size - can be user defined value or lowest/highest data size among group members
+		# min_data_size = np.min([x[1][1] for x in group_list])
+		min_data_size = 5000
+		
+		total_batches = int(min_data_size/per_group_batch_size)
+
+		logger.info(str(group_list))
+		logger.info('Chunk size : '+str(self.chunk_size))
+		logger.info('Per group batch size : '+str(per_group_batch_size))
+		logger.info('Max per group data size : '+str(min_data_size))
+		logger.info('Total batches : '+str(total_batches))
+
+		batch_low_index = 0
+		iter = 0
+		self.pbulk_mat = pd.DataFrame()
+		while batch_low_index<min_data_size:
+			mtx = []
+			for group in group_list:
+				mtx.append(self.adata.get_batch_from_disk(group[0],batch_low_index,batch_low_index+ per_group_batch_size))
+
+			mtx = np.asarray(mtx)
+			mtx = np.reshape(mtx,(mtx.shape[0]*mtx.shape[1],mtx.shape[2]))
+			mini_batch = np.asmatrix(mtx)
+
+			if self.pbulk_method == 'tree':
+				dc_mat = self.generate_degree_correction_mat(mini_batch)
+				rp_mat = self.generate_random_projection_mat(mini_batch.shape[1])
+				batch_pbulk = self.generate_pbulk_mat(mini_batch, rp_mat,dc_mat)
+			
+			elif self.pbulk_method == 'qr':
+				rp_mat = self.generate_random_projection_mat(mini_batch.shape[1])
+				batch_pbulk = self.generate_pbulk_mat(mini_batch, rp_mat)
+			
+			
+			self.pbulk_mat = pd.concat([self.pbulk_mat, batch_pbulk], axis=0, ignore_index=True)
+
+			iter += 1
+			batch_low_index = batch_low_index + per_group_batch_size
+			logger.info('Current batch size :' + str(mini_batch.shape))
+			logger.info('Current pseudo bulk size :' + str(batch_pbulk.shape))
+			logger.info('Completed...' + str(iter)+ ' of '+str(total_batches))
+		
+		logger.info('Final pseudo-bulk matrix :' + str(self.pbulk_mat.shape))
+		self.pbulk_mat= self.pbulk_mat.to_numpy()
+
 	def _generate_pbulk(self):
 
 		if self.read_from_disk:
 
 			logger.info('Reading from disk..')
-
-			group_list = self.adata.get_ondisk_datalist()
-			
-			# divide main chunk size by total groups in dataset
-			per_group_batch_size = int(self.chunk_size/len(group_list))
-
-			# decide maximum data size - can be user defined value or lowest/highest data size among group members
-			# min_data_size = np.min([x[1][1] for x in group_list])
-			min_data_size = 5000
-			
-			total_batches = int(min_data_size/per_group_batch_size)
-
-			logger.info(str(group_list))
-			logger.info('Chunk size : '+str(self.chunk_size))
-			logger.info('Per group batch size : '+str(per_group_batch_size))
-			logger.info('Max per group data size : '+str(min_data_size))
-			logger.info('Total batches : '+str(total_batches))
-
-			batch_low_index = 0
-			iter = 0
-			self.pbulk_mat = pd.DataFrame()
-			while batch_low_index<min_data_size:
-				mtx = []
-				for group in group_list:
-					mtx.append(self.adata.get_batch_from_disk(group[0],batch_low_index,batch_low_index+ per_group_batch_size))
-
-				mtx = np.asarray(mtx)
-				mtx = np.reshape(mtx,(mtx.shape[0]*mtx.shape[1],mtx.shape[2]))
-				print(mtx.shape)
-				mini_batch = np.asmatrix(mtx)
-
-				if self.pbulk_method == 'tree':
-					dc_mat = self.generate_degree_correction_mat(mini_batch)
-					rp_mat = self.generate_random_projection_mat(mini_batch.shape[1])
-					batch_pbulk = self.generate_pbulk_mat(mini_batch, rp_mat,dc_mat)
-				
-				elif self.pbulk_method == 'qr':
-					rp_mat = self.generate_random_projection_mat(mini_batch.shape[1])
-					batch_pbulk = self.generate_pbulk_mat(mini_batch, rp_mat)
-				
-				
-				self.pbulk_mat = pd.concat([self.pbulk_mat, batch_pbulk], axis=0, ignore_index=True)
-
-				iter += 1
-				batch_low_index = batch_low_index + per_group_batch_size
-				logger.info('Current batch size :' + str(mini_batch.shape))
-				logger.info('Current pseudo bulk size :' + str(batch_pbulk.shape))
-				logger.info('Completed...' + str(iter)+ ' of '+str(total_batches))
-			
-			logger.info('Final pseudo-bulk matrix :' + str(self.pbulk_mat.shape))
-			self.pbulk_mat= self.pbulk_mat.to_numpy()
-
+			self._generate_pbulk_ondisk()
 
 		else:
 			n_samples = self.adata.mtx.shape[0]
@@ -160,22 +180,7 @@ class ASAPP:
 				self.pbulk_mat = self.generate_pbulk_mat(self.adata.mtx, rp_mat,dc_mat).to_numpy()
 			else:
 				logger.info('Total number of sample is ' + str(n_samples) +'..modelling '+str(self.chunk_size) +' chunk of dataset')
-				total_batches = int(n_samples/self.chunk_size)+1
-				indices = np.arange(n_samples)
-				np.random.shuffle(indices)
-				X_shuffled = self.adata.mtx[indices]
-				self.pbulk_mat = pd.DataFrame()
-				for (i, istart) in enumerate(range(0, n_samples,self.chunk_size), 1):
-					iend = min(istart + self.chunk_size, n_samples)
-					mini_batch = X_shuffled[istart: iend]
-					dc_mat = self.generate_degree_correction_mat(mini_batch)
-					rp_mat = self.generate_random_projection_mat(mini_batch.shape[1])
-					batch_pbulk = self.generate_pbulk_mat(mini_batch, rp_mat,dc_mat)
-					self.pbulk_mat = pd.concat([self.pbulk_mat, batch_pbulk], axis=0, ignore_index=True)
-					logger.info('completed...' + str(i)+ ' of '+str(total_batches))
-				self.pbulk_mat= self.pbulk_mat.to_numpy()
-				logger.info('Final pseudo-bulk matrix :' + str(self.pbulk_mat.shape))
-
+				self._generate_pbulk_batch(n_samples)
 
 
 	def _model_setup(self):
@@ -213,76 +218,79 @@ class ASAPP:
 			logger.info('Completed model fitting..')
 		
 
+	def _predict_ondisk(self):
+
+		logger.info('Running prediction - reading from disk..')
+
+		group_list = self.adata.get_ondisk_datalist()
+		
+		# divide main chunk size by total groups in dataset
+		per_group_batch_size = int(self.chunk_size/len(group_list))
+
+		# decide maximum data size - can be user defined value or lowest/highest data size among group members
+		# min_data_size = np.min([x[1][1] for x in group_list])
+		min_data_size = 5000
+		
+		total_batches = int(min_data_size/per_group_batch_size)
+
+		logger.info(str(group_list))
+		logger.info('Chunk size : '+str(self.chunk_size))
+		logger.info('Per group batch size : '+str(per_group_batch_size))
+		logger.info('Max per group data size : '+str(min_data_size))
+		logger.info('Total batches : '+str(total_batches))
+
+		batch_low_index = 0
+
+		iter = 0
+
+		self.model.predicted_params = {}
+		self.model.predicted_params['theta_a'] = np.empty(shape=(0,self.tree_max_depth))
+		self.model.predicted_params['theta_b'] = np.empty(shape=(0,self.tree_max_depth))
+		self.model.predicted_params['depth_a'] = np.empty(shape=(0,1))
+		self.model.predicted_params['depth_b'] = np.empty(shape=(0,1))
+
+		all_barcodes = np.empty(shape=(0,1))
+		all_data = np.empty(shape=(0,len(self.adata.cols)))
+
+		while batch_low_index<min_data_size:
+			mtx = []
+			barcodes = []
+			for group in group_list:
+				m,bc = self.adata.get_batch_from_disk(group[0],batch_low_index,batch_low_index+ per_group_batch_size,barcodes=True)
+				mtx.append(m)
+				barcodes.append(bc)
+
+			mtx = np.asarray(mtx)
+			mtx = np.reshape(mtx,(mtx.shape[0]*mtx.shape[1],mtx.shape[2]))
+
+			barcodes = np.asarray(barcodes)
+			barcodes = np.reshape(barcodes,(barcodes.shape[0]*barcodes.shape[1],1))
+
+			batch_predicted_params = self.model.predict_theta(np.asarray(mtx),self.max_pred_iter)
+			self.model.predicted_params['theta_a'] = np.concatenate((self.model.predicted_params['theta_a'], batch_predicted_params['theta_a']), axis=0)
+			self.model.predicted_params['theta_b'] = np.concatenate((self.model.predicted_params['theta_b'], batch_predicted_params['theta_b']), axis=0)
+			self.model.predicted_params['depth_a'] = np.concatenate((self.model.predicted_params['depth_a'], batch_predicted_params['depth_a']), axis=0)
+			self.model.predicted_params['depth_b'] = np.concatenate((self.model.predicted_params['depth_b'], batch_predicted_params['depth_b']), axis=0)
+
+			all_barcodes = np.concatenate((all_barcodes, barcodes), axis=0)
+			all_data = np.concatenate((all_data, mtx), axis=0)
+
+			iter += 1
+			batch_low_index = batch_low_index + per_group_batch_size
+			logger.info('Current batch size :' + str(mtx.shape))
+			logger.info('Completed...' + str(iter)+ ' of '+str(total_batches))
+		
+		self.model.predicted_datarows = list(all_barcodes.flatten())
+		self.model.predicted_data = all_data
+
+
+
 	def predict(self,X):
 
 		if self.read_from_disk:
-
-			logger.info('Running prediction - reading from disk..')
-
-			group_list = self.adata.get_ondisk_datalist()
-			
-			# divide main chunk size by total groups in dataset
-			per_group_batch_size = int(self.chunk_size/len(group_list))
-
-			# decide maximum data size - can be user defined value or lowest/highest data size among group members
-			# min_data_size = np.min([x[1][1] for x in group_list])
-			min_data_size = 5000
-			
-			total_batches = int(min_data_size/per_group_batch_size)
-
-			logger.info(str(group_list))
-			logger.info('Chunk size : '+str(self.chunk_size))
-			logger.info('Per group batch size : '+str(per_group_batch_size))
-			logger.info('Max per group data size : '+str(min_data_size))
-			logger.info('Total batches : '+str(total_batches))
-
-			batch_low_index = 0
-
-			iter = 0
-
-			self.model.predicted_params = {}
-			self.model.predicted_params['theta_a'] = np.empty(shape=(0,self.tree_max_depth))
-			self.model.predicted_params['theta_b'] = np.empty(shape=(0,self.tree_max_depth))
-			self.model.predicted_params['depth_a'] = np.empty(shape=(0,1))
-			self.model.predicted_params['depth_b'] = np.empty(shape=(0,1))
-
-			all_barcodes = np.empty(shape=(0,1))
-			all_data = np.empty(shape=(0,len(self.adata.cols)))
-
-			while batch_low_index<min_data_size:
-				mtx = []
-				barcodes = []
-				for group in group_list:
-					m,bc = self.adata.get_batch_from_disk(group[0],batch_low_index,batch_low_index+ per_group_batch_size,barcodes=True)
-					mtx.append(m)
-					barcodes.append(bc)
-
-				mtx = np.asarray(mtx)
-				mtx = np.reshape(mtx,(mtx.shape[0]*mtx.shape[1],mtx.shape[2]))
-
-				barcodes = np.asarray(barcodes)
-				barcodes = np.reshape(barcodes,(barcodes.shape[0]*barcodes.shape[1],1))
-
-				batch_predicted_params = self.model.predict_theta(np.asarray(mtx),self.max_pred_iter)
-				self.model.predicted_params['theta_a'] = np.concatenate((self.model.predicted_params['theta_a'], batch_predicted_params['theta_a']), axis=0)
-				self.model.predicted_params['theta_b'] = np.concatenate((self.model.predicted_params['theta_b'], batch_predicted_params['theta_b']), axis=0)
-				self.model.predicted_params['depth_a'] = np.concatenate((self.model.predicted_params['depth_a'], batch_predicted_params['depth_a']), axis=0)
-				self.model.predicted_params['depth_b'] = np.concatenate((self.model.predicted_params['depth_b'], batch_predicted_params['depth_b']), axis=0)
-
-				all_barcodes = np.concatenate((all_barcodes, barcodes), axis=0)
-				all_data = np.concatenate((all_data, mtx), axis=0)
-
-				iter += 1
-				batch_low_index = batch_low_index + per_group_batch_size
-				logger.info('Current batch size :' + str(mtx.shape))
-				logger.info('Completed...' + str(iter)+ ' of '+str(total_batches))
-			
-			self.model.predicted_datarows = list(all_barcodes.flatten())
-			self.model.predicted_data = all_data
-
+			self._predict_ondisk()
 
 		else:
-
 			n_samples = X.shape[0]
 			if n_samples < self.chunk_size:
 				logger.info('Prediction : total number of sample is :' + str(n_samples) +'..using all dataset')

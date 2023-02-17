@@ -11,11 +11,11 @@ source("Util.R")
 
 summary_plot_v1 <- function(df,f) {
 
-  # col_vector <- c("orange", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941","yellowgreen" , "#7A4900","#FFDBE5",  "#0000A6")
+  col_vector <- c("orange", "#1CE6FF", "#FF34FF", "#FF4A46", "#008941","yellowgreen" , "#7A4900","#FFDBE5",  "#0000A6")
 
-  n <- 60
-  qual_col_pals = brewer.pal.info[brewer.pal.info$category == 'qual',]
-  col_vector = unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
+  # n <- 60
+  # qual_col_pals = brewer.pal.info[brewer.pal.info$category == 'qual',]
+  # col_vector = unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
 # pie(rep(1,n), col=sample(col_vector, n))
 
   df$topic = as.factor(df$topic)
