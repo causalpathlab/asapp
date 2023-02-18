@@ -31,12 +31,18 @@ ASAPResults ASAP::nmf()
 
     poisson_nmf_t<Mat, RNG, gamma_t> model(D, N, K, a0, b0, seed);
 
+
+    using latent_t = latent_matrix_t<RNG>;
+    latent_t aux(D, N, K, rng);
+
     model.initialize_degree(Y);
+
+    aux.randomize();
     model.initialize_by_svd(Y);
 
     Eigen::MatrixXf mat = Eigen::MatrixXf::Zero(10, 10);
 
-    ASAPResults result{model.onesN, model.onesD, maxK};
+    ASAPResults result{model.row_degree.estimate_mean, aux.Z, maxK};
 
     return result;
 }

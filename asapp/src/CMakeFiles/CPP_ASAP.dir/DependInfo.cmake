@@ -18,7 +18,7 @@ set(CMAKE_TARGET_DEFINITIONS_CXX
 set(CMAKE_CXX_TARGET_INCLUDE_PATH
   "/usr/include/eigen3"
   "pybind11/include"
-  "/home/BCCRC.CA/ssubedi/.conda/envs/ssubedi/include/python3.9"
+  "/opt/anaconda3/include/python3.8"
   )
 
 # Targets to which this target links.

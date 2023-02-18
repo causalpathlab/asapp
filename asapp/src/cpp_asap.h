@@ -18,22 +18,25 @@
 #include "math.h"
 #include "gamma_parameter.h"
 #include "poisson_nmf_model.h"
+#include "latent_matrix.h"
 
 
 namespace py = pybind11;
 
 struct ASAPResults {
+    using IntegerMatrix = typename Eigen::
+        Matrix<std::ptrdiff_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
 
-    ASAPResults(Eigen::MatrixXf in_A,Eigen::MatrixXf in_B,int in_C)
+    ASAPResults(Eigen::MatrixXf in_A,IntegerMatrix in_B,int in_C)
         : A{in_A},B{in_B}, C{in_C} {}
 
     Eigen::MatrixXf A;
-    Eigen::MatrixXf B;
+    IntegerMatrix B;
     int C;
 
     static void defPybind(py::module &m) {
         py::class_<ASAPResults>(m, "ASAPResults")
-        .def(py::init< Eigen::MatrixXf,Eigen::MatrixXf, int>())
+        .def(py::init< Eigen::MatrixXf,IntegerMatrix, int>())
         .def_readwrite("A", &ASAPResults::A)
         .def_readwrite("B", &ASAPResults::B)
         .def_readwrite("C", &ASAPResults::C);

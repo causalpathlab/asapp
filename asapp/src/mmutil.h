@@ -15,4 +15,8 @@ using IntMat = typename Eigen::
     Matrix<std::ptrdiff_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
 using IntVec = typename Eigen::Matrix<std::ptrdiff_t, Eigen::Dynamic, 1>;
 
+
+using IntegerMatrix = typename Eigen::
+        Matrix<std::ptrdiff_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
+
 #endif

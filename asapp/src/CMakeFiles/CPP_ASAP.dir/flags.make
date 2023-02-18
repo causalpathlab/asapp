@@ -6,5 +6,5 @@ CXX_FLAGS = -fPIC -fvisibility=hidden   -flto -fno-fat-lto-objects
 
 CXX_DEFINES = -DCPP_ASAP_EXPORTS
 
-CXX_INCLUDES = -I/usr/include/eigen3 -isystem /home/BCCRC.CA/ssubedi/projects/experiments/asapp/asapp/src/pybind11/include -isystem /home/BCCRC.CA/ssubedi/.conda/envs/ssubedi/include/python3.9 
+CXX_INCLUDES = -I/usr/include/eigen3 -isystem /home/BCCRC.CA/ssubedi/projects/experiments/asapp/asapp/src/pybind11/include -isystem /opt/anaconda3/include/python3.8 
 
