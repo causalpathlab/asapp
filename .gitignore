@@ -4,7 +4,16 @@
 /database/
 /result/
 
-*.txt
+# Ignore external modules
+/asap/external/
+
+# Ignore cmake files
+/asap/CMakeFiles/
+*.cmake
+CMakeCache.txt
+Makefile
+
+
 *.csv
 *.tsv
 *.pkl
@@ -28,5 +37,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 /build
+
 *.so
 
