@@ -1,4 +1,4 @@
-#include "../include/cpp_asap.h"
+#include "../include/cpp_asap.hh"
 
 
 ASAPResults ASAP::nmf()
@@ -6,7 +6,7 @@ ASAPResults ASAP::nmf()
 
     py::print("Starting nmf...");
 
-    const std::size_t mcem = 100;
+    const std::size_t mcem = 10;
     const std::size_t burnin = 10;
     const std::size_t latent_iter = 10;
     const std::size_t thining = 3;
@@ -41,10 +41,33 @@ ASAPResults ASAP::nmf()
     model.initialize_by_svd(Y);
 
 
-    matrix_sampler_t<Mat, RNG> row_proposal(rng, K);
+    Scalar llik;
+    std::vector<Scalar> llik_trace;
+
+    if (eval_llik) {
+        llik = model.log_likelihood(Y, aux);
+        llik_trace.emplace_back(llik);
+    }
+
+    for (std::size_t t = 0; t < (mcem + burnin); ++t) {
 
 
-    ASAPResults result{model.row_degree.estimate_mean, aux.Z, maxK};
+        if (update_loading) {
+            model.update_topic_loading(Y, aux);
+        }
+        model.update_row_topic(Y, aux);
+        model.update_column_topic(Y, aux);
+        model.update_degree(Y);
+
+        if (eval_llik && t % thining == 0) {
+            llik = model.log_likelihood(Y, aux);
+            llik_trace.emplace_back(llik);
+        }
+        py::print(llik);
+
+    }
+
+    ASAPResults result{model.row_topic.mean(),model.column_topic.mean(), llik_trace};
 
     return result;
 }

@@ -1,7 +1,8 @@
 #include <iostream>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #include <pybind11/eigen.h>
-#include "../include/cpp_asap.h"
+#include "../include/cpp_asap.hh"
 
 namespace py = pybind11;
 

@@ -1,9 +1,9 @@
-#include "svd.h"
-#include "eigen_util.h"
-#include "mmutil.h"
+#include "svd.hh"
+#include "eigen_util.hh"
+#include "mmutil.hh"
 
-#ifndef POISSON_NMF_MODEL_H_
-#define POISSON_NMF_MODEL_H_
+#ifndef POISSON_NMF_MODEL_HH_
+#define POISSON_NMF_MODEL_HH_
 
 template <typename T, typename RNG, typename PARAM>
 struct poisson_nmf_t {

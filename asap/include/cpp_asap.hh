@@ -14,32 +14,31 @@
 
 
 #include "xoshiro.h"
-#include "mmutil.h"
-#include "math.h"
-#include "gamma_parameter.h"
-#include "poisson_nmf_model.h"
-#include "latent_matrix.h"
+
+#include "math.hh"
+#include "mmutil.hh"
+#include "gamma_parameter.hh"
+#include "poisson_nmf_model.hh"
+#include "latent_matrix.hh"
 
 
 namespace py = pybind11;
 
 struct ASAPResults {
-    using IntegerMatrix = typename Eigen::
-        Matrix<std::ptrdiff_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
 
-    ASAPResults(Eigen::MatrixXf in_A,IntegerMatrix in_B,int in_C)
-        : A{in_A},B{in_B}, C{in_C} {}
+    ASAPResults(Mat in_A,Mat in_B,std::vector<Scalar>  in_llik_trace)
+        : A{in_A},B{in_B}, llik_trace{in_llik_trace} {}
 
-    Eigen::MatrixXf A;
-    IntegerMatrix B;
-    int C;
+    Mat A;
+    Mat B;
+    std::vector<Scalar> llik_trace;
 
     static void defPybind(py::module &m) {
         py::class_<ASAPResults>(m, "ASAPResults")
-        .def(py::init< Eigen::MatrixXf,IntegerMatrix, int>())
+        .def(py::init< Mat, Mat, std::vector<Scalar> >())
         .def_readwrite("A", &ASAPResults::A)
         .def_readwrite("B", &ASAPResults::B)
-        .def_readwrite("C", &ASAPResults::C);
+        .def_readwrite("C", &ASAPResults::llik_trace);
     }
 
 };

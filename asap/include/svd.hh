@@ -1,8 +1,8 @@
 #include <eigen3/Eigen/LU>
 #include <eigen3/Eigen/SVD>
 
-#ifndef _SVD_H_
-#define _SVD_H_
+#ifndef _SVD_HH_
+#define _SVD_HH_
 
 ////////////////////
 // randomized SVD //

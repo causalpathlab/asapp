@@ -1,4 +1,4 @@
-#include "cpp_asap.h"
+#include "cpp_asap.hh"
 
 #ifndef GAMMA_PARAMETER_HH_
 #define GAMMA_PARAMETER_HH_
@@ -29,6 +29,9 @@ struct gamma_param_t {
 
     void calibrate()
     {
+        // _compute_expectations(self, a, b):
+        // return (a/b, special.digamma(a) - np.log(b))
+
         estimate_mean = a_stat.cwiseQuotient(b_stat);
         estimate_log = a_stat.binaryExpr(b_stat, estimate_log_op);
     }

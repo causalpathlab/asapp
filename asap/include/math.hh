@@ -2,8 +2,8 @@
 #include "fastlog.h"
 #include "fastgamma.h"
 
-#ifndef _MATH_H_
-#define _MATH_H_
+#ifndef _MATH_HH_
+#define _MATH_HH_
 
 /////////////////////
 // log(1 + exp(x)) //
