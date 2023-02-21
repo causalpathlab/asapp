@@ -10,6 +10,6 @@ using namespace std;
 
 PYBIND11_MODULE(asapc, m) {
     m.doc() = "CPP ASAP module";;
-    ASAPResults::defPybind(m);
-    ASAP::defPybind(m);
+    ASAPNMF::defPybind(m);
+    ASAPNMFResult::defPybind(m);
 }

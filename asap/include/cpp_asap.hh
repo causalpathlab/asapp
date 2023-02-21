@@ -24,9 +24,9 @@
 
 namespace py = pybind11;
 
-struct ASAPResults {
+struct ASAPNMFResult {
 
-    ASAPResults(Mat in_A,Mat in_B,std::vector<Scalar>  in_llik_trace)
+    ASAPNMFResult(Mat in_A,Mat in_B,std::vector<Scalar>  in_llik_trace)
         : A{in_A},B{in_B}, llik_trace{in_llik_trace} {}
 
     Mat A;
@@ -34,38 +34,67 @@ struct ASAPResults {
     std::vector<Scalar> llik_trace;
 
     static void defPybind(py::module &m) {
-        py::class_<ASAPResults>(m, "ASAPResults")
+        py::class_<ASAPNMFResult>(m, "ASAPNMFResult")
         .def(py::init< Mat, Mat, std::vector<Scalar> >())
-        .def_readwrite("A", &ASAPResults::A)
-        .def_readwrite("B", &ASAPResults::B)
-        .def_readwrite("C", &ASAPResults::llik_trace);
+        .def_readwrite("A", &ASAPNMFResult::A)
+        .def_readwrite("B", &ASAPNMFResult::B)
+        .def_readwrite("C", &ASAPNMFResult::llik_trace);
     }
 
 };
 
-class ASAP {
-
+class ASAPNMF {
     public:
-
-    ASAP (const Eigen::MatrixXf in_Y,int in_maxK):Y(in_Y),maxK(in_maxK){}
-
+    ASAPNMF (const Eigen::MatrixXf in_Y,int in_maxK):Y(in_Y),maxK(in_maxK){}
     static void defPybind(py::module &m) {
-        py::class_<ASAP>(m, "ASAP")
+        py::class_<ASAPNMF>(m, "ASAPNMF")
         .def(py::init< Eigen::MatrixXf&, int>(),
                 py::arg("in_Y"),
                 py::arg("in_maxK"))
-        .def("run", &ASAP::nmf,py::return_value_policy::reference_internal);
+        .def("run", &ASAPNMF::nmf,py::return_value_policy::reference_internal);
         }
 
-    ASAPResults nmf();
+    ASAPNMFResult nmf();
 
     protected:
-
         int maxK;
-
         Eigen::MatrixXf Y;
+};
 
+struct ASAPREGResult {
 
+    ASAPREGResult(Eigen::MatrixXf in_A,Eigen::MatrixXf in_B,int in_llik_trace)
+        : A{in_A},B{in_B}, llik_trace{in_llik_trace} {}
 
+    Eigen::MatrixXf A;
+    Eigen::MatrixXf B;
+    int llik_trace;
+
+    static void defPybind(py::module &m) {
+        py::class_<ASAPREGResult>(m, "ASAPREGResult")
+        .def(py::init< Eigen::MatrixXf, Eigen::MatrixXf, int >())
+        .def_readwrite("A", &ASAPREGResult::A)
+        .def_readwrite("B", &ASAPREGResult::B)
+        .def_readwrite("C", &ASAPREGResult::llik_trace);
+    }
+
+};
+
+class ASAPREG {
+    public:
+    ASAPREG (const Eigen::MatrixXf in_Y, const Eigen::MatrixXf in_log_x):Y(in_Y),log_x(in_log_x){}
+    static void defPybind(py::module &m) {
+        py::class_<ASAPREG>(m, "ASAPREG")
+        .def(py::init< Eigen::MatrixXf&, Eigen::MatrixXf& >(),
+                py::arg("in_Y"),
+                py::arg("in_log_x"))
+        .def("regress", &ASAPREG::regression,py::return_value_policy::reference_internal);
+        }
+
+    ASAPREGResult regression();
+
+    protected:
+        Eigen::MatrixXf Y;
+        Eigen::MatrixXf log_x;
 };
 

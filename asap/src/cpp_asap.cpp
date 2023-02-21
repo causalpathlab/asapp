@@ -1,7 +1,7 @@
 #include "../include/cpp_asap.hh"
 
 
-ASAPResults ASAP::nmf()
+ASAPNMFResult ASAPNMF::nmf()
 {   
 
     py::print("Starting nmf...");
@@ -67,7 +67,73 @@ ASAPResults ASAP::nmf()
 
     }
 
-    ASAPResults result{model.row_topic.mean(),model.column_topic.mean(), llik_trace};
+    ASAPNMFResult result{model.row_topic.mean(),model.column_topic.mean(), llik_trace};
 
     return result;
 }
+
+ASAPREGResult ASAPREG::regression()
+{
+    const double a0 = 1.;
+    const double b0 = 1.;
+    const std::size_t max_iter = 10;
+    const bool verbose = false;
+    const std::size_t NUM_THREADS = 1;
+    const std::size_t BLOCK_SIZE = 100;
+
+    const Index D = Y.rows();
+    const Index N = Y.cols();
+    const Index K = log_x.cols(); // number of topics
+    const Index block_size = BLOCK_SIZE;
+    const Scalar TOL = 1e-20;
+
+    auto exp_op = [](const Scalar &_x) -> Scalar { return fasterexp(_x); };
+    
+    using RowVec = typename Eigen::internal::plain_row_type<Mat>::type;
+    using ColVec = typename Eigen::internal::plain_col_type<Mat>::type;
+
+    const Mat log_X = standardize(log_x);
+    const RowVec Xsum = log_X.unaryExpr(exp_op).colwise().sum();
+
+    Mat Z_tot(N, K);
+    Mat theta_tot(N, K);
+    Mat log_theta_tot(N, K);
+
+
+    using RNG = dqrng::xoshiro256plus;
+    using gamma_t = gamma_param_t<Mat, RNG>;
+    RNG rng;
+    softmax_op_t<Mat> softmax;
+
+    ColVec Ysum = Y.colwise().sum().transpose(); // N x 1
+    gamma_t theta_b(Y.cols(), K, a0, b0, rng);   // N x K
+    Mat log_Z(Y.cols(), K), Z(Y.cols(), K);      // N x K
+    Mat R = (Y.transpose() * log_X).array().colwise() / Ysum.array();
+    //          N x D        D x K                      N x 1
+
+    ColVec onesN(N); // N x 1
+    onesN.setOnes(); //
+
+    for (std::size_t t = 0; t < max_iter; ++t) {
+
+        log_Z = theta_b.log_mean() + R;
+        for (Index i = 0; i < Y.cols(); ++i) {
+            Z.row(i) = softmax(log_Z.row(i));
+        }
+
+        for (Index k = 0; k < K; ++k) {
+            const Scalar xk = Xsum(k);
+            theta_b.update_col(Z.col(k).cwiseProduct(Ysum), onesN * xk, k);
+        }
+        theta_b.calibrate();
+    }
+
+    Eigen::MatrixXf mat1 = Eigen::MatrixXf::Zero(10, 10);
+    Eigen::MatrixXf mat2 = Eigen::MatrixXf::Zero(10, 10);
+    int llik_trace = 10;
+
+    ASAPREGResult regresult{mat1, mat2, llik_trace};
+
+    return regresult;
+
+};

@@ -39,7 +39,7 @@ class ASAPP:
 		self,
 		adata : DataSet,
 		generate_pbulk : bool = True,
-		read_from_disk : bool = True,
+		read_from_disk : bool = False,
 		pbulk_method : Literal['tree','qr']='qr',
 		tree_min_leaf : int = 10,
 		tree_max_depth : int = 10,
@@ -195,7 +195,10 @@ class ASAPP:
 		elif self.factorization =='MVB':
 			logger.info('Factorization mode...MVB')
 			self.model = _dcpmf.DCPoissonMFMVB(n_components=self.tree_max_depth,max_iter=self.max_iter,n_pass=self.n_pass,batch_size=self.batch_size)    
-			
+	
+	def get_pbulk(self):
+		self._generate_pbulk()
+
 
 	def factorize(self):
 		
