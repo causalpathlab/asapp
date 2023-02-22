@@ -63,8 +63,6 @@ ASAPNMFResult ASAPNMF::nmf()
             llik = model.log_likelihood(Y, aux);
             llik_trace.emplace_back(llik);
         }
-        py::print(llik);
-
     }
 
     ASAPNMFResult result{model.row_topic.mean(),model.column_topic.mean(), llik_trace};
@@ -128,11 +126,8 @@ ASAPREGResult ASAPREG::regression()
         theta_b.calibrate();
     }
 
-    Eigen::MatrixXf mat1 = Eigen::MatrixXf::Zero(10, 10);
-    Eigen::MatrixXf mat2 = Eigen::MatrixXf::Zero(10, 10);
-    int llik_trace = 10;
 
-    ASAPREGResult regresult{mat1, mat2, llik_trace};
+    ASAPREGResult regresult{theta_b.mean()};
 
     return regresult;
 

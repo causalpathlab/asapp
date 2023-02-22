@@ -12,4 +12,6 @@ PYBIND11_MODULE(asapc, m) {
     m.doc() = "CPP ASAP module";;
     ASAPNMF::defPybind(m);
     ASAPNMFResult::defPybind(m);
+    ASAPREG::defPybind(m);
+    ASAPREGResult::defPybind(m);
 }

@@ -63,19 +63,14 @@ class ASAPNMF {
 
 struct ASAPREGResult {
 
-    ASAPREGResult(Eigen::MatrixXf in_A,Eigen::MatrixXf in_B,int in_llik_trace)
-        : A{in_A},B{in_B}, llik_trace{in_llik_trace} {}
+    ASAPREGResult(Mat in_A)
+        : A{in_A}{}
 
-    Eigen::MatrixXf A;
-    Eigen::MatrixXf B;
-    int llik_trace;
-
+    Mat A;
     static void defPybind(py::module &m) {
         py::class_<ASAPREGResult>(m, "ASAPREGResult")
-        .def(py::init< Eigen::MatrixXf, Eigen::MatrixXf, int >())
-        .def_readwrite("A", &ASAPREGResult::A)
-        .def_readwrite("B", &ASAPREGResult::B)
-        .def_readwrite("C", &ASAPREGResult::llik_trace);
+        .def(py::init< Mat>())
+        .def_readwrite("A", &ASAPREGResult::A);
     }
 
 };

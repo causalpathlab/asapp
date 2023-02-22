@@ -1,20 +1,3 @@
-# import numpy as np
-# from scipy import stats
-# import asapc as asap
-
-# N = 1000
-# K = 20
-# M = 1000
-
-# Theta = stats.gamma.rvs(0.5, scale=0.1, size=(N,K))
-# Beta = stats.gamma.rvs(0.5, scale=0.1, size=(M,K))
-# X = stats.poisson.rvs(Theta.dot(Beta.T))
-
-# model = asap.ASAP(X,K)
-# res = model.run()
-
-
-
 import sys
 sys.path.insert(1, '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/asap/python')
 sys.path.insert(1, '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/asap')
@@ -25,8 +8,8 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import logging
-# from scannotation import ASAPP
-import asapc as ASAPP
+from scannotation import ASAPP
+import asapc 
 from data._dataloader import DataSet
 from util import _topics
 
@@ -41,19 +24,35 @@ from sklearn.metrics import mean_squared_error as mse
 
 import joblib
 
-experiment = '/projects/experiments/asapp/'
-server = Path.home().as_posix()
-experiment_home = server+experiment
-experiment_config = read_config(experiment_home+'config.yaml')
-args = namedtuple('Struct',experiment_config.keys())(*experiment_config.values())
+def run():
+    experiment = '/projects/experiments/asapp/'
+    server = Path.home().as_posix()
+    experiment_home = server+experiment
+    experiment_config = read_config(experiment_home+'config.yaml')
+    args = namedtuple('Struct',experiment_config.keys())(*experiment_config.values())
 
-dl = DataSet(data_ondisk=False)
-dl.config = args
-dl.initialize_path()
-dl.initialize_data()
-print(dl.inpath)
-print(dl.outpath)
-dl.load_data()
-K = 10
-model = ASAPP.ASAP(dl.mtx.T,K)
-dcpmf = model.run()
+    dl = DataSet(data_ondisk=False)
+    dl.config = args
+    dl.initialize_path()
+    dl.initialize_data()
+    print(dl.inpath)
+    print(dl.outpath)
+
+
+    dl.load_data()
+    asap = ASAPP(adata=dl,factorization='VB', max_iter=100)
+    asap.get_pbulk()
+
+
+    K = 5
+    nmfm = asapc.ASAPNMF(asap.pbulk_mat.T,K)
+    nmf = nmfm.run()
+
+
+import cProfile
+
+if __name__ == '__main__':
+
+    cProfile.run('run()',filename='asapc.profile')
+
+
