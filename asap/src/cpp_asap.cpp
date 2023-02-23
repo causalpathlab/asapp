@@ -4,8 +4,6 @@
 ASAPNMFResult ASAPNMF::nmf()
 {   
 
-    py::print("Starting nmf...");
-
     const std::size_t mcem = 10;
     const std::size_t burnin = 10;
     const std::size_t latent_iter = 10;

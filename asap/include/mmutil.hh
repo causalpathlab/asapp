@@ -1,4 +1,6 @@
-#include <pybind11/eigen.h>
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Sparse>
+#include <eigen3/Eigen/Core>
 
 #ifndef MMUTIL_HH_
 #define MMUTIL_HH_
