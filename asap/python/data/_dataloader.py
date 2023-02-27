@@ -9,7 +9,7 @@ class DataSet:
 		On memory - format is csr for efficiency since number of rows will be greater then cols
 		On disk - h5 format, requires name and number of features in all groups are same
 		'''
-		def __init__(self,data_ondisk):
+		def __init__(self,data_mode,data_ondisk):
 			self.config = None
 			self.mtx_indptr = None
 			self.mtx_indices = None
@@ -17,6 +17,7 @@ class DataSet:
 			self.rows = None
 			self.cols = None
 			self.mtx = None
+			self.data_mode = data_mode
 			self.ondisk = data_ondisk
 
 		def initialize_path(self):
@@ -32,7 +33,8 @@ class DataSet:
 
 			if self.ondisk:
 				self.get_ondisk_features()
-			else:
+			
+			if self.data_mode == 'sparse':
 				self.mtx_indptr = self.inpath + self.config.mtx_indptr
 				self.mtx_indices = self.inpath + self.config.mtx_indices
 				self.mtx_data = self.inpath + self.config.mtx_data
@@ -40,18 +42,36 @@ class DataSet:
 				self.rows = list(pd.read_csv(self.inpath + self.config.rows)['rows']) 
 				self.cols = list(pd.read_csv(self.inpath + self.config.cols)['cols']) 
 
+			if self.data_mode == 'mtx':
+				
+				## not flip rows/cols as needed
+				rf = self.inpath +'.cols.gz'
+				cf = self.inpath +'.rows.gz'
+				self.rows = list(pd.read_csv(rf,header=None)[0].values)
+				self.cols = list(pd.read_csv(cf,header=None)[0].values)
+				 
+
 		def load_data(self):
 
-			mtx_indptr = np.load(self.mtx_indptr)
-			mtx_indices = np.load(self.mtx_indices)
-			mtx_data = np.load(self.mtx_data)
+			if self.data_mode == 'sparse':
 
-			mtx_dim = len(self.cols)
-			row_ids = self.rows
+				mtx_indptr = np.load(self.mtx_indptr)
+				mtx_indices = np.load(self.mtx_indices)
+				mtx_data = np.load(self.mtx_data)
 
-			rows = csr_matrix((mtx_data,mtx_indices,mtx_indptr),shape=(len(row_ids),mtx_dim))
-			
-			self.mtx= rows.todense()
+				mtx_dim = len(self.cols)
+				row_ids = self.rows
+
+				rows = csr_matrix((mtx_data,mtx_indices,mtx_indptr),shape=(len(row_ids),mtx_dim))
+				self.mtx= rows.todense()
+
+			if self.data_mode == 'mtx':
+
+				from scipy.io import mmread 
+				
+				mm = mmread(self.inpath+'.mtx.gz')
+				self.mtx = mm.todense().T
+
 
 		def sim_data(self,N,K,P):
 			from util import _sim as _sim

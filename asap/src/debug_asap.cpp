@@ -3,12 +3,18 @@
 
 int main()
 {
-Eigen::MatrixXf mat = Eigen::MatrixXf::Random(20, 10);
+Eigen::MatrixXf mat = Eigen::MatrixXf::Random(4, 3);
 
-int maxk = 10;
+int maxk = 2;
 
-ASAPNMF model(mat,maxk);
-model.nmf();
+// ASAPNMFAlt model(mat,maxk);
+// model.nmf();
+
+Eigen::MatrixXf y = Eigen::MatrixXf::Random(4, 3);
+Eigen::MatrixXf beta = Eigen::MatrixXf::Random(4, 2);
+
+ASAPREG model(y,beta);
+model.regression();
 
 std::cout<<"ok"<<std::endl;
 return 0;

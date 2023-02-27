@@ -19,6 +19,36 @@
 #include "latent_matrix.hh"
 
 
+struct ASAPNMFAltResult {
+
+    ASAPNMFAltResult(Mat beta_dk_mean, Mat beta_dk_log, 
+        Mat theta_dk_mean, Mat theta_dk_log,
+        Mat logphi_dk, Mat logrho_nk, 
+        std::vector<Scalar>  in_llik_trace)
+        : beta{beta_dk_mean},beta_log{beta_dk_log}, 
+          theta{theta_dk_mean},theta_log{theta_dk_log}, 
+          philog{logphi_dk},rholog{logrho_nk}, 
+          llik_trace{in_llik_trace} {}
+
+    Mat beta, beta_log;
+    Mat theta, theta_log;
+    Mat philog;
+    Mat rholog;
+    std::vector<Scalar> llik_trace;
+
+};
+
+class ASAPNMFAlt {
+    public:
+    ASAPNMFAlt(const Eigen::MatrixXf in_Y_dn,int in_maxK):Y_dn(in_Y_dn),maxK(in_maxK){}
+
+    ASAPNMFAltResult nmf();
+
+    protected:
+        int maxK;
+        Eigen::MatrixXf Y_dn;
+};
+
 struct ASAPNMFResult {
 
     ASAPNMFResult(Mat in_A,Mat in_B,std::vector<Scalar>  in_llik_trace)
@@ -43,21 +73,25 @@ class ASAPNMF {
 
 struct ASAPREGResult {
 
-    ASAPREGResult(Mat in_A)
-        : A{in_A}{}
+    ASAPREGResult(Mat in_beta,Mat in_theta, Mat in_corr, Mat in_latent, Mat in_loglatent, Mat in_logtheta)
+        :beta{in_beta}, theta{in_theta}, corr{in_corr}, latent{in_latent}, loglatent{in_loglatent}, logtheta{in_logtheta}{}
 
-    Mat A;
-
+    Mat beta;
+    Mat theta;
+    Mat corr;
+    Mat latent;
+    Mat loglatent;
+    Mat logtheta;
 };
 
 class ASAPREG {
     public:
-    ASAPREG (const Eigen::MatrixXf in_Y, const Eigen::MatrixXf in_log_x):Y(in_Y),log_x(in_log_x){}
+    ASAPREG (const Eigen::MatrixXf in_Y, const Eigen::MatrixXf in_log_x):Y_dn(in_Y),log_x(in_log_x){}
 
     ASAPREGResult regression();
 
     protected:
-        Eigen::MatrixXf Y;
+        Eigen::MatrixXf Y_dn;
         Eigen::MatrixXf log_x;
 };
 

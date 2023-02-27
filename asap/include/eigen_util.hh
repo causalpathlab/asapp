@@ -23,29 +23,54 @@ struct softmax_op_t {
     using Scalar = typename T::Scalar;
     using Index = typename T::Index;
     using RowVec = typename Eigen::internal::plain_row_type<T>::type;
+    using ColVec = typename Eigen::internal::plain_col_type<T>::type;
 
-    inline RowVec operator()(const RowVec &logits)
+    inline RowVec apply_row(Eigen::Ref<const RowVec> logits)
     {
-        const Scalar log_denom = std::accumulate(logits.data(),
-                                                 logits.data() + logits.size(),
-                                                 log_eps,
-                                                 log_sum_exp);
+        return log_row(logits).unaryExpr(exp_op);
+    }
 
-        return (logits.array() - log_denom).matrix().unaryExpr(exp_op);
+    inline ColVec apply_col(Eigen::Ref<const ColVec> logits)
+    {
+        return log_col(logits).unaryExpr(exp_op);
+    }
+
+    inline RowVec log_row(Eigen::Ref<const RowVec> logits)
+    {
+        Index K = logits.size();
+        Scalar log_denom = logits.coeff(0);
+        for (Index k = 1; k < K; ++k) {
+            log_denom = log_sum_exp(log_denom, logits.coeff(k));
+        }
+        return (logits.array() - log_denom).eval();
+    }
+
+    inline ColVec log_col(Eigen::Ref<const ColVec> logits)
+    {
+        Index K = logits.size();
+        Scalar log_denom = logits.coeff(0);
+        for (Index k = 1; k < K; ++k) {
+            log_denom = log_sum_exp(log_denom, logits.coeff(k));
+        }
+        return (logits.array() - log_denom).eval();
     }
 
     struct log_sum_exp_t {
         Scalar operator()(const Scalar log_a, const Scalar log_b)
         {
-            return _log_sum_exp(log_a, log_b);
+            Scalar v;
+            if (log_a < log_b) {
+                v = log_b + fasterlog(1. + fasterexp(log_a - log_b));
+            } else {
+                v = log_a + fasterlog(1. + fasterexp(log_b - log_a));
+            }
+            return v;
         }
     } log_sum_exp;
 
     struct exp_op_t {
-        const Scalar operator()(const Scalar &x) const { return fasterexp(x); }
+        const Scalar operator()(const Scalar x) const { return fasterexp(x); }
     } exp_op;
-
-    static constexpr Scalar log_eps = -std::numeric_limits<Scalar>::infinity();
 };
 
 template <typename T, typename RNG>
