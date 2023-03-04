@@ -23,6 +23,12 @@ PYBIND11_MODULE(asapc, m) {
             py::arg("in_maxK"))
     .def("run", &ASAPNMF::nmf,py::return_value_policy::reference_internal);
 
+    py::class_<ASAPNMFDC>(m, "ASAPNMFDC")
+    .def(py::init< Eigen::MatrixXf&, int>(),
+            py::arg("in_Y"),
+            py::arg("in_maxK"))
+    .def("run", &ASAPNMFDC::nmf,py::return_value_policy::reference_internal);
+
     py::class_<ASAPNMFAltResult>(m, "ASAPNMFAltResult")
     .def(py::init< Mat, Mat, Mat, Mat, Mat, Mat, std::vector<Scalar> >())
     .def_readwrite("beta", &ASAPNMFAltResult::beta)

@@ -1,5 +1,6 @@
 import sys
-sys.path.insert(1, '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/asapp/')
+sys.path.insert(1, '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/asap/python')
+sys.path.insert(1, '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/asap')
 import joblib
 
 from util._io import read_config
@@ -20,6 +21,7 @@ from data import _sim
 from scipy import stats
 from sklearn.metrics import mean_squared_error as mse
 
+import asapc
 
 experiment = '/projects/experiments/asapp/'
 server = Path.home().as_posix()
@@ -28,10 +30,11 @@ experiment_config = read_config(experiment_home+'config.yaml')
 args = namedtuple('Struct',experiment_config.keys())(*experiment_config.values())
 
 
-data_ondisk = True
-dl = DataSet(data_ondisk)
+
+dl = DataSet(data_mode='mtx',data_ondisk=False)
 dl.config = args
 dl.initialize_path()
+dl.load_data()
 print(dl.inpath)
 print(dl.outpath)
 
@@ -57,12 +60,26 @@ logging.basicConfig(filename=dl.outpath+'_model.log',
 dl.initialize_data()
 # dl.load_data()
 
-asap = ASAPP(adata=dl,tree_max_depth=5,factorization='VB', max_iter=50)
-asap.factorize()
-asap.predict(dl.mtx)
+dl.load_data()
+asap = ASAPP(adata=dl)
+asap.get_pbulk()
 
-joblib.dump(asap.model,dl.outpath+'_model_vb.pkl')
-logging.info('saved model.')
+
+K = 5
+nmfm = asapc.ASAPNMF(asap.pbulk_mat.T,K)
+nmf = nmfm.run()
+
+
+regm = asapc.ASAPREG(dl.mtx.T,nmf.A)
+reg = regm.regress()
+
+
+pd.DataFrame(reg.beta).to_csv(dl.outpath+'_beta.csv.gz',index=False,compression='gzip')
+pd.DataFrame(reg.theta).to_csv(dl.outpath+'_theta.csv.gz',index=False,compression='gzip')
+pd.DataFrame(reg.corr).to_csv(dl.outpath+'_corr.csv.gz',index=False,compression='gzip')
+pd.DataFrame(nmf.C).to_csv(dl.outpath+'_llktrace.csv.gz',index=False,compression='gzip')
+# joblib.dump(asap.model,dl.outpath+'_model_vb.pkl')
+# logging.info('saved model.')
 
 # asap = ASAPP(adata=dl,tree_min_leaf=1,tree_max_depth=10,factorization='MVB',max_iter=50,max_pred_iter=25,n_pass=50,batch_size=64)
 # asap.factorize()

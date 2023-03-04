@@ -36,6 +36,16 @@ struct gamma_param_t {
         estimate_log = a_stat.binaryExpr(b_stat, estimate_log_op);
     }
 
+    void baseline_div(const Scalar s)
+    {
+        estimate_mean = estimate_mean / s;
+    }
+
+    void baseline_mult(const Scalar s)
+    {
+        estimate_mean = estimate_mean * s;
+    }
+
     const T &mean() const { return estimate_mean; }
     const T &log_mean() const { return estimate_log; }
 

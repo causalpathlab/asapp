@@ -16,6 +16,7 @@
 #include "mmutil.hh"
 #include "gamma_parameter.hh"
 #include "poisson_nmf_model.hh"
+#include "dcpoisson_nmf_model.hh"
 #include "latent_matrix.hh"
 
 
@@ -63,6 +64,17 @@ struct ASAPNMFResult {
 class ASAPNMF {
     public:
     ASAPNMF (const Eigen::MatrixXf in_Y,int in_maxK):Y(in_Y),maxK(in_maxK){}
+
+    ASAPNMFResult nmf();
+
+    protected:
+        int maxK;
+        Eigen::MatrixXf Y;
+};
+
+class ASAPNMFDC {
+    public:
+    ASAPNMFDC (const Eigen::MatrixXf in_Y,int in_maxK):Y(in_Y),maxK(in_maxK){}
 
     ASAPNMFResult nmf();
 
