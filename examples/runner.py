@@ -30,10 +30,10 @@ experiment_config = read_config(experiment_home+'config.yaml')
 args = namedtuple('Struct',experiment_config.keys())(*experiment_config.values())
 
 
-
 dl = DataSet(data_mode='mtx',data_ondisk=False)
 dl.config = args
 dl.initialize_path()
+print('load data...')
 dl.load_data()
 print(dl.inpath)
 print(dl.outpath)
@@ -57,20 +57,22 @@ logging.basicConfig(filename=dl.outpath+'_model.log',
 # dl.cols = ['g_'+str(i) for i in range(P) ]
 
 ####### for real data 
-dl.initialize_data()
+# dl.initialize_data()
 # dl.load_data()
 
-dl.load_data()
+print('bulk...')
 asap = ASAPP(adata=dl)
 asap.get_pbulk()
 
 
+print('nmf...')
+
 K = 5
-nmfm = asapc.ASAPNMF(asap.pbulk_mat.T,K)
+nmfm = asapc.ASAPNMFDC(asap.pbulk_mat.T,K)
 nmf = nmfm.run()
 
-
-regm = asapc.ASAPREG(dl.mtx.T,nmf.A)
+print('reg...')
+regm = asapc.ASAPREG(dl.mtx.T,nmf.beta)
 reg = regm.regress()
 
 

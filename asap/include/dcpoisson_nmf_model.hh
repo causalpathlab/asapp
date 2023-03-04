@@ -10,7 +10,6 @@ struct dcpoisson_nmf_t {
 
     using Scalar = typename T::Scalar;
     using Index = typename T::Index;
-    using ColVec = typename Eigen::internal::plain_col_type<T>::type;
 
     explicit dcpoisson_nmf_t(const Index d,
                            const Index n,
@@ -23,7 +22,6 @@ struct dcpoisson_nmf_t {
         , K(k)
         , onesD(d, 1)
         , onesN(n, 1)
-        , tempK(K)
         , rng(rseed)
         , row_degree(d, 1, a0, b0, rng)
         , column_degree(n, 1, a0, b0, rng)
@@ -37,45 +35,6 @@ struct dcpoisson_nmf_t {
         x_aux.setOnes();
     }
 
-    void randomize_topics()
-    {
-        Mat row_a = T::Ones(D, K);
-        Mat row_b = row_topic.sample();
-        row_topic.update(row_a, row_b);
-
-        Mat column_a = T::Ones(N, K);
-        Mat column_b = column_topic.sample();
-        column_topic.update(column_a, column_b);
-    }
-
-    template <typename Derived>
-    void initialize_by_svd(const Eigen::MatrixBase<Derived> &Y)
-    {
-        const std::size_t lu_iter = 5; // this should be good
-
-        RandomizedSVD<T> svd(K, lu_iter); //
-        const Mat yy = standardize(Y.unaryExpr(log1p_op));
-        svd.compute(Y);
-
-        Mat row_a = standardize(svd.matrixU()).unaryExpr(exp_op) /
-            static_cast<Scalar>(D);
-        Mat row_b = T::Ones(D, K);
-        row_topic.update(row_a, row_b);
-
-        Mat column_a = standardize(svd.matrixV()).unaryExpr(exp_op) /
-            static_cast<Scalar>(N);
-        Mat column_b = T::Ones(N, K);
-        column_topic.update(column_a, column_b);
-    }
-
-    template <typename Derived>
-    void initialize_degree(const Eigen::MatrixBase<Derived> &Y)
-    {
-        column_degree.update(Y.transpose() * onesD, onesN);
-        column_degree.calibrate();
-        row_degree.update(Y * onesN, onesD * column_degree.mean().sum());
-        row_degree.calibrate();
-    }
 
     template <typename Derived>
     void update_degree(const Eigen::MatrixBase<Derived> &Y)
@@ -98,6 +57,8 @@ struct dcpoisson_nmf_t {
     }
 
     //TODO dc log likelihood 
+
+    //TODO update this log likelihood for dc version
 
     template <typename Derived, typename Latent>
     const Scalar log_likelihood(const Eigen::MatrixBase<Derived> &Y,
@@ -231,8 +192,6 @@ struct dcpoisson_nmf_t {
     T onesD;
     T onesN;
 
-    ColVec tempK;
-    ColVec tempK2;
     RNG rng;
 
     PARAM row_degree;
