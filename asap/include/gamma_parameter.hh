@@ -24,6 +24,9 @@ struct gamma_param_t {
     {
         a_stat.setConstant(a0);
         b_stat.setConstant(b0);
+        a_stat = a0 * a_stat.binaryExpr(b_stat, rgamma_op);
+        b_stat = a0 * b_stat.binaryExpr(a_stat, rgamma_op);
+
         calibrate();
     }
 

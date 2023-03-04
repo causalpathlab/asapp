@@ -17,6 +17,14 @@ PYBIND11_MODULE(asapc, m) {
     .def_readwrite("B", &ASAPNMFResult::B)
     .def_readwrite("C", &ASAPNMFResult::llik_trace);
 
+    py::class_<ASAPNMFDCResult>(m, "ASAPNMFDCResult")
+    .def(py::init< Mat, Mat,Mat, Mat, std::vector<Scalar> >())
+    .def_readwrite("beta", &ASAPNMFDCResult::A)
+    .def_readwrite("theta", &ASAPNMFDCResult::B)
+    .def_readwrite("freq", &ASAPNMFDCResult::C)
+    .def_readwrite("depth", &ASAPNMFDCResult::D)
+    .def_readwrite("llik_trace", &ASAPNMFDCResult::llik_trace);
+
     py::class_<ASAPNMF>(m, "ASAPNMF")
     .def(py::init< Eigen::MatrixXf&, int>(),
             py::arg("in_Y"),

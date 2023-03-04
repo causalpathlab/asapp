@@ -34,6 +34,7 @@ struct dcpoisson_nmf_t {
     {
         onesD.setOnes();
         onesN.setOnes();
+        x_aux.setOnes();
     }
 
     void randomize_topics()

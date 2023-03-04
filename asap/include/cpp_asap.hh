@@ -61,6 +61,19 @@ struct ASAPNMFResult {
 
 };
 
+struct ASAPNMFDCResult {
+
+    ASAPNMFDCResult(Mat in_A, Mat in_B, Mat in_C, Mat in_D, std::vector<Scalar>  in_llik_trace)
+        : A{in_A},B{in_B},C{in_C},D{in_D},llik_trace{in_llik_trace} {}
+
+    Mat A;
+    Mat B;
+    Mat C;
+    Mat D;
+    std::vector<Scalar> llik_trace;
+
+};
+
 class ASAPNMF {
     public:
     ASAPNMF (const Eigen::MatrixXf in_Y,int in_maxK):Y(in_Y),maxK(in_maxK){}
@@ -76,7 +89,7 @@ class ASAPNMFDC {
     public:
     ASAPNMFDC (const Eigen::MatrixXf in_Y,int in_maxK):Y(in_Y),maxK(in_maxK){}
 
-    ASAPNMFResult nmf();
+    ASAPNMFDCResult nmf();
 
     protected:
         int maxK;

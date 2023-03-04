@@ -67,7 +67,7 @@ ASAPNMFResult ASAPNMF::nmf()
     return result;
 }
 
-ASAPNMFResult ASAPNMFDC::nmf()
+ASAPNMFDCResult ASAPNMFDC::nmf()
 {   
 
     const std::size_t mcem = 100;
@@ -95,12 +95,10 @@ ASAPNMFResult ASAPNMFDC::nmf()
 
     dcpoisson_nmf_t<Mat, RNG, gamma_t> model(D, N, K, a0, b0, seed);
 
-
     using latent_t = latent_matrix_t<RNG>;
     latent_t aux(D, N, K, rng);
 
-
-    model.initialize_degree(Y);
+    model.update_degree(Y);
 
      for (std::size_t t = 0; t < burnin; ++t) {
 
@@ -109,11 +107,10 @@ ASAPNMFResult ASAPNMFDC::nmf()
     }
 
     model.update_degree_baseline();
-    model.initialize_by_svd(Y);
 
     Scalar llik;
     std::vector<Scalar> llik_trace;
-
+    
     if (eval_llik) {
         llik = model.log_likelihood(Y, aux);
         llik_trace.emplace_back(llik);
@@ -134,7 +131,7 @@ ASAPNMFResult ASAPNMFDC::nmf()
 
     }
 
-    ASAPNMFResult result{model.row_topic.mean(),model.column_topic.mean(), llik_trace};
+    ASAPNMFDCResult result{model.row_topic.mean(),model.column_topic.mean(),model.row_degree.mean(),model.column_degree.mean(), llik_trace};
 
     return result;
 }
