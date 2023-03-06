@@ -4,6 +4,9 @@
 #include <pybind11/eigen.h>
 #include "../include/cpp_asap.hh"
 
+#define STRINGIFY(x) #x
+#define MACRO_STRINGIFY(x) STRINGIFY(x)
+
 namespace py = pybind11;
 
 using namespace std;
@@ -67,6 +70,13 @@ PYBIND11_MODULE(asapc, m) {
             py::arg("in_Y_dn"),
             py::arg("in_log_x"))
     .def("regress", &ASAPREG::regression,py::return_value_policy::reference_internal);
+
+
+#ifdef VERSION_INFO
+m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
+#else
+    m.attr("__version__") = "dev";
+#endif
 
 }
 

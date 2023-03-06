@@ -42,7 +42,6 @@ class DCNullPoissonMF(BaseEstimator, TransformerMixin):
         self.D_a = self.df_a + np.sum(X, axis=1,keepdims=True)
         self.D_b = self.df_b + np.sum(self.EF, axis=1, keepdims=True)
         self.ED, self.ElogD = self._compute_expectations(self.D_a, self.D_b)
-        self.c = 1. / np.mean(self.ED)
 
     def _update_frequency(self, X):
         self.F_a = self.df_a + np.sum(X, axis=0,keepdims=True)

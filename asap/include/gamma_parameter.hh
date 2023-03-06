@@ -24,17 +24,18 @@ struct gamma_param_t {
     {
         a_stat.setConstant(a0);
         b_stat.setConstant(b0);
-        a_stat = a0 * a_stat.binaryExpr(b_stat, rgamma_op);
-        b_stat = a0 * b_stat.binaryExpr(a_stat, rgamma_op);
-
         calibrate();
     }
 
+    void initialize()
+    {
+        a_stat = a_stat.binaryExpr(b_stat, rgamma_op);
+        b_stat = b_stat.binaryExpr(a_stat, rgamma_op);
+        calibrate();
+
+    }
     void calibrate()
     {
-        // _compute_expectations(self, a, b):
-        // return (a/b, special.digamma(a) - np.log(b))
-
         estimate_mean = a_stat.cwiseQuotient(b_stat);
         estimate_log = a_stat.binaryExpr(b_stat, estimate_log_op);
     }

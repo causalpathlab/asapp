@@ -70,9 +70,8 @@ ASAPNMFResult ASAPNMF::nmf()
 ASAPNMFDCResult ASAPNMFDC::nmf()
 {   
 
-    const std::size_t mcem = 100;
+    const std::size_t mcem = 25;
     const std::size_t burnin = 10;
-    const std::size_t latent_iter = 10;
     const std::size_t thining = 3;
     const bool verbose = true;
     const bool eval_llik = true;
@@ -80,8 +79,6 @@ ASAPNMFDCResult ASAPNMFDC::nmf()
     const double b0 = 1.;
     const std::size_t seed = 42;
     const std::size_t NUM_THREADS = 1;
-    const bool update_loading = true;
-    const bool gibbs_sampling = false;
 
     const Index D = Y.rows();
     const Index N = Y.cols();
@@ -95,12 +92,9 @@ ASAPNMFDCResult ASAPNMFDC::nmf()
 
     dcpoisson_nmf_t<Mat, RNG, gamma_t> model(D, N, K, a0, b0, seed);
 
-    using latent_t = latent_matrix_t<RNG>;
-    latent_t aux(D, N, K, rng);
+    model.initialize();
 
-    model.update_degree(Y);
-
-     for (std::size_t t = 0; t < burnin; ++t) {
+    for (std::size_t t = 0; t < burnin; ++t) {
 
         model.update_degree(Y);
 
@@ -112,20 +106,20 @@ ASAPNMFDCResult ASAPNMFDC::nmf()
     std::vector<Scalar> llik_trace;
     
     if (eval_llik) {
-        llik = model.log_likelihood(Y, aux);
+        llik = model.log_likelihood(Y);
         llik_trace.emplace_back(llik);
     }
-
 
     for (std::size_t t = 0; t < (mcem + burnin); ++t) {
 
     model.update_xaux(Y);
     model.update_column_topic(Y);
+
     model.update_xaux(Y);
     model.update_row_topic(Y);
 
         if (eval_llik && t % thining == 0) {
-            llik = model.log_likelihood(Y, aux);
+            llik = model.log_likelihood(Y);
             llik_trace.emplace_back(llik);
         }
 
@@ -313,7 +307,7 @@ ASAPREGResult ASAPREG::regression()
 {
     const double a0 = 1.;
     const double b0 = 1.;
-    const std::size_t max_iter = 10;
+    const std::size_t max_iter = 100;
     const bool verbose = false;
     const std::size_t NUM_THREADS = 1;
     const std::size_t BLOCK_SIZE = 100;
