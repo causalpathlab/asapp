@@ -8,7 +8,7 @@
 /asap/external/
 
 # Ignore cmake files
-/asap/CMakeFiles/
+CMakeFiles/
 *.cmake
 CMakeCache.txt
 Makefile
