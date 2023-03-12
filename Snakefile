@@ -2,6 +2,10 @@ from asap.util.io import read_config
 from collections import namedtuple
 from pathlib import Path
 
+import shutil
+onsuccess:
+    shutil.rmtree(".snakemake")
+
 experiment = '/projects/experiments/asapp/'
 server = Path.home().as_posix()
 experiment_home = server+experiment
