@@ -8,8 +8,7 @@ class DataSet:
 		On memory - format is csr for efficiency since number of rows will be greater then cols
 		On disk - h5 format, requires name and number of features in all groups are same
 		'''
-		def __init__(self,data_mode,data_ondisk):
-			self.config = None
+		def __init__(self,inpath,outpath,data_mode,data_ondisk):
 			self.mtx_indptr = None
 			self.mtx_indices = None
 			self.mtx_data = None
@@ -17,12 +16,9 @@ class DataSet:
 			self.cols = None
 			self.mtx = None
 			self.data_mode = data_mode
-			self.ondisk = data_ondisk
-
-		def initialize_path(self):
-			
-			self.inpath = self.config.home + self.config.experiment + self.config.input + self.config.sample_id + '/' + self.config.sample_id
-			self.outpath = self.config.home + self.config.experiment + self.config.output + self.config.sample_id + '/' + self.config.sample_id
+			self.ondisk = data_ondisk			
+			self.inpath = inpath
+			self.outpath = outpath
 
 			if self.ondisk:
 				self.diskfile = self.inpath+'.h5'
@@ -34,12 +30,12 @@ class DataSet:
 				self.get_ondisk_features()
 			
 			if self.data_mode == 'sparse':
-				self.mtx_indptr = self.inpath + self.config.mtx_indptr
-				self.mtx_indices = self.inpath + self.config.mtx_indices
-				self.mtx_data = self.inpath + self.config.mtx_data
+				self.mtx_indptr = self.inpath + '.indptr.npy'
+				self.mtx_indices = self.inpath + '.indices.npy'
+				self.mtx_data = self.inpath + '.data.npy'
 				
-				self.rows = list(pd.read_csv(self.inpath + self.config.rows)['rows']) 
-				self.cols = list(pd.read_csv(self.inpath + self.config.cols)['cols']) 
+				self.rows = list(pd.read_csv(self.inpath +'.rows.csv.gz' )['rows']) 
+				self.cols = list(pd.read_csv(self.inpath + '.cols.csv.gz')['cols']) 
 
 			if self.data_mode == 'mtx':
 				

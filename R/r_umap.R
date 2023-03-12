@@ -1,7 +1,7 @@
 library(umap)
-df = read.table('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/tabula_sapiens/tabula_sapiens_model_theta.csv.gz',sep=',',row.names=1,header=TRUE)
+df = read.table('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/simdata/simdata_theta.csv.gz',sep=',',row.names=1,header=TRUE)
 head(df)
 dfumap=umap(df)
 library(readr)
-write.csv(dfumap$layout,'/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/tabula_sapiens/tabula_sapiens_umap.csv')
+write.csv(dfumap$layout,'/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/simdata/simdata_theta_umap.csv')
 

@@ -13,64 +13,62 @@ using namespace std;
 
 PYBIND11_MODULE(asapc, m) {
     m.doc() = "CPP ASAP module";;
+    
+    py::class_<ASAPdcNMFResult>(m, "ASAPdcNMFResult")
+    .def(py::init< Mat, Mat, Mat, Mat, Mat, Mat, Mat, Mat, std::vector<Scalar> >())
+    .def_readwrite("beta_a", &ASAPdcNMFResult::beta_a)
+    .def_readwrite("beta_b", &ASAPdcNMFResult::beta_b)
+    .def_readwrite("beta", &ASAPdcNMFResult::beta)
+    .def_readwrite("beta_log", &ASAPdcNMFResult::beta_log)
+    .def_readwrite("theta", &ASAPdcNMFResult::theta)
+    .def_readwrite("theta_log", &ASAPdcNMFResult::theta_log)
+    .def_readwrite("col_deg", &ASAPdcNMFResult::col_deg)
+    .def_readwrite("row_deg", &ASAPdcNMFResult::row_deg)
+    .def_readwrite("llik_trace", &ASAPdcNMFResult::llik_trace);
 
-    py::class_<ASAPNMFResult>(m, "ASAPNMFResult")
-    .def(py::init< Mat, Mat, std::vector<Scalar> >())
-    .def_readwrite("A", &ASAPNMFResult::A)
-    .def_readwrite("B", &ASAPNMFResult::B)
-    .def_readwrite("C", &ASAPNMFResult::llik_trace);
-
-    py::class_<ASAPNMFDCResult>(m, "ASAPNMFDCResult")
-    .def(py::init< Mat, Mat,Mat, Mat, std::vector<Scalar> >())
-    .def_readwrite("beta", &ASAPNMFDCResult::A)
-    .def_readwrite("theta", &ASAPNMFDCResult::B)
-    .def_readwrite("freq", &ASAPNMFDCResult::C)
-    .def_readwrite("depth", &ASAPNMFDCResult::D)
-    .def_readwrite("llik_trace", &ASAPNMFDCResult::llik_trace);
-
-    py::class_<ASAPNMF>(m, "ASAPNMF")
+    py::class_<ASAPdcNMF>(m, "ASAPdcNMF")
     .def(py::init< Eigen::MatrixXf&, int>(),
             py::arg("in_Y"),
             py::arg("in_maxK"))
-    .def("run", &ASAPNMF::nmf,py::return_value_policy::reference_internal);
+    .def("nmf", &ASAPdcNMF::nmf,py::return_value_policy::reference_internal);
 
-    py::class_<ASAPNMFDC>(m, "ASAPNMFDC")
-    .def(py::init< Eigen::MatrixXf&, int>(),
-            py::arg("in_Y"),
-            py::arg("in_maxK"))
-    .def("run", &ASAPNMFDC::nmf,py::return_value_policy::reference_internal);
+    py::class_<ASAPdcNMFPredict>(m, "ASAPdcNMFPredict")
+    .def(py::init< Eigen::MatrixXf&, Eigen::MatrixXf&, Eigen::MatrixXf&>(),
+            py::arg("in_X"),
+            py::arg("in_beta_a"),
+            py::arg("in_beta_b"))
+    .def("predict", &ASAPdcNMFPredict::predict,py::return_value_policy::reference_internal);
 
-    py::class_<ASAPNMFAltResult>(m, "ASAPNMFAltResult")
+    py::class_<ASAPaltNMFResult>(m, "ASAPaltNMFResult")
     .def(py::init< Mat, Mat, Mat, Mat, Mat, Mat, std::vector<Scalar> >())
-    .def_readwrite("beta", &ASAPNMFAltResult::beta)
-    .def_readwrite("beta_log", &ASAPNMFAltResult::beta_log)
-    .def_readwrite("theta", &ASAPNMFAltResult::theta)
-    .def_readwrite("theta_log", &ASAPNMFAltResult::theta_log)
-    .def_readwrite("philog", &ASAPNMFAltResult::philog)
-    .def_readwrite("rholog", &ASAPNMFAltResult::rholog)
-    .def_readwrite("llik_trace", &ASAPNMFAltResult::llik_trace);
+    .def_readwrite("beta", &ASAPaltNMFResult::beta)
+    .def_readwrite("beta_log", &ASAPaltNMFResult::beta_log)
+    .def_readwrite("theta", &ASAPaltNMFResult::theta)
+    .def_readwrite("theta_log", &ASAPaltNMFResult::theta_log)
+    .def_readwrite("philog", &ASAPaltNMFResult::philog)
+    .def_readwrite("rholog", &ASAPaltNMFResult::rholog)
+    .def_readwrite("llik_trace", &ASAPaltNMFResult::llik_trace);
 
-    py::class_<ASAPNMFAlt>(m, "ASAPNMFAlt")
+    py::class_<ASAPaltNMF>(m, "ASAPaltNMF")
     .def(py::init< Eigen::MatrixXf&, int>(),
             py::arg("in_Y_dn"),
             py::arg("in_maxK"))
-    .def("run", &ASAPNMFAlt::nmf,py::return_value_policy::reference_internal);
+    .def("nmf", &ASAPaltNMF::nmf,py::return_value_policy::reference_internal);
 
-    py::class_<ASAPREGResult>(m, "ASAPREGResult")
+    py::class_<ASAPaltNMFPredictResult>(m, "ASAPaltNMFPredictResult")
     .def(py::init< Mat, Mat, Mat, Mat, Mat, Mat>())
-    .def_readwrite("beta", &ASAPREGResult::beta)
-    .def_readwrite("theta", &ASAPREGResult::theta)
-    .def_readwrite("corr", &ASAPREGResult::corr)
-    .def_readwrite("latent", &ASAPREGResult::latent)
-    .def_readwrite("loglatent", &ASAPREGResult::loglatent)
-    .def_readwrite("logtheta", &ASAPREGResult::logtheta);
+    .def_readwrite("beta", &ASAPaltNMFPredictResult::beta)
+    .def_readwrite("theta", &ASAPaltNMFPredictResult::theta)
+    .def_readwrite("corr", &ASAPaltNMFPredictResult::corr)
+    .def_readwrite("latent", &ASAPaltNMFPredictResult::latent)
+    .def_readwrite("loglatent", &ASAPaltNMFPredictResult::loglatent)
+    .def_readwrite("logtheta", &ASAPaltNMFPredictResult::logtheta);
 
-    py::class_<ASAPREG>(m, "ASAPREG")
+    py::class_<ASAPaltNMFPredict>(m, "ASAPaltNMFPredict")
     .def(py::init< Eigen::MatrixXf&, Eigen::MatrixXf& >(),
             py::arg("in_Y_dn"),
             py::arg("in_log_x"))
-    .def("regress", &ASAPREG::regression,py::return_value_policy::reference_internal);
-
+    .def("predict", &ASAPaltNMFPredict::predict,py::return_value_policy::reference_internal);
 
 #ifdef VERSION_INFO
 m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

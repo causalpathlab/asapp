@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 np.random.seed(42)
 
 def sample_gamma(shape, rate, size):
@@ -29,3 +30,35 @@ def generate_W(P, K, noise_prop=0., beta=2., eps=4.):
 		W[int(k*P_0/K):int((k+1)*P_0/K), k:k+1] = sample_gamma(beta +eps, 1./eps, size=size)	
 	
 	return W
+
+def sim_from_bulk(df,fp,size,alpha,beta,depth):
+
+	import scipy.sparse 
+
+	genes = df['gene'].values
+	dfbulk = df.iloc[:,1:] 
+	
+	noise = np.random.gamma(alpha, beta,dfbulk.shape[0]*dfbulk.shape[1]).reshape(dfbulk.shape[0],dfbulk.shape[1]) 
+	dfbulk += noise
+	dfbulk = dfbulk.astype(int)
+	dfbulk = dfbulk.div(dfbulk.sum(axis=0), axis=1)
+
+	all_sc = pd.DataFrame()
+	all_indx = []
+	for cell_type in dfbulk.columns:
+		sc = pd.DataFrame(np.random.multinomial(depth,dfbulk.loc[:,cell_type],size))
+		all_sc = pd.concat([all_sc,sc],axis=0,ignore_index=True)
+		all_indx.append([ str(i) + '_' + cell_type.replace(' ','') for i in range(size)])
+	
+	smat = scipy.sparse.csr_matrix(all_sc.values)
+	np.save(fp+'.indptr',smat.indptr)
+	np.save(fp+'.indices',smat.indices)
+	np.save(fp+'.data',smat.data)
+
+	dfcols = pd.DataFrame(genes)
+	dfcols.columns = ['cols']
+	dfcols.to_csv(fp+'.cols.csv.gz',index=False)
+
+	dfrows = pd.DataFrame(np.array(all_indx).flatten())
+	dfrows.columns = ['rows']
+	dfrows.to_csv(fp+'.rows.csv.gz',index=False)

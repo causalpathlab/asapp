@@ -9,8 +9,11 @@ Eigen::MatrixXf mat = Eigen::MatrixXf::Random(4, 3);
 
 int maxk = 2;
 
-ASAPNMFDC model(mat,maxk);
-model.nmf();
+ASAPdcNMF dcmodel(mat,maxk);
+dcmodel.nmf();
+
+ASAPaltNMF altmodel(mat,maxk);
+altmodel.nmf();
 
 // Eigen::MatrixXf y = Eigen::MatrixXf::Random(4, 3);
 // Eigen::MatrixXf beta = Eigen::MatrixXf::Random(4, 2);
