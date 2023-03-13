@@ -5,21 +5,22 @@
     
 int main()
 {
-Eigen::MatrixXf mat = Eigen::MatrixXf::Random(4, 3);
 
-int maxk = 2;
+// Eigen::MatrixXf mat = Eigen::MatrixXf::Random(4, 3);
 
-ASAPdcNMF dcmodel(mat,maxk);
-dcmodel.nmf();
+// int maxk = 2;
 
-ASAPaltNMF altmodel(mat,maxk);
-altmodel.nmf();
+// ASAPdcNMF dcmodel(mat,maxk);
+// dcmodel.nmf();
 
-// Eigen::MatrixXf y = Eigen::MatrixXf::Random(4, 3);
-// Eigen::MatrixXf beta = Eigen::MatrixXf::Random(4, 2);
+// ASAPaltNMF altmodel(mat,maxk);
+// altmodel.nmf();
 
-// ASAPREG model(y,beta);
-// model.regression();
+Eigen::MatrixXf y = Eigen::MatrixXf::Random(4, 3);
+Eigen::MatrixXf beta = Eigen::MatrixXf::Random(4, 2);
+
+ASAPaltNMFPredict model(y,beta);
+model.predict();
 
     // const std::size_t seed = 42;
 

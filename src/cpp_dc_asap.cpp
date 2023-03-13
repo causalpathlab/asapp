@@ -75,7 +75,7 @@ ASAPdcNMFResult ASAPdcNMFPredict::predict()
     // std::cout << "Running nmf prediction...." << '\n';
     
     const std::size_t mcem = 100;
-    const std::size_t burnin = 100;
+    const std::size_t burnin = 10;
     const std::size_t thining = 3;
     const bool verbose = true;
     const bool eval_llik = true;

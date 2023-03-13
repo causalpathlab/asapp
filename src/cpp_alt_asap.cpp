@@ -194,8 +194,12 @@ ASAPaltNMFPredictResult ASAPaltNMFPredict::predict()
 
     auto exp_op = [](const Scalar &_x) -> Scalar { return fasterexp(_x); };
     
+    auto at_least_one = [](const Scalar x) -> Scalar {
+        return (x < 1.) ? 1. : x;
+    };
 
-    const Mat log_X = standardize(log_x);
+    // const Mat log_X = standardize(log_x);
+    const Mat log_X = log_x;
     const RowVec Xsum = log_X.unaryExpr(exp_op).colwise().sum();
 
     Mat R_tot(N, K);
@@ -212,10 +216,12 @@ ASAPaltNMFPredictResult ASAPaltNMFPredict::predict()
     softmax_op_t<Mat> softmax;
 
     ColVec Ysum = Y.colwise().sum().transpose(); // n x 1
+    ColVec Ysum1 = Ysum.unaryExpr(at_least_one);
+
     gamma_t theta_b(Y.cols(), K, a0, b0, rng);   // n x K
     Mat logZ(Y.cols(), K), Z(Y.cols(), K);       // n x K
-    Mat R = (Y.transpose() * log_X).array().colwise() / Ysum.array();
-    //          n x D        D x K                      n x 1
+    Mat R = Y.transpose() * log_X;     // n x D        D x K                   
+    R.array().colwise() /= Ysum1.array();
 
     ColVec onesN(Y.cols()); // n x 1
     onesN.setOnes();        //

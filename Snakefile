@@ -32,7 +32,7 @@ rule all:
 rule sc_simulated_data:
     params:
         datap = sample_in,
-        size = 100
+        size = 1000
     input:
         script = scripts_dir + '1_sim_data.py', 
         dice = args.home + args.experiment + args.resources_dice
