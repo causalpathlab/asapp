@@ -9,9 +9,6 @@ class DataSet:
 		On disk - h5 format, requires name and number of features in all groups are same
 		'''
 		def __init__(self,inpath,outpath,data_mode,data_ondisk):
-			self.mtx_indptr = None
-			self.mtx_indices = None
-			self.mtx_data = None
 			self.rows = None
 			self.cols = None
 			self.mtx = None
@@ -30,9 +27,8 @@ class DataSet:
 				self.get_ondisk_features()
 			
 			if self.data_mode == 'sparse':
-				self.mtx_indptr = self.inpath + '.indptr.npy'
-				self.mtx_indices = self.inpath + '.indices.npy'
-				self.mtx_data = self.inpath + '.data.npy'
+
+				self.npzarrs = self.inpath+'.npz'
 				
 				self.rows = list(pd.read_csv(self.inpath +'.rows.csv.gz' )['rows']) 
 				self.cols = list(pd.read_csv(self.inpath + '.cols.csv.gz')['cols']) 
@@ -50,9 +46,10 @@ class DataSet:
 
 			if self.data_mode == 'sparse':
 
-				mtx_indptr = np.load(self.mtx_indptr)
-				mtx_indices = np.load(self.mtx_indices)
-				mtx_data = np.load(self.mtx_data)
+				npzarrs = np.load(self.npzarrs,allow_pickle=True)
+				mtx_indptr = npzarrs['indptr']
+				mtx_indices = npzarrs['indices']
+				mtx_data = npzarrs['data']
 
 				mtx_dim = len(self.cols)
 				row_ids = self.rows

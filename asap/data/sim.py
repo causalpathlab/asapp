@@ -31,15 +31,16 @@ def generate_W(P, K, noise_prop=0., beta=2., eps=4.):
 	
 	return W
 
-def sim_from_bulk(df,fp,size,alpha,beta,depth):
+def sim_from_bulk(df,fp,size,alpha,beta,rho,depth):
 
 	import scipy.sparse 
 
 	genes = df['gene'].values
 	dfbulk = df.iloc[:,1:] 
 	
-	noise = np.random.gamma(alpha, beta,dfbulk.shape[0]*dfbulk.shape[1]).reshape(dfbulk.shape[0],dfbulk.shape[1]) 
-	dfbulk += noise
+	noise = np.random.gamma(alpha, beta,dfbulk.shape[0]*dfbulk.shape[1]).reshape(dfbulk.shape[0],dfbulk.shape[1])
+	noise = noise * np.array(dfbulk.mean(1)).reshape(dfbulk.shape[0],1) 
+	dfbulk = (dfbulk * rho) + (1-rho)*noise
 	dfbulk = dfbulk.astype(int)
 	dfbulk = dfbulk.div(dfbulk.sum(axis=0), axis=1)
 
@@ -51,9 +52,11 @@ def sim_from_bulk(df,fp,size,alpha,beta,depth):
 		all_indx.append([ str(i) + '_' + cell_type.replace(' ','') for i in range(size)])
 	
 	smat = scipy.sparse.csr_matrix(all_sc.values)
-	np.save(fp+'.indptr',smat.indptr)
-	np.save(fp+'.indices',smat.indices)
-	np.save(fp+'.data',smat.data)
+
+	np.savez(fp,
+        indptr = smat.indptr,
+        indices = smat.indices,
+        data = smat.data)
 
 	dfcols = pd.DataFrame(genes)
 	dfcols.columns = ['cols']

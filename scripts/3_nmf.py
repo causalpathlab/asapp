@@ -5,12 +5,12 @@ import asapc
 import pandas as pd
 
 
-inpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/simdata/simdata'
-outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/simdata/simdata'
-pb = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/simdata/simdata_pbulk.npz'
-# inpath = sys.argv[1]
-# outpath = sys.argv[2]
-# pb = sys.argv[3]
+# inpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/simdata/simdata'
+# outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/simdata/simdata'
+# pb = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/simdata/simdata_pbulk.npz'
+inpath = sys.argv[1]
+outpath = sys.argv[2]
+pb = sys.argv[3]
 
 dl = DataSet(inpath,outpath,data_mode='sparse',data_ondisk=False)
 dl.initialize_data()
@@ -18,7 +18,7 @@ dl.load_data()
 
 pbulkf = np.load(pb,allow_pickle=True)
 
-K = 10
+K = 25
 
 ######## alt nmf model 
 
@@ -49,7 +49,6 @@ np.savez(outpath+'_altnmf',
 import threading
 from multiprocessing import Pool, Process, Queue
 
-K=10
 
 print('dc nmf model...nmf ')
 nmf_model = asapc.ASAPdcNMF(pbulkf['pbulk'].T,K)
@@ -64,7 +63,7 @@ scaled = scaler.fit_transform(nmf.beta_log)
 reg_model = asapc.ASAPaltNMFPredict(dl.mtx.T,scaled)
 reg = reg_model.predict()
 
-print('alt nmf model...saving ')
+print('dc nmf model...saving ')
 
 np.savez(outpath+'_dcnmf',
         beta = nmf.beta,
@@ -104,3 +103,17 @@ np.savez(outpath+'_dcnmf',
 # pool.join()
 
 # pd.DataFrame(results).to_csv(outpath+'_dctheta.csv.gz',index=False, compression='gzip')
+
+######## full alt nmf model 
+
+print('full alt nmf model...nmf ')
+nmf_model = asapc.ASAPaltNMF(dl.mtx.T,K)
+nmf = nmf_model.nmf()
+
+print('full alt nmf model...saving ')
+
+np.savez(outpath+'_fnmf',
+        beta = nmf.beta,
+        beta_log = nmf.beta_log,
+        theta = nmf.theta,
+        llk = nmf.llik_trace)
