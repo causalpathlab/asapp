@@ -106,14 +106,14 @@ np.savez(outpath+'_dcnmf',
 
 ######## full alt nmf model 
 
-print('full alt nmf model...nmf ')
-nmf_model = asapc.ASAPaltNMF(dl.mtx.T,K)
-nmf = nmf_model.nmf()
+# print('full alt nmf model...nmf ')
+# nmf_model = asapc.ASAPaltNMF(dl.mtx.T,K)
+# nmf = nmf_model.nmf()
 
-print('full alt nmf model...saving ')
+# print('full alt nmf model...saving ')
 
-np.savez(outpath+'_fnmf',
-        beta = nmf.beta,
-        beta_log = nmf.beta_log,
-        theta = nmf.theta,
-        llk = nmf.llik_trace)
+# np.savez(outpath+'_fnmf',
+#         beta = nmf.beta,
+#         beta_log = nmf.beta_log,
+#         theta = nmf.theta,
+#         llk = nmf.llik_trace)

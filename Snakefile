@@ -1,4 +1,3 @@
-
 import shutil
 onsuccess:
     shutil.rmtree(".snakemake")
@@ -14,15 +13,13 @@ print(sample_in)
 print(sample_out)
 print(scripts_dir)
 
-ALPHA = [1.,2.]
+ALPHA = [1.]
 RHO = [0.9]
-DEPTH = [100]
-SIZE = [100]
-
-NMF = ['_dcnmf','_altnmf','_fnmf']
+DEPTH = [10]
+SIZE = [10]
 
 sim_data_pattern = sample_in+'_a_{alpha}_r_{rho}_d_{depth}_s_{size}'
-sample_out = sample_out+'/a_{alpha}_r_{rho}_d_{depth}_s_{size}/'
+sample_out = sample_out+'a_{alpha}_r_{rho}_d_{depth}_s_{size}/'
 
 print(config['home'] + config['experiment'] + config['resources_dice'])
 rule all:
@@ -31,7 +28,8 @@ rule all:
         expand(sample_out+'_pbulk.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE),
         expand(sample_out+'_altnmf.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE),
         expand(sample_out+'_dcnmf.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE),
-        expand(sample_out+'_fnmf.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE)
+        expand(sample_out+'_eval.csv', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE)
+        # expand(sample_out+'_fnmf.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE)
 
 rule sc_simulated_data:
     input:
@@ -65,8 +63,22 @@ rule nmf:
         pbulk_data = rules.pseudobulk.output.pbulk_data
     output:
         altnmf_data = sample_out+'_altnmf.npz',
-        dcnmf_data = sample_out+'_dcnmf.npz',
-        fnmf_data = sample_out+'_fnmf.npz'
+        dcnmf_data = sample_out+'_dcnmf.npz'
+        # fnmf_data = sample_out+'_fnmf.npz'
     shell:
         'python {input.script} {params.sim_data_path} {params.nmf_data_path} {input.pbulk_data}'
+
+rule eval:
+    params:
+        sim_data_path = sim_data_pattern,
+        nmf_data_path = sample_out
+    input:
+        script = scripts_dir + '4_eval.py', 
+        altnmf_data = rules.nmf.output.altnmf_data,
+        dcnmf_data = rules.nmf.output.dcnmf_data
+        # fnmf_data = sample_out+'_fnmf.npz'
+    output:
+        eval_data = sample_out+'_eval.csv'
+    shell:
+        'python {input.script} {params.sim_data_path} {params.nmf_data_path} {input.altnmf_data} {input.dcnmf_data} {wildcards.alpha} {wildcards.rho} {wildcards.depth} {wildcards.size}'
 
