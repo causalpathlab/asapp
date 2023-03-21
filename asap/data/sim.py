@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-np.random.seed(42)
 
 def sample_gamma(shape, rate, size):
 	return np.random.gamma(shape, 1./rate, size=size)
@@ -31,17 +30,22 @@ def generate_W(P, K, noise_prop=0., beta=2., eps=4.):
 	
 	return W
 
-def sim_from_bulk(df,fp,size,alpha,beta,rho,depth):
+def sim_from_bulk(df,fp,size,alpha,rho,depth,seedn):
 
-	import scipy.sparse 
+	import scipy.sparse
 
+	np.random.seed(seedn)
+ 
 	genes = df['gene'].values
 	dfbulk = df.iloc[:,1:] 
 	
-	noise = np.random.gamma(alpha, beta,dfbulk.shape[0]*dfbulk.shape[1]).reshape(dfbulk.shape[0],dfbulk.shape[1])
-	noise = noise * np.array(dfbulk.mean(1)).reshape(dfbulk.shape[0],1) 
+	beta = np.array(dfbulk.mean(1)).reshape(dfbulk.shape[0],1) 
+	noise = np.array([np.random.gamma(alpha,b/alpha,dfbulk.shape[1]) for b in beta ])
+	
 	dfbulk = (dfbulk * rho) + (1-rho)*noise
 	dfbulk = dfbulk.astype(int)
+
+	## convert to probabilities
 	dfbulk = dfbulk.div(dfbulk.sum(axis=0), axis=1)
 
 	all_sc = pd.DataFrame()

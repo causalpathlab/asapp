@@ -9,10 +9,10 @@ alpha = sys.argv[3]
 rho = sys.argv[4]
 depth = sys.argv[5]
 size = sys.argv[6]
-
-beta = 1/float(alpha)
+seed = sys.argv[7]
 
 df = pd.read_csv(bulk_data,compression='zip')
 
-sim.sim_from_bulk(df,result_path,int(size),float(alpha),float(beta),float(rho),int(depth))
+
+sim.sim_from_bulk(df,result_path,int(size),float(alpha),float(rho),int(depth),int(seed))
 # print(alpha,rho,depth,size)

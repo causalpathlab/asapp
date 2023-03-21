@@ -13,23 +13,24 @@ print(sample_in)
 print(sample_out)
 print(scripts_dir)
 
-ALPHA = [1.]
-RHO = [0.9]
-DEPTH = [10]
-SIZE = [10]
+ALPHA = [1000]
+RHO = [0.2, 0.4, 0.6, 0.8, 1.0]
+DEPTH = [10000]
+SIZE = [10,100,1000]
+SEED = [42,100,600,1000,2021]
 
-sim_data_pattern = sample_in+'_a_{alpha}_r_{rho}_d_{depth}_s_{size}'
-sample_out = sample_out+'a_{alpha}_r_{rho}_d_{depth}_s_{size}/'
+sim_data_pattern = sample_in+'_a_{alpha}_r_{rho}_d_{depth}_s_{size}_sd_{seed}'
+sample_out = sample_out+'a_{alpha}_r_{rho}_d_{depth}_s_{size}_sd_{seed}/'
 
 print(config['home'] + config['experiment'] + config['resources_dice'])
 rule all:
     input:
-        expand(sim_data_pattern+'.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE),
-        expand(sample_out+'_pbulk.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE),
-        expand(sample_out+'_altnmf.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE),
-        expand(sample_out+'_dcnmf.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE),
-        expand(sample_out+'_eval.csv', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE)
-        # expand(sample_out+'_fnmf.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE)
+        expand(sim_data_pattern+'.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
+        expand(sample_out+'_pbulk.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
+        expand(sample_out+'_altnmf.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
+        expand(sample_out+'_dcnmf.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
+        expand(sample_out+'_eval.csv', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
+        expand(sample_out+'_fnmf.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED)
 
 rule sc_simulated_data:
     input:
@@ -40,7 +41,7 @@ rule sc_simulated_data:
     params:
         sim_data_path = sim_data_pattern
     shell:
-        'python {input.script} {input.bulk_data} {params.sim_data_path} {wildcards.alpha} {wildcards.rho} {wildcards.depth} {wildcards.size}'
+        'python {input.script} {input.bulk_data} {params.sim_data_path} {wildcards.alpha} {wildcards.rho} {wildcards.depth} {wildcards.size} {wildcards.seed}'
 
 rule pseudobulk:
     params:
@@ -63,8 +64,8 @@ rule nmf:
         pbulk_data = rules.pseudobulk.output.pbulk_data
     output:
         altnmf_data = sample_out+'_altnmf.npz',
-        dcnmf_data = sample_out+'_dcnmf.npz'
-        # fnmf_data = sample_out+'_fnmf.npz'
+        dcnmf_data = sample_out+'_dcnmf.npz',
+        fnmf_data = sample_out+'_fnmf.npz'
     shell:
         'python {input.script} {params.sim_data_path} {params.nmf_data_path} {input.pbulk_data}'
 
@@ -75,10 +76,10 @@ rule eval:
     input:
         script = scripts_dir + '4_eval.py', 
         altnmf_data = rules.nmf.output.altnmf_data,
-        dcnmf_data = rules.nmf.output.dcnmf_data
-        # fnmf_data = sample_out+'_fnmf.npz'
+        dcnmf_data = rules.nmf.output.dcnmf_data,
+        fnmf_data = sample_out+'_fnmf.npz'
     output:
         eval_data = sample_out+'_eval.csv'
     shell:
-        'python {input.script} {params.sim_data_path} {params.nmf_data_path} {input.altnmf_data} {input.dcnmf_data} {wildcards.alpha} {wildcards.rho} {wildcards.depth} {wildcards.size}'
+        'python {input.script} {params.sim_data_path} {params.nmf_data_path} {input.altnmf_data} {input.dcnmf_data} {input.fnmf_data} {wildcards.alpha} {wildcards.rho} {wildcards.depth} {wildcards.size} {wildcards.seed}'
 

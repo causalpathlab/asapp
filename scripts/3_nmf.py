@@ -5,9 +5,6 @@ import asapc
 import pandas as pd
 
 
-# inpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/simdata/simdata'
-# outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/simdata/simdata'
-# pb = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/result/simdata/simdata_pbulk.npz'
 inpath = sys.argv[1]
 outpath = sys.argv[2]
 pb = sys.argv[3]
@@ -46,10 +43,6 @@ np.savez(outpath+'_altnmf',
 
 ######## dc nmf model 
 
-import threading
-from multiprocessing import Pool, Process, Queue
-
-
 print('dc nmf model...nmf ')
 nmf_model = asapc.ASAPdcNMF(pbulkf['pbulk'].T,K)
 nmf = nmf_model.nmf()
@@ -73,6 +66,8 @@ np.savez(outpath+'_dcnmf',
 
 
 ######### parallel if using dc predict ###########
+# import threading
+# from multiprocessing import Pool, Process, Queue
 
 # print('dc nmf model...predict using dc ')
 
@@ -106,14 +101,14 @@ np.savez(outpath+'_dcnmf',
 
 ######## full alt nmf model 
 
-# print('full alt nmf model...nmf ')
-# nmf_model = asapc.ASAPaltNMF(dl.mtx.T,K)
-# nmf = nmf_model.nmf()
+print('full alt nmf model...nmf ')
+nmf_model = asapc.ASAPaltNMF(dl.mtx.T,K)
+nmf = nmf_model.nmf()
 
-# print('full alt nmf model...saving ')
+print('full alt nmf model...saving ')
 
-# np.savez(outpath+'_fnmf',
-#         beta = nmf.beta,
-#         beta_log = nmf.beta_log,
-#         theta = nmf.theta,
-#         llk = nmf.llik_trace)
+np.savez(outpath+'_fnmf',
+        beta = nmf.beta,
+        beta_log = nmf.beta_log,
+        theta = nmf.theta,
+        llk = nmf.llik_trace)
