@@ -2,6 +2,8 @@ import sys
 import os
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import normalized_mutual_info_score
 
 
@@ -22,22 +24,19 @@ result_file = nmf_data_path+'_eval.csv'
 
 def eval_model(model_file,result_file,mode):
 
-    beta = model_file['beta']
-    theta = model_file['theta']
-    uu = beta.sum(0)
-    beta = beta/uu
-    prop = theta * uu
-    zz = prop.T.sum(0).reshape(theta.shape[0],1)
-    prop = prop/zz
-    df_theta = pd.DataFrame(prop)
+    if mode =='full':
+        df_theta = pd.DataFrame(model_file['theta'])
+    else:
+        df_theta = pd.DataFrame(model_file['corr'])
+    
     df_theta.index = data_rows
 
     df_umap= pd.DataFrame()
     df_umap['cell'] = data_rows
 
-
-    from sklearn.cluster import KMeans
-    kmeans = KMeans(n_clusters=25, random_state=0).fit(df_theta.to_numpy())
+    scaler = StandardScaler()
+    scaled = scaler.fit_transform(df_theta.to_numpy())
+    kmeans = KMeans(n_clusters=25, init='k-means++',random_state=0).fit(scaled)
     df_umap['topic_bulk'] = kmeans.labels_
     df_umap['cell_type'] = [x.split('_')[1] for x in df_umap['cell']]
 

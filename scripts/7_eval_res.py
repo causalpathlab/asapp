@@ -17,8 +17,10 @@ args = namedtuple('Struct',experiment_config.keys())(*experiment_config.values()
 
 sample_out = args.home + args.experiment + args.output+ args.sample_id +'/'
 
+# sample_out = sys.argv[1]
+
 flist = []
-for name in glob.glob(sample_out+'/*/_eval.csv'):
+for name in glob.glob(sample_out+'/*/_eval*.csv'):
     flist.append(name)
 
 df = pd.DataFrame()

@@ -102,9 +102,12 @@ class ASAPNMF:
 		for (i, istart) in enumerate(range(0, n_samples,self.chunk_size), 1):
 			iend = min(istart + self.chunk_size, n_samples)
 			mini_batch = X_shuffled[istart: iend]
-			dc_mat = self.generate_degree_correction_mat(mini_batch)
 			rp_mat = self.generate_random_projection_mat(mini_batch.shape[1])
-			batch_pbulk = self.generate_pbulk_mat(mini_batch, rp_mat,dc_mat)
+			if self.pbulk_method =='qr':
+				batch_pbulk = self.generate_pbulk_mat(mini_batch, rp_mat)
+			else:
+				dc_mat = self.generate_degree_correction_mat(mini_batch)
+				batch_pbulk = self.generate_pbulk_mat(mini_batch, rp_mat,dc_mat)
 			self.pbulk_mat = pd.concat([self.pbulk_mat, batch_pbulk], axis=0, ignore_index=True)
 			logger.info('completed...' + str(i)+ ' of '+str(total_batches))
 		self.pbulk_mat= self.pbulk_mat.to_numpy()
@@ -173,9 +176,15 @@ class ASAPNMF:
 			n_samples = self.adata.mtx.shape[0]
 			if n_samples < self.chunk_size:
 				logger.info('Total number is sample ' + str(n_samples) +'..modelling entire dataset')
-				dc_mat = self.generate_degree_correction_mat(self.adata.mtx)
+				
 				rp_mat = self.generate_random_projection_mat(self.adata.mtx.shape[1])
-				self.pbulk_mat = self.generate_pbulk_mat(self.adata.mtx, rp_mat,dc_mat).to_numpy()
+
+				if self.pbulk_method == 'tree':
+					dc_mat = self.generate_degree_correction_mat(self.adata.mtx)
+					self.pbulk_mat = self.generate_pbulk_mat(self.adata.mtx, rp_mat,dc_mat).to_numpy()
+				else:
+					self.pbulk_mat = self.generate_pbulk_mat(self.adata.mtx, rp_mat).to_numpy()
+
 			else:
 				logger.info('Total number of sample is ' + str(n_samples) +'..modelling '+str(self.chunk_size) +' chunk of dataset')
 				self._generate_pbulk_batch(n_samples)
