@@ -13,39 +13,27 @@ print(sample_in)
 print(result_dir)
 print(scripts_dir)
 
-##### noise level and size
-# ALPHA = [1000]
-# RHO = [0.0, 0.25, 0.5, 0.75, 1.0]
-# DEPTH = [10000]
-# SIZE = [100,1000,10000]
-# SEED = [1,2,3,4,5,6,7,8,9,10]
+RHO = [0.0,1.0]
+SIZE = [200]
+SEED = [1,2]
 
-
-##### dispersion(alpha), depth
-ALPHA = [1,10,100,1000,10000]
-RHO = [0.9]
-DEPTH = [10,100,1000,10000]
-SIZE = [1000]
-SEED = [1,2,3,4,5,6,7,8,9,10]
-
-
-sim_data_pattern = sample_in+'_a_{alpha}_r_{rho}_d_{depth}_s_{size}_sd_{seed}'
-sample_out = result_dir+'a_{alpha}_r_{rho}_d_{depth}_s_{size}_sd_{seed}/'
+sim_data_pattern = sample_in+'_r_{rho}_s_{size}_sd_{seed}'
+sample_out = result_dir+'_r_{rho}_s_{size}_sd_{seed}/'
 
 print(config['home'] + config['experiment'] + config['resources_dice'])
 rule all:
     input:
-        expand(sim_data_pattern+'.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
-        expand(sample_out+'_pbulk.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
-        expand(sample_out+'_altnmf.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
-        expand(sample_out+'_dcnmf.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
-        expand(sample_out+'_eval.csv', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
-        expand(sample_out+'_fnmf.npz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
-        expand(sample_out+'_scanpy.csv.gz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
-        expand(sample_out+'_pc2n10.csv.gz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
-        expand(sample_out+'_pc10n100.csv.gz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
-        expand(sample_out+'_pc50n1000.csv.gz', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED),
-        expand(sample_out+'_eval_ext.csv', alpha=ALPHA,rho=RHO,depth=DEPTH,size=SIZE,seed=SEED)
+        expand(sim_data_pattern+'.npz', rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_pbulk.npz', rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_altnmf.npz', rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_dcnmf.npz', rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_eval.csv', rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_fnmf.npz', rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_scanpy.csv.gz', rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_pc25n25.csv.gz', rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_pc25n50.csv.gz', rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_pc25n500.csv.gz', rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_eval_ext.csv', rho=RHO,size=SIZE,seed=SEED)
 
 rule sc_simulated_data:
     input:
@@ -56,7 +44,7 @@ rule sc_simulated_data:
     params:
         sim_data_path = sim_data_pattern
     shell:
-        'python {input.script} {input.bulk_data} {params.sim_data_path} {wildcards.alpha} {wildcards.rho} {wildcards.depth} {wildcards.size} {wildcards.seed}'
+        'python {input.script} {input.bulk_data} {params.sim_data_path} {wildcards.rho} {wildcards.size} {wildcards.seed}'
 
 rule pseudobulk:
     params:
@@ -96,7 +84,7 @@ rule eval:
     output:
         eval_data = sample_out+'_eval.csv'
     shell:
-        'python {input.script} {params.sim_data_path} {params.nmf_data_path} {input.altnmf_data} {input.dcnmf_data} {input.fnmf_data} {wildcards.alpha} {wildcards.rho} {wildcards.depth} {wildcards.size} {wildcards.seed}'
+        'python {input.script} {params.sim_data_path} {params.nmf_data_path} {input.altnmf_data} {input.dcnmf_data} {input.fnmf_data} {wildcards.rho} {wildcards.size} {wildcards.seed}'
 
 rule nmf_ext:
     params:
@@ -106,9 +94,9 @@ rule nmf_ext:
         script = scripts_dir + '6_nmf_ext.py', 
     output:
         scanpy_data = sample_out+'_scanpy.csv.gz',
-        pcl_data = sample_out+'_pc2n10.csv.gz',
-        pcm_data = sample_out+'_pc10n100.csv.gz',
-        pch_data = sample_out+'_pc50n1000.csv.gz'
+        pcl_data = sample_out+'_pc25n25.csv.gz',
+        pcm_data = sample_out+'_pc25n50.csv.gz',
+        pch_data = sample_out+'_pc25n500.csv.gz'
     shell:
         'python {input.script} {params.sim_data_path} {params.nmf_data_path}'
 
@@ -125,5 +113,5 @@ rule eval_ext:
     output:
         eval_data = sample_out+'_eval_ext.csv'
     shell:
-        'python {input.script} {params.sim_data_path} {params.nmf_data_path} {input.scanpy_data} {input.pcl_data} {input.pcm_data} {input.pch_data} {wildcards.alpha} {wildcards.rho} {wildcards.depth} {wildcards.size} {wildcards.seed}'
+        'python {input.script} {params.sim_data_path} {params.nmf_data_path} {input.scanpy_data} {input.pcl_data} {input.pcm_data} {input.pch_data} {wildcards.rho} {wildcards.size} {wildcards.seed}'
 

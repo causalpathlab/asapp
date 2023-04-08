@@ -29,8 +29,12 @@ for f in flist:
     df = pd.concat([df,dfc],axis=0,ignore_index=True)
 
 
-grps = ['mode','alpha','rho','depth','size']
+grps = ['mode','rho','size']
 df = df.groupby(grps).agg(['mean','std' ]).reset_index()
 df.columns = df.columns.map('_'.join).str.strip('_')
 df = df.drop(columns=['seed_mean','seed_std'])
+mode_dict = {'alt':'ePMF','dc':'dcPMF','scanpy':'Scanpy',
+'pc10n100':'PC10N100',
+'pc2n10':'PC2N10',
+'pc50n1000':'PC50N1000'}
 df.to_csv(sample_out+'eval_result.csv',index=False)

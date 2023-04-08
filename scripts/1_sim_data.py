@@ -5,14 +5,10 @@ import asap.data.sim as sim
 
 bulk_data = sys.argv[1]
 result_path = sys.argv[2]
-alpha = sys.argv[3]
-rho = sys.argv[4]
-depth = sys.argv[5]
-size = sys.argv[6]
-seed = sys.argv[7]
+rho = sys.argv[3]
+size = sys.argv[4]
+seed = sys.argv[5]
 
-df = pd.read_csv(bulk_data,compression='zip')
+bulk_data = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/resources/dice/*.csv'
 
-
-sim.sim_from_bulk(df,result_path,int(size),float(alpha),float(rho),int(depth),int(seed))
-# print(alpha,rho,depth,size)
+sim.sim_from_bulk(bulk_data,result_path,int(size),float(rho),int(seed))

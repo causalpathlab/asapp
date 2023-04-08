@@ -39,9 +39,6 @@ sc.pp.filter_cells(adata, min_genes=0)
 sc.pp.filter_genes(adata, min_cells=0)
 adata.var['mt'] = adata.var_names.str.startswith('MT-')  
 sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)
-
-# sc.pl.scatter(adata, x='total_counts', y='n_genes_by_counts')
-
 sc.pp.normalize_total(adata, target_sum=10000)
 
 sc.pp.log1p(adata)
@@ -55,18 +52,11 @@ def _scanpy(adata):
         sc.pp.regress_out(adata, ['total_counts', 'pct_counts_mt'])
         sc.pp.scale(adata, max_value=10)
 
-        sc.tl.pca(adata, svd_solver='arpack')
-        # sc.pl.pca(adata)
-        # plt.savefig('_scanpy_raw_pipeline_pca.png');plt.close()
-
-        # sc.pl.pca_variance_ratio(adata, n_pcs=50,log=True)
-        # plt.savefig('_scanpy_raw_pipeline_pca_var.png');plt.close()
+        sc.tl.pca(adata, n_comps=K, svd_solver='arpack')
 
         sc.pp.neighbors(adata)
         sc.tl.umap(adata)
         sc.tl.leiden(adata)
-        # sc.pl.umap(adata, color=['leiden'])
-        # plt.savefig('_scanpy_raw_pipeline_umap.png');plt.close()
 
         df_leiden = pd.DataFrame(adata.obs['leiden']) 
         df_leiden.index=adata.obs[0]
@@ -104,7 +94,7 @@ def _pca(adata,n,nc):
                 df_pca.to_csv(outpath+'_pc'+str(nc)+'n'+str(n)+'.csv.gz',index=False, compression='gzip')
 
 
-_pca(adata,10,2)
-_pca(adata,100,10)
-_pca(adata,1000,50)
+_pca(adata,25,25)
+_pca(adata,50,25)
+_pca(adata,500,25)
 _scanpy(adata)
