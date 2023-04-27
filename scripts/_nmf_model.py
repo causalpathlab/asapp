@@ -1,3 +1,11 @@
+import pandas as pd
+import numpy as np
+from asap.data.dataloader import DataSet
+import asapc
+from asap.annotation import ASAPNMF
+
+
+
 from asap.util.io import read_config
 from collections import namedtuple
 from pathlib import Path
@@ -10,6 +18,8 @@ import matplotlib.pylab as plt
 import seaborn as sns
 import colorcet as cc
 
+import logging
+
 
 experiment = '/projects/experiments/asapp/'
 server = Path.home().as_posix()
@@ -20,29 +30,97 @@ args = namedtuple('Struct',experiment_config.keys())(*experiment_config.values()
 sample_in = args.home + args.experiment + args.input+ args.sample_id +'/'+args.sample_id
 sample_out = args.home + args.experiment + args.output+ args.sample_id +'/'+args.sample_id
 
-dl = DataSet(sample_in,sample_out,data_mode='sparse',data_ondisk=False)
-dl.config = args
+logging.basicConfig(filename=sample_out+'_model.log',
+						format='%(asctime)s %(levelname)-8s %(message)s',
+						level=logging.INFO,
+						datefmt='%Y-%m-%d %H:%M:%S')
+
+dl = DataSet('pbmc',sample_in,sample_out)
 dl.initialize_data()
-print(dl.inpath)
-print(dl.outpath)
+dl.load_data()
+
+asap = ASAPNMF(adata=dl)
+asap.get_pbulk()
+
+inpath = sample_in
+outpath = sample_out
+
+np.savez(outpath+'_pbulk', pbulk= asap.pbulk_mat)
 
 
-model = np.load(sample_out+'_dcnmf.npz')
+pbulkf = np.load(outpath+'_pbulk.npz')
+pbulk = np.log1p(pbulkf['pbulk'])
+K = 10
+
+######## alt nmf model 
+
+print('alt nmf model...nmf ')
+
+nmf_model = asapc.ASAPaltNMF(pbulk,K)
+nmf = nmf_model.nmf()
+
+print('alt nmf model...predict ')
+
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+scaled = scaler.fit_transform(nmf.beta_log)
+
+reg_model = asapc.ASAPaltNMFPredict(dl.mtx,scaled)
+reg = reg_model.predict()
+
+print('alt nmf model...saving ')
+
+np.savez(outpath+'_altnmf',
+        beta = nmf.beta,
+        beta_log = nmf.beta_log,
+        theta = reg.theta,
+        corr = reg.corr)
 
 
-top_genes = 10
-df_beta = pd.DataFrame(np.exp(model['beta']).T)
-df_beta.columns = dl.cols
-df_top = topics.get_topic_top_genes(df_beta.iloc[:,:],top_n=top_genes)
-df_top.to_csv(dl.outpath+'_beta_top_genes.csv.gz',index=False,compression='gzip')
+
+# preg_model = asapc.ASAPaltNMFPredict(pbulk,scaled)
+# preg = preg_model.predict()
+
+# np.savez(outpath+'_altnmf_pbulk',
+#         beta = nmf.beta,
+#         beta_log = nmf.beta_log,
+#         theta = preg.theta,
+#         corr = preg.corr)
 
 
 
+######## dc nmf model 
 
-df_theta = pd.DataFrame(model['theta'])
-df_theta.index = dl.rows
-df_theta['topic'] = [ x.split('_')[1] for x in df_theta.index]
-dfh= df_theta.groupby('topic').sample(n=50, random_state=1)
-dfh.index = dfh.index.set_names(['cell'])
-dfh.reset_index(inplace=True)
-dfh.to_csv(dl.outpath+'_theta_sample_topic.csv.gz',index=False,compression='gzip')
+print('dc nmf model...nmf ')
+nmf_model = asapc.ASAPdcNMF(pbulk,K)
+nmf = nmf_model.nmf()
+
+print('dc nmf model...predict using alt ')
+
+scaler = StandardScaler()
+scaled = scaler.fit_transform(nmf.beta_log)
+
+reg_model = asapc.ASAPaltNMFPredict(dl.mtx,scaled)
+reg = reg_model.predict()
+
+print('dc nmf model...saving ')
+
+np.savez(outpath+'_dcnmf',
+        beta = nmf.beta,
+        beta_log = nmf.beta_log,
+        theta = reg.theta,
+        corr = reg.corr)
+
+
+#### predict pbulk 
+# preg_model = asapc.ASAPaltNMFPredict(pbulk,scaled)
+# preg = preg_model.predict()
+
+# print('dc nmf model...saving ')
+
+# np.savez(outpath+'_dcnmf_pbulk',
+#         beta = nmf.beta,
+#         beta_log = nmf.beta_log,
+#         theta = preg.theta,
+#         corr = preg.corr)
+

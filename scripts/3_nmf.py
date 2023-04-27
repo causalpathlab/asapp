@@ -41,6 +41,18 @@ np.savez(outpath+'_altnmf',
         corr = reg.corr)
 
 
+
+preg_model = asapc.ASAPaltNMFPredict(pbulkf['pbulk'].T,scaled)
+preg = preg_model.predict()
+
+np.savez('_altnmf_pbulk',
+        beta = nmf.beta,
+        beta_log = nmf.beta_log,
+        theta = preg.theta,
+        corr = preg.corr)
+
+
+
 ######## dc nmf model 
 
 print('dc nmf model...nmf ')
@@ -63,6 +75,19 @@ np.savez(outpath+'_dcnmf',
         beta_log = nmf.beta_log,
         theta = reg.theta,
         corr = reg.corr)
+
+
+#### predict pbulk 
+preg_model = asapc.ASAPaltNMFPredict(pbulkf['pbulk'].T,scaled)
+preg = preg_model.predict()
+
+print('dc nmf model...saving ')
+
+np.savez('_dcnmf_pbulk',
+        beta = nmf.beta,
+        beta_log = nmf.beta_log,
+        theta = preg.theta,
+        corr = preg.corr)
 
 
 ######### parallel if using dc predict ###########

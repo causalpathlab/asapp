@@ -13,8 +13,8 @@ print(sample_in)
 print(result_dir)
 print(scripts_dir)
 
-RHO = [0.0,1.0]
-SIZE = [200]
+RHO = [0.75]
+SIZE = [100,200]
 SEED = [1,2]
 
 sim_data_pattern = sample_in+'_r_{rho}_s_{size}_sd_{seed}'

@@ -10,7 +10,7 @@ dl = DataSet(inpath,outpath,data_mode='sparse',data_ondisk=False)
 dl.initialize_data()
 dl.load_data()
 
-asap = ASAPNMF(adata=dl)
+asap = ASAPNMF(adata=dl,tree_max_depth=10)
 asap.get_pbulk()
 np.savez(outpath, pbulk= asap.pbulk_mat)
 

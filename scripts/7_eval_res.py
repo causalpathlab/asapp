@@ -9,7 +9,7 @@ import seaborn as sns
 import colorcet as cc
 
 
-experiment = '/projects/experiments/asapp/'
+experiment = '/asapp/'
 server = Path.home().as_posix()
 experiment_home = server+experiment
 experiment_config = read_config(experiment_home+'config.yaml')
@@ -22,6 +22,7 @@ sample_out = args.home + args.experiment + args.output+ args.sample_id +'/'
 flist = []
 for name in glob.glob(sample_out+'/*/_eval*.csv'):
     flist.append(name)
+    print(name)
 
 df = pd.DataFrame()
 for f in flist:
@@ -29,12 +30,8 @@ for f in flist:
     df = pd.concat([df,dfc],axis=0,ignore_index=True)
 
 
-grps = ['mode','rho','size']
+grps = ['method','mode','phi','delta','rho','size']
 df = df.groupby(grps).agg(['mean','std' ]).reset_index()
 df.columns = df.columns.map('_'.join).str.strip('_')
 df = df.drop(columns=['seed_mean','seed_std'])
-mode_dict = {'alt':'ePMF','dc':'dcPMF','scanpy':'Scanpy',
-'pc10n100':'PC10N100',
-'pc2n10':'PC2N10',
-'pc50n1000':'PC50N1000'}
 df.to_csv(sample_out+'eval_result.csv',index=False)

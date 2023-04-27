@@ -27,36 +27,44 @@ df_eval = read.table(paste(paste(args$home,args$experiment,args$output,args$samp
 col_vector = as.vector(kelly.colors(22)[3:10])
 
 
-plotlist = list()
-sel_vector = unique(df_eval$size) 
-for (i in 1:2){
-t = paste("rho,size=",sel_vector[i],sep='')
-p <- ggplot(df_eval[df_eval$size == sel_vector[i],], aes(x=rho, y=score_mean, group = mode, color=mode))+ 
+p <- ggplot(df_eval[df_eval$method=='nmi',], aes(x=delta, y=score_mean, group = mode, color=mode))+ 
     geom_errorbar(aes(ymin=score_mean-score_std, ymax=score_mean+score_std), width=.1, position=position_dodge(0.01)) +
     geom_line(linewidth=0.7) + 
-    # facet_wrap(~alpha,ncol=5)+
-    labs(title=t,x="rho", y = "NMI")+
+    facet_wrap(~phi,ncol=5)+
+    labs(title='phi(pure data) ',x="delta(batch)", y = "NMI")+
     theme_classic() + scale_color_manual(values=col_vector)
-plotlist[[i]] = p
-}
-stplt <- grid.arrange(grobs=plotlist,nrow=2,
-heights = c(1/2,1/2))
-ggsave(paste(paste(args$home,args$experiment,args$output,args$sample_id,'/',sep=''),"eval_result_depth.pdf",sep=""),stplt,width = 10, height = 15,limitsize=F)
+ggsave(paste(paste(args$home,args$experiment,args$output,args$sample_id,'/',sep=''),"eval_result_nmi.pdf",sep=""),p,width = 10, height = 5,limitsize=F)
+
+p <- ggplot(df_eval[df_eval$method=='purity',], aes(x=delta, y=score_mean, group = mode, color=mode))+ 
+    geom_errorbar(aes(ymin=score_mean-score_std, ymax=score_mean+score_std), width=.1, position=position_dodge(0.01)) +
+    geom_line(linewidth=0.7) + 
+    facet_wrap(~phi,ncol=5)+
+    labs(title='phi(pure data) ',x="delta(batch)", y = "Cluster purity")+
+    theme_classic() + scale_color_manual(values=col_vector)
+ggsave(paste(paste(args$home,args$experiment,args$output,args$sample_id,'/',sep=''),"eval_result_purity.pdf",sep=""),p,width = 10, height = 5,limitsize=F)
+
+p <- ggplot(df_eval[df_eval$method=='leiden',], aes(x=delta, y=score_mean, group = mode, color=mode))+ 
+    geom_errorbar(aes(ymin=score_mean-score_std, ymax=score_mean+score_std), width=.1, position=position_dodge(0.01)) +
+    geom_line(linewidth=0.7) + 
+    facet_wrap(~phi,ncol=5)+
+    labs(title='phi(pure data) ',x="delta(batch)", y = "nbr_leiden")+
+    theme_classic() + scale_color_manual(values=col_vector)
+ggsave(paste(paste(args$home,args$experiment,args$output,args$sample_id,'/',sep=''),"eval_result_leiden.pdf",sep=""),p,width = 10, height = 5,limitsize=F)
 
 # plotlist = list()
-# sel_vector = unique(df_eval$size) 
-# for (i in 1:5){
-# t = paste("rho,size=",sel_vector[i],sep='')
-# p <- ggplot(df_eval[df_eval$depth == sel_vector[i],], aes(x=rho, y=score_mean, group = mode, color=mode))+ 
+# sel_vector = unique(df_eval$method) 
+# for (i in 1:2){
+# t = paste("method-",sel_vector[i],sep='')
+# p <- ggplot(df_eval[df_eval$method == sel_vector[i],], aes(x=rho, y=score_mean, group = mode, color=mode))+ 
 #     geom_errorbar(aes(ymin=score_mean-score_std, ymax=score_mean+score_std), width=.1, position=position_dodge(0.01)) +
 #     geom_line(linewidth=0.7) + 
-#     # facet_wrap(~alpha,ncol=5)+
-#     labs(title=t,x="rho", y = "NMI")+
+#     facet_wrap(~size,ncol=5)+
+#     labs(title=t,x="rho", y = "method")+
 #     theme_classic() + scale_color_manual(values=col_vector)
 # plotlist[[i]] = p
 # }
-# stplt <- grid.arrange(grobs=plotlist,nrow=5,
-# heights = c(1/5, 1/5, 1/5,1/5,1/5))
+# stplt <- grid.arrange(grobs=plotlist,nrow=2,
+# heights = c(1/2, 1/2))
 # ggsave(paste(paste(args$home,args$experiment,args$output,args$sample_id,'/',sep=''),"eval_result_depth.pdf",sep=""),stplt,width = 10, height = 15,limitsize=F)
 
 #  #############
