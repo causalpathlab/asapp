@@ -1,10 +1,14 @@
+
+# import sys
+# sys.path.insert(0, '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/asap/')
+
 import pandas as pd
 import numpy as np
 from asap.data.dataloader import DataSet
-import asapc
+
 from asap.annotation import ASAPNMF
 
-
+import asapc
 
 from asap.util.io import read_config
 from collections import namedtuple
@@ -36,7 +40,9 @@ logging.basicConfig(filename=sample_out+'_model.log',
 						datefmt='%Y-%m-%d %H:%M:%S')
 
 dl = DataSet('pbmc',sample_in,sample_out)
+
 dl.initialize_data()
+dl.add_batch_label(['3k' for i in range(len(dl.barcodes))])
 dl.load_data()
 
 asap = ASAPNMF(adata=dl)

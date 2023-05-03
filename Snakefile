@@ -13,27 +13,29 @@ print(sample_in)
 print(result_dir)
 print(scripts_dir)
 
-RHO = [0.75]
-SIZE = [100,200]
-SEED = [1,2]
+PHI_DELTA=['1.0_0.0','0.75_0.2','0.5_0.4','0.25_0.65']
+RHO = [1.0]
+SIZE = [100]
+SEED = [1,2,3]
 
-sim_data_pattern = sample_in+'_r_{rho}_s_{size}_sd_{seed}'
-sample_out = result_dir+'_r_{rho}_s_{size}_sd_{seed}/'
+
+sim_data_pattern = sample_in+'_pd_{phi_delta}_r_{rho}_s_{size}_sd_{seed}'
+sample_out = result_dir+'_pd_{phi_delta}_r_{rho}_s_{size}_sd_{seed}/'
 
 print(config['home'] + config['experiment'] + config['resources_dice'])
 rule all:
     input:
-        expand(sim_data_pattern+'.npz', rho=RHO,size=SIZE,seed=SEED),
-        expand(sample_out+'_pbulk.npz', rho=RHO,size=SIZE,seed=SEED),
-        expand(sample_out+'_altnmf.npz', rho=RHO,size=SIZE,seed=SEED),
-        expand(sample_out+'_dcnmf.npz', rho=RHO,size=SIZE,seed=SEED),
-        expand(sample_out+'_eval.csv', rho=RHO,size=SIZE,seed=SEED),
-        expand(sample_out+'_fnmf.npz', rho=RHO,size=SIZE,seed=SEED),
-        expand(sample_out+'_scanpy.csv.gz', rho=RHO,size=SIZE,seed=SEED),
-        expand(sample_out+'_pc25n25.csv.gz', rho=RHO,size=SIZE,seed=SEED),
-        expand(sample_out+'_pc25n50.csv.gz', rho=RHO,size=SIZE,seed=SEED),
-        expand(sample_out+'_pc25n500.csv.gz', rho=RHO,size=SIZE,seed=SEED),
-        expand(sample_out+'_eval_ext.csv', rho=RHO,size=SIZE,seed=SEED)
+        expand(sim_data_pattern+'.npz', phi_delta=PHI_DELTA,rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_pbulk.npz', phi_delta=PHI_DELTA,rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_altnmf.npz', phi_delta=PHI_DELTA,rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_dcnmf.npz', phi_delta=PHI_DELTA,rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_fnmf.npz', phi_delta=PHI_DELTA,rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_eval.csv', phi_delta=PHI_DELTA,rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_scanpy.csv.gz', phi_delta=PHI_DELTA,rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_pc25n25.csv.gz', phi_delta=PHI_DELTA,rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_pc25n50.csv.gz', phi_delta=PHI_DELTA,rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_pc25n500.csv.gz', phi_delta=PHI_DELTA,rho=RHO,size=SIZE,seed=SEED),
+        expand(sample_out+'_eval_ext.csv', phi_delta=PHI_DELTA,rho=RHO,size=SIZE,seed=SEED)
 
 rule sc_simulated_data:
     input:
@@ -44,7 +46,7 @@ rule sc_simulated_data:
     params:
         sim_data_path = sim_data_pattern
     shell:
-        'python {input.script} {input.bulk_data} {params.sim_data_path} {wildcards.rho} {wildcards.size} {wildcards.seed}'
+        'python {input.script} {input.bulk_data} {params.sim_data_path} {wildcards.phi_delta} {wildcards.rho} {wildcards.size} {wildcards.seed}'
 
 rule pseudobulk:
     params:
@@ -84,7 +86,8 @@ rule eval:
     output:
         eval_data = sample_out+'_eval.csv'
     shell:
-        'python {input.script} {params.sim_data_path} {params.nmf_data_path} {input.altnmf_data} {input.dcnmf_data} {input.fnmf_data} {wildcards.rho} {wildcards.size} {wildcards.seed}'
+        'python {input.script} {params.sim_data_path} {params.nmf_data_path} {input.altnmf_data} {input.dcnmf_data} {input.fnmf_data} {wildcards.phi_delta} {wildcards.rho} {wildcards.size} {wildcards.seed}'
+
 
 rule nmf_ext:
     params:
@@ -113,5 +116,5 @@ rule eval_ext:
     output:
         eval_data = sample_out+'_eval_ext.csv'
     shell:
-        'python {input.script} {params.sim_data_path} {params.nmf_data_path} {input.scanpy_data} {input.pcl_data} {input.pcm_data} {input.pch_data} {wildcards.rho} {wildcards.size} {wildcards.seed}'
+        'python {input.script} {params.sim_data_path} {params.nmf_data_path} {input.scanpy_data} {input.pcl_data} {input.pcm_data} {input.pch_data} {wildcards.phi_delta} {wildcards.rho} {wildcards.size} {wildcards.seed}'
 

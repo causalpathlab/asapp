@@ -28,10 +28,10 @@ class ASAPNMF:
 		logger.info('Random projection matrix :' + str(rp_mat.shape))
 		return rp_mat
 	
-	def generate_pbulk_mat(self,X,rp_mat):
+	def generate_pbulk_mat(self,X,rp_mat,batch_label):
 		
 		logger.info('Running randomizedQR factorization to generate pseudo-bulk data')
-		return rp.get_rpqr_psuedobulk(X,rp_mat)
+		return rp.get_rpqr_psuedobulk(X,rp_mat,batch_label)
 		
 
 	def _generate_pbulk_batch(self,n_samples,rp_mat):
@@ -40,11 +40,13 @@ class ASAPNMF:
 		indices = np.arange(n_samples)
 		np.random.shuffle(indices)
 		X_shuffled = self.adata.mtx[:,indices]
+		batch_label_shuffled = self.adata.batch_label[indices]
 		self.pbulk_mat = pd.DataFrame()
 		for (i, istart) in enumerate(range(0, n_samples,self.chunk_size), 1):
 			iend = min(istart + self.chunk_size, n_samples)
 			mini_batch = X_shuffled[:,istart: iend]
-			batch_pbulk = self.generate_pbulk_mat(mini_batch, rp_mat)
+			mini_batch_bl = X_shuffled[istart: iend]
+			batch_pbulk = self.generate_pbulk_mat(mini_batch, rp_mat,mini_batch_bl)
 			self.pbulk_mat = pd.concat([self.pbulk_mat, batch_pbulk], axis=0, ignore_index=True)
 			logger.info('completed...' + str(i)+ ' of '+str(total_batches))
 		self.pbulk_mat= self.pbulk_mat.to_numpy().T
@@ -59,7 +61,7 @@ class ASAPNMF:
 		if n_samples < self.chunk_size:
 			logger.info('Total number is sample ' + str(n_samples) +'..modelling entire dataset')
 			
-			self.pbulk_mat = self.generate_pbulk_mat(self.adata.mtx, rp_mat).to_numpy().T
+			self.pbulk_mat = self.generate_pbulk_mat(self.adata.mtx, rp_mat,self.adata.batch_label).to_numpy().T
 
 		else:
 			logger.info('Total number of sample is ' + str(n_samples) +'..modelling '+str(self.chunk_size) +' chunk of dataset')

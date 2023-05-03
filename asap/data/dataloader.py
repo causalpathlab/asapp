@@ -18,6 +18,9 @@ class DataSet:
 			self.barcodes = [x.decode('utf-8') for x in f[self.sample]['barcodes'][()]]
 			f.close()
 
+		def add_batch_label(self,batch_label):
+			self.batch_label = batch_label
+
 
 		def load_data(self,n=0):
 			
@@ -49,47 +52,3 @@ class DataSet:
 							shape=(shape[0],1)).todense()).flatten())
 						
 						self.mtx = np.array(dat).T
-
-		# def get_ondisk_features(self):
-		# 	with tables.open_file(self.diskfile, 'r') as f:
-		# 		for group in f.walk_groups():break
-		# 			if '/' not in group._v_name:
-		# 				self.cols = [x.decode('utf-8') for x in getattr(group, 'genes').read()]
-		# 				break
-
-
-		# def get_ondisk_datalist(self):
-
-		# 	with tables.open_file(self.diskfile, 'r') as f:
-		# 		datalist = []
-		# 		for group in f.walk_groups():
-		# 			try:
-		# 				shape = getattr(group, 'shape').read()
-		# 				datalist.append([group._v_name,shape])
-		# 			except tables.NoSuchNodeError:
-		# 				pass
-		# 	return datalist
-
-		# def get_batch_from_disk(self,group_name,li,hi,barcodes=False):
-		# 	with tables.open_file(self.diskfile, 'r') as f:
-		# 		for group in f.walk_groups():
-		# 			if group_name in group._v_name:
-		# 				data = getattr(group, 'data').read()
-		# 				indices = getattr(group, 'indices').read()
-		# 				indptr = getattr(group, 'indptr').read()
-		# 				shape = getattr(group, 'shape').read()
-
-		# 				dat = []
-		# 				if len(indptr) < hi: hi = len(indptr)-1
-						
-		# 				for ci in range(li,hi,1):
-		# 					dat.append(np.asarray(csc_matrix((data[indptr[ci]:indptr[ci+1]], indices[indptr[ci]:indptr[ci+1]], np.array([0,len(indices[indptr[ci]:indptr[ci+1]])])), shape=(shape[0],1)).todense()).flatten())
-						
-		# 				if barcodes:
-		# 					bc =  [x.decode('utf-8') for x in getattr(group, 'barcodes').read()][li:hi]
-		# 					return dat, bc
-		# 				else: 
-		# 					return dat
-	
-
-			
