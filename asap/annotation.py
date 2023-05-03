@@ -14,7 +14,7 @@ class ASAPNMF:
 		self,
 		adata : DataSet,
 		tree_max_depth : int = 10,
-		data_chunk : int = 10000
+		data_chunk : int = 100000
 	):
 		self.adata = adata
 		self.tree_max_depth = tree_max_depth
@@ -45,7 +45,7 @@ class ASAPNMF:
 		for (i, istart) in enumerate(range(0, n_samples,self.chunk_size), 1):
 			iend = min(istart + self.chunk_size, n_samples)
 			mini_batch = X_shuffled[:,istart: iend]
-			mini_batch_bl = X_shuffled[istart: iend]
+			mini_batch_bl = batch_label_shuffled[istart: iend]
 			batch_pbulk = self.generate_pbulk_mat(mini_batch, rp_mat,mini_batch_bl)
 			self.pbulk_mat = pd.concat([self.pbulk_mat, batch_pbulk], axis=0, ignore_index=True)
 			logger.info('completed...' + str(i)+ ' of '+str(total_batches))

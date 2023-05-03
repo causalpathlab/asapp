@@ -39,13 +39,13 @@ logging.basicConfig(filename=sample_out+'_model.log',
 						level=logging.INFO,
 						datefmt='%Y-%m-%d %H:%M:%S')
 
-dl = DataSet('pbmc',sample_in,sample_out)
+dl = DataSet('ad_gbm',sample_in,sample_out)
 
 dl.initialize_data()
-dl.add_batch_label(['3k' for i in range(len(dl.barcodes))])
+dl.add_batch_label([i.split('@')[1] for i in dl.barcodes])
 dl.load_data()
 
-asap = ASAPNMF(adata=dl)
+asap = ASAPNMF(adata=dl,data_chunk=20000)
 asap.get_pbulk()
 
 inpath = sample_in
