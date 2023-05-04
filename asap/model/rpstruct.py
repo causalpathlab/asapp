@@ -99,6 +99,13 @@ def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
                 for sample in sample_d[batch]:
                     updated_pb.append(model_list[b].query(mtx[:,sample],k=1)[0])
 
-            pbulk[pb] = mtx[:,updated_pb].sum(1)
+            ## sum option 
+            # pbulk[pb] = mtx[:,updated_pb].sum(1)
+
+            ## sample option
+            depth = 10000
+            gvals = mtx[:,updated_pb].sum(1)
+            gprobs = gvals/gvals.sum() 
+            pbulk[pb] = np.random.multinomial(depth,gprobs,1)[0]
 
         return pd.DataFrame.from_dict(pbulk,orient='index')
