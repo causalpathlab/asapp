@@ -1,6 +1,6 @@
 
-# import sys
-# sys.path.insert(0, '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/asap/')
+import sys
+sys.path.append('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/')
 
 import pandas as pd
 import numpy as np
@@ -60,12 +60,12 @@ K = 10
 
 ######## alt nmf model 
 
-print('alt nmf model...nmf ')
+logging.info('alt nmf model...nmf ')
 
 nmf_model = asapc.ASAPaltNMF(pbulk,K)
 nmf = nmf_model.nmf()
 
-print('alt nmf model...predict ')
+logging.info('alt nmf model...predict ')
 
 from sklearn.preprocessing import StandardScaler
 scaler = StandardScaler()
@@ -74,7 +74,7 @@ scaled = scaler.fit_transform(nmf.beta_log)
 reg_model = asapc.ASAPaltNMFPredict(dl.mtx,scaled)
 reg = reg_model.predict()
 
-print('alt nmf model...saving ')
+logging.info('alt nmf model...saving ')
 
 np.savez(outpath+'_altnmf',
         beta = nmf.beta,
@@ -97,11 +97,11 @@ np.savez(outpath+'_altnmf',
 
 ######## dc nmf model 
 
-print('dc nmf model...nmf ')
+logging.info('dc nmf model...nmf ')
 nmf_model = asapc.ASAPdcNMF(pbulk,K)
 nmf = nmf_model.nmf()
 
-print('dc nmf model...predict using alt ')
+logging.info('dc nmf model...predict using alt ')
 
 scaler = StandardScaler()
 scaled = scaler.fit_transform(nmf.beta_log)
@@ -109,7 +109,7 @@ scaled = scaler.fit_transform(nmf.beta_log)
 reg_model = asapc.ASAPaltNMFPredict(dl.mtx,scaled)
 reg = reg_model.predict()
 
-print('dc nmf model...saving ')
+logging.info('dc nmf model...saving ')
 
 np.savez(outpath+'_dcnmf',
         beta = nmf.beta,
@@ -122,7 +122,7 @@ np.savez(outpath+'_dcnmf',
 # preg_model = asapc.ASAPaltNMFPredict(pbulk,scaled)
 # preg = preg_model.predict()
 
-# print('dc nmf model...saving ')
+# logging.info('dc nmf model...saving ')
 
 # np.savez(outpath+'_dcnmf_pbulk',
 #         beta = nmf.beta,

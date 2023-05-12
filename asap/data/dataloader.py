@@ -13,7 +13,7 @@ class DataSet:
 
 		def initialize_data(self):
 			f = h5.File(self.inpath+'.h5', 'r')
-			self.genes = [x.decode('utf-8') for x in f[self.sample]['genes'][()]]
+			self.genes = [x.decode('utf-8') for x in f[self.sample]['gene_names'][()]]
 			self.shape = f[self.sample]['shape'][()]
 			self.barcodes = [x.decode('utf-8') for x in f[self.sample]['barcodes'][()]]
 			f.close()
