@@ -59,7 +59,7 @@ def get_rp(mtx,rp_mat,batch_label):
     df['code'] = df.astype(str).agg(''.join, axis=1)
     df = df.reset_index()
     df = df[['index','code']]
-    return df.groupby('code').agg(lambda x: list(x)).reset_index().set_index('code').to_dict()['index']
+    return Q,df.groupby('code').agg(lambda x: list(x)).reset_index().set_index('code').to_dict()['index']
 
 
 #### 
@@ -128,7 +128,7 @@ def get_rpqr_psuedobulk_knn(mtx,rp_mat,batch_label):
 
         return pd.DataFrame.from_dict(pbulk,orient='index')
 
-def pnb_estimation(mtx,batch_label):
+def pnb_estimation_genewise(mtx,batch_label):
 
     import rpy2.robjects as ro
     import rpy2.robjects.packages as rp
@@ -146,11 +146,10 @@ def pnb_estimation(mtx,batch_label):
 
     return pd.DataFrame(dict(ro.r('coef(pnb)').items()))
 
-
-def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
+def get_rpqr_psuedobulk_genewise(mtx,rp_mat,batch_label):
 
     ### get naive bayes poisson lambda estimation for each batch
-    df_pnb = pnb_estimation(mtx,batch_label)
+    df_pnb = pnb_estimation_genewise(mtx,batch_label)
 
     ### get pseudo-bulk groups
     pbulkd = get_rp(mtx,rp_mat,batch_label)
@@ -208,3 +207,70 @@ def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
             pbulk[key] = mtx[:,value].sum(1)
 
         return pd.DataFrame.from_dict(pbulk,orient='index')
+
+def pnb_estimation_rp(mtx,batch_label):
+
+    import rpy2.robjects as ro
+    import rpy2.robjects.packages as rp
+    import rpy2.robjects.numpy2ri
+    rpy2.robjects.numpy2ri.activate()
+
+    ro.packages.importr('naivebayes')
+
+    nr,nc = mtx.shape
+    ro.r.assign("M", ro.r.matrix(mtx, nrow=nr, ncol=nc))
+    ro.r('colnames(M) <- paste0("V", seq_len(ncol(M)))')
+    ro.r.assign('laplace',0.5)
+    ro.r.assign('N',np.array(batch_label))
+    ro.r('pnb <- poisson_naive_bayes(x=M,y=N,laplace=laplace)')
+
+    return pd.DataFrame(dict(ro.r('coef(pnb)').items()))
+
+
+def pllk(x,lmda):
+    return (x * np.log(lmda) + lmda).sum()
+    
+def weighting(x,eta):
+    return (x/eta).sum()/(1/eta).sum()
+
+def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
+
+    logger.info('Generating pseudo-bulk with batch correction genewise ipw')    
+
+    q,pbulkd = get_rp(mtx,rp_mat,batch_label)
+    df_pnb = pnb_estimation_rp(q,batch_label)
+    batches = list(set(batch_label))
+
+    nb =[]
+    for b in batches:
+        nb.append(np.apply_along_axis(pllk, axis=1, arr=q, lmda=df_pnb[b].values))
+    nb = pd.DataFrame(nb).T
+    nb.columns = batches
+
+    eta =[]
+    for b in batches:
+        eta.append((nb[b]/nb.sum(1)).values)
+    eta = pd.DataFrame(eta).T
+    eta.columns = batches
+
+    delta = []
+    for b in batches:
+        delta.append(np.apply_along_axis(weighting, axis=1, arr=mtx, eta=eta[b].values))
+    delta = pd.DataFrame(delta).T
+    delta.columns = batches
+    delta[delta<0.0]=0.0
+    
+    batch_i =[]
+    for b in batches:
+        batch_i.append( [ 1 if x==b else 0 for x in batch_label])
+    batch_i = np.array(batch_i).T
+
+    dm = np.dot(delta.values,batch_i.T)
+
+    pbulk = {}
+    for key, value in pbulkd.items():
+        pbulk[key] =  mtx[:,value].sum(1) / (dm[:,value].sum(1) + 1e-6)
+
+    logger.info('Generating pseudo-bulk with batch correction genewise ipw completed')    
+
+    return pd.DataFrame.from_dict(pbulk,orient='index')

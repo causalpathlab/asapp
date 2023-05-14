@@ -94,7 +94,7 @@ asap.get_pbulk()
 
 
 
-###import sys
+import sys
 sys.path.append('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/')
 
 import pandas as pd
@@ -200,7 +200,7 @@ def get_rp(mtx,rp_mat,batch_label):
     df['code'] = df.astype(str).agg(''.join, axis=1)
     df = df.reset_index()
     df = df[['index','code']]
-    return df.groupby('code').agg(lambda x: list(x)).reset_index().set_index('code').to_dict()['index']
+    return Q,df.groupby('code').agg(lambda x: list(x)).reset_index().set_index('code').to_dict()['index']
 
 
 #### 
@@ -222,6 +222,25 @@ def pnb_estimation(mtx,batch_label):
     ro.r('pnb <- poisson_naive_bayes(x=M,y=N,laplace=laplace)')
 
     return pd.DataFrame(dict(ro.r('coef(pnb)').items()))
+
+def pnb_estimation_rp(mtx,batch_label):
+
+    import rpy2.robjects as ro
+    import rpy2.robjects.packages as rp
+    import rpy2.robjects.numpy2ri
+    rpy2.robjects.numpy2ri.activate()
+
+    ro.packages.importr('naivebayes')
+
+    nr,nc = mtx.shape
+    ro.r.assign("M", ro.r.matrix(mtx, nrow=nr, ncol=nc))
+    ro.r('colnames(M) <- paste0("V", seq_len(ncol(M)))')
+    ro.r.assign('laplace',0.5)
+    ro.r.assign('N',np.array(batch_label))
+    ro.r('pnb <- poisson_naive_bayes(x=M,y=N,laplace=laplace)')
+
+    return pd.DataFrame(dict(ro.r('coef(pnb)').items()))
+
 mtx = dl.mtx
 batch_label = dl.batch_label
 X_rows = dl.mtx.shape[0]
@@ -231,46 +250,83 @@ rp_mat = []
 for _ in range(tree_max_depth):
     rp_mat.append(np.random.normal(size = (X_rows,1)).flatten())                      
 rp_mat = np.asarray(rp_mat)
-df_pnb = pnb_estimation(mtx,batch_label)
-pbulkd = get_rp(mtx,rp_mat,batch_label)
+
+
+q,pbulkd = get_rp(mtx,rp_mat,batch_label)
+
+df_pnb = pnb_estimation_rp(q,batch_label)
+
 batches = list(set(batch_label))
 
 
-pbulk = {}
 
-for key,vlist in pbulkd.items():
+def pllk(x,lmda):
+    return (x * np.log(lmda) + lmda).sum()
     
-    if len(vlist) <= len(batches):
-        continue
+def weighting(x,eta):
+    return (x/eta).sum()/(1/eta).sum()
 
-    else:
-        updated_pb = []   
-        for value in vlist:
-            pb = mtx[:,value]
-            col = []
-            for b in batches:
-                    col.append( -pb*np.log(df_pnb[b].values)+df_pnb[b].values )
-            ci = batches.index(batch_label[value])
-            col = np.array(col)
-            w = col[ci]/col.sum(0)  
-            updated_pb.append((pb/w)/(1/w))
+nb =[]
+for b in batches:
+    nb.append(np.apply_along_axis(pllk, axis=1, arr=q, lmda=df_pnb[b].values))
+nb = pd.DataFrame(nb).T
+nb.columns = batches
 
-    pbulk[key] = np.array(updated_pb).sum(0)
+eta =[]
+for b in batches:
+    eta.append((nb[b]/nb.sum(1)).values)
+eta = pd.DataFrame(eta).T
+eta.columns = batches
+
+delta = []
+for b in batches:
+    delta.append(np.apply_along_axis(weighting, axis=1, arr=mtx, eta=eta[b].values))
+delta = pd.DataFrame(delta).T
+delta.columns = batches
+
+batch_i =[]
+for b in batches:
+    batch_i.append( [ 1 if x==b else 0 for x in batch_label])
+batch_i = np.array(batch_i).T
+
+dm = np.dot(delta.values,batch_i.T)
+adj_mtx = mtx/(dm + 1e-6)
 
 
-df_pnb.sum()
-plt.scatter(df_pnb['3k'],df_pnb['4k'])
-#plt.savefig('pnb.png');plt.close()
+-----
+# updated_pb.append((pb/w)/(1/w))
 
-cd experiments/asapp/examples/
-plt.savefig('pnb.png');plt.close()
-plt.scatter(df_pnb['3k'],df_pnb['4k'],s=1)
-plt.savefig('pnb.png');plt.close()
-plt.scatter(df_pnb['3k'],df_pnb['4k'],s=5)
-plt.savefig('pnb.png');plt.close()
-col
-plt.scatter(col[0],col[1],s=5)
-plt.savefig('pnb_prob.png');plt.close()
+# pbulk[key] = np.array(updated_pb).sum(0)
+
+
+
+# for key,vlist in pbulkd.items():
+    
+#     if len(vlist) <= len(batches):
+#         continue
+
+#     else:
+#         updated_pb = []   
+#         for value in vlist:
+#             pb = mtx[:,value]
+#             col = []
+#             for b in batches:
+#                     col.append( -pb*np.log(df_pnb[b].values)+df_pnb[b].values )
+#             ci = batches.index(batch_label[value])
+
+# df_pnb.sum()
+# plt.scatter(df_pnb['3k'],df_pnb['4k'])
+# #plt.savefig('pnb.png');plt.close()
+
+# cd experiments/asapp/examples/
+# plt.savefig('pnb.png');plt.close()
+# plt.scatter(df_pnb['3k'],df_pnb['4k'],s=1)
+# plt.savefig('pnb.png');plt.close()
+# plt.scatter(df_pnb['3k'],df_pnb['4k'],s=5)
+# plt.savefig('pnb.png');plt.close()
+# col
+# plt.scatter(col[0],col[1],s=5)
+# plt.savefig('pnb_prob.png');plt.close()
 
 
 
