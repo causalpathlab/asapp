@@ -1,99 +1,4 @@
 
-
-
-import sys
-sys.path.append('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/')
-
-import pandas as pd
-import numpy as np
-from asap.data.dataloader import DataSet
-
-from asap.annotation import ASAPNMF
-
-import asapc
-
-from asap.util.io import read_config
-from collections import namedtuple
-from pathlib import Path
-import pandas as pd
-import numpy as np
-from asap.data.dataloader import DataSet
-from asap.util import topics
-
-import matplotlib.pylab as plt
-import seaborn as sns
-import colorcet as cc
-
-import logging
-
-
-experiment = '/projects/experiments/asapp/'
-server = Path.home().as_posix()
-experiment_home = server+experiment
-experiment_config = read_config(experiment_home+'config.yaml')
-args = namedtuple('Struct',experiment_config.keys())(*experiment_config.values())
-
-sample_in = args.home + args.experiment + args.input+ args.sample_id +'/'+args.sample_id
-sample_out = args.home + args.experiment + args.output+ args.sample_id +'/'+args.sample_id
-
-logging.basicConfig(filename=sample_out+'_model.log',
-						format='%(asctime)s %(levelname)-8s %(message)s',
-						level=logging.INFO,
-						datefmt='%Y-%m-%d %H:%M:%S')
-
-dl = DataSet('pbmc',sample_in,sample_out)
-
-dl.initialize_data()
-dl.add_batch_label([i.split('_')[1] for i in dl.barcodes])
-dl.load_data()
-
-
-
-import rpy2.robjects as ro
-import rpy2.robjects.packages as rp
-import rpy2.robjects.numpy2ri
-rpy2.robjects.numpy2ri.activate()
-
-
-### naive bayes prob estimation
-nb = ro.packages.importr('naivebayes')
-laplace = 0.5
-
-nr,nc = dl.mtx.T.shape
-ro.r.assign("M", ro.r.matrix(dl.mtx.T, nrow=nr, ncol=nc))
-ro.r('colnames(M) <- paste0("V", seq_len(ncol(M)))')
-ro.r.assign('laplace',0.5)
-ro.r.assign('N',np.array(dl.batch_label))
-ro.r('pnb <- poisson_naive_bayes(x=M,y=N,laplace=laplace)')
-
-probs = dict(ro.r('coef(pnb)').items())
-df_probs = pd.DataFrame(probs)
-sns.scatterplot(x='3k',y='4k',data=df_probs)
-plt.savefig('prob.png');plt.close()
-
-df_probs.index = dl.genes
-
-sns.scatterplot(x='3k',y='4k',data=df_probs.loc[df_probs['4k']>10.0])
-plt.savefig('prob2.png');plt.close()
-
-### prob weighting
-
-
-X_rows = dl.mtx.shape[0]
-tree_max_depth = 10
-
-rp_mat = []
-for _ in range(tree_max_depth):
-    rp_mat.append(np.random.normal(size = (X_rows,1)).flatten())                      
-rp_mat = np.asarray(rp_mat)
-
-
-
-asap = ASAPNMF(adata=dl,data_chunk=20000)
-asap.get_pbulk()
-
-
-
 import sys
 sys.path.append('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/')
 
@@ -139,6 +44,7 @@ dl = DataSet('pbmc',sample_in,sample_out)
 dl.initialize_data()
 dl.add_batch_label([i.split('_')[1] for i in dl.barcodes])
 dl.load_data()
+
 import numpy as np
 import pandas as pd
 from scipy.linalg import qr
@@ -223,7 +129,7 @@ def pnb_estimation(mtx,batch_label):
 
     return pd.DataFrame(dict(ro.r('coef(pnb)').items()))
 
-def pnb_estimation_rp(mtx,batch_label):
+def pnb_estimation_rp(q,batch_label):
 
     from sklearn.naive_bayes import GaussianNB
     clf = GaussianNB()
@@ -264,6 +170,8 @@ for b in batches:
     nb.append(np.apply_along_axis(pllk, axis=1, arr=q, lmda=df_pnb[b].values))
 nb = pd.DataFrame(nb).T
 nb.columns = batches
+
+nb=  pnb_estimation_rp(q,batch_label)
 
 eta =[]
 for b in batches:

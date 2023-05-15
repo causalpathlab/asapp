@@ -66,14 +66,15 @@ def get_rp(mtx,rp_mat,batch_label):
 
 
 
-def get_rpqr_psuedobulk_knn(mtx,rp_mat,batch_label):
 
+# def get_rpqr_psuedobulk_knn(mtx,rp_mat,batch_label):
+def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
 
     batches = list(set(batch_label))
     
-    pbulkd = get_rp(mtx,rp_mat,batch_label)
+    Q,pbulkd = get_rp(mtx,rp_mat,batch_label)
 
-    if len(batches) ==1 :
+    if len(batches) >1 :
 
         logger.info('Generating pseudo-bulk without batch correction')    
 
@@ -146,7 +147,7 @@ def pnb_estimation_genewise(mtx,batch_label):
 
     return pd.DataFrame(dict(ro.r('coef(pnb)').items()))
 
-def get_rpqr_psuedobulk_genewise(mtx,rp_mat,batch_label):
+def get_rpqr_psuedobulk_ci_genewise(mtx,rp_mat,batch_label):
 
     ### get naive bayes poisson lambda estimation for each batch
     df_pnb = pnb_estimation_genewise(mtx,batch_label)
@@ -208,15 +209,16 @@ def get_rpqr_psuedobulk_genewise(mtx,rp_mat,batch_label):
 
         return pd.DataFrame.from_dict(pbulk,orient='index')
 
-def gnb_estimation_rp(mtx,batch_label):
+def gnb_estimation_rp(q,batch_label):
 
     from sklearn.naive_bayes import GaussianNB
-    clf = GaussianNB()
-    clf.fit(mtx, batch_label)
-    dfp = pd.DataFrame(clf.predict_proba(mtx))
 
-    ## TODO temp solution for batch label assignment
-    dfp.columns = ['3k','4k']
+    dfp = pd.DataFrame()
+    for b in  list(set(batch_label)) :
+        clf = GaussianNB()
+        clf.fit(q, [ 1 if x==b else 0 for x in batch_label])
+        dfp[b] = pd.DataFrame(clf.predict_proba(q))[1]
+    
     return dfp
 
 
@@ -242,10 +244,10 @@ def pnb_estimation_rp(mtx,batch_label):
 def p_llk(x,lmda):
     return (x * np.log(lmda) + lmda).sum()
     
-def weighting(x,eta):
+def calc_delta(x,eta):
     return (x/eta).sum()/(1/eta).sum()
 
-def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
+def get_rpqr_psuedobulk_ci_cellwise(mtx,rp_mat,batch_label):
 
 
     q,pbulkd = get_rp(mtx,rp_mat,batch_label)
@@ -253,9 +255,15 @@ def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
 
     ### gaussian estimation
     logger.info('Generating pseudo-bulk with batch correction genewise ipw using gaussian nb estimation')    
-    eta = gnb_estimation_rp(q,batch_label)
+    nb = gnb_estimation_rp(q,batch_label)
+    eta = []
+    for b in batches:
+        eta.append((nb[b]/nb.sum(1)).values)
+    eta = pd.DataFrame(eta).T
+    eta.columns = batches
 
     #### poisson estimation 
+    # logger.info('Generating pseudo-bulk with batch correction genewise ipw using poisson nb estimation')    
     # df_pnb = pnb_estimation_rp(q,batch_label)
     # nb =[]
     # for b in batches:
@@ -270,7 +278,7 @@ def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
 
     delta = []
     for b in batches:
-        delta.append(np.apply_along_axis(weighting, axis=1, arr=mtx, eta=eta[b].values))
+        delta.append(np.apply_along_axis(calc_delta, axis=1, arr=mtx, eta=eta[b].values))
     delta = pd.DataFrame(delta).T
     delta.columns = batches
     
