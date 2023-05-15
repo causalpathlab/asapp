@@ -225,21 +225,14 @@ def pnb_estimation(mtx,batch_label):
 
 def pnb_estimation_rp(mtx,batch_label):
 
-    import rpy2.robjects as ro
-    import rpy2.robjects.packages as rp
-    import rpy2.robjects.numpy2ri
-    rpy2.robjects.numpy2ri.activate()
+    from sklearn.naive_bayes import GaussianNB
+    clf = GaussianNB()
+    # clf.fit(mtx.T, batch_label)
+    clf.fit(q, batch_label)
+    dfp = pd.DataFrame(clf.predict_proba(q))
+    dfp.columns = ['3k','4k']
+    return dfp
 
-    ro.packages.importr('naivebayes')
-
-    nr,nc = mtx.shape
-    ro.r.assign("M", ro.r.matrix(mtx, nrow=nr, ncol=nc))
-    ro.r('colnames(M) <- paste0("V", seq_len(ncol(M)))')
-    ro.r.assign('laplace',0.5)
-    ro.r.assign('N',np.array(batch_label))
-    ro.r('pnb <- poisson_naive_bayes(x=M,y=N,laplace=laplace)')
-
-    return pd.DataFrame(dict(ro.r('coef(pnb)').items()))
 
 mtx = dl.mtx
 batch_label = dl.batch_label

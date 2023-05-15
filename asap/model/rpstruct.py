@@ -208,6 +208,18 @@ def get_rpqr_psuedobulk_genewise(mtx,rp_mat,batch_label):
 
         return pd.DataFrame.from_dict(pbulk,orient='index')
 
+def gnb_estimation_rp(mtx,batch_label):
+
+    from sklearn.naive_bayes import GaussianNB
+    clf = GaussianNB()
+    clf.fit(mtx, batch_label)
+    dfp = pd.DataFrame(clf.predict_proba(mtx))
+
+    ## TODO temp solution for batch label assignment
+    dfp.columns = ['3k','4k']
+    return dfp
+
+
 def pnb_estimation_rp(mtx,batch_label):
 
     import rpy2.robjects as ro
@@ -227,7 +239,7 @@ def pnb_estimation_rp(mtx,batch_label):
     return pd.DataFrame(dict(ro.r('coef(pnb)').items()))
 
 
-def pllk(x,lmda):
+def p_llk(x,lmda):
     return (x * np.log(lmda) + lmda).sum()
     
 def weighting(x,eta):
@@ -235,30 +247,32 @@ def weighting(x,eta):
 
 def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
 
-    logger.info('Generating pseudo-bulk with batch correction genewise ipw')    
 
     q,pbulkd = get_rp(mtx,rp_mat,batch_label)
-    df_pnb = pnb_estimation_rp(q,batch_label)
     batches = list(set(batch_label))
 
-    nb =[]
-    for b in batches:
-        nb.append(np.apply_along_axis(pllk, axis=1, arr=q, lmda=df_pnb[b].values))
-    nb = pd.DataFrame(nb).T
-    nb.columns = batches
+    ### gaussian estimation
+    logger.info('Generating pseudo-bulk with batch correction genewise ipw using gaussian nb estimation')    
+    eta = gnb_estimation_rp(q,batch_label)
 
-    eta =[]
-    for b in batches:
-        eta.append((nb[b]/nb.sum(1)).values)
-    eta = pd.DataFrame(eta).T
-    eta.columns = batches
+    #### poisson estimation 
+    # df_pnb = pnb_estimation_rp(q,batch_label)
+    # nb =[]
+    # for b in batches:
+    #     nb.append(np.apply_along_axis(p_llk, axis=1, arr=q, lmda=df_pnb[b].values))
+    # nb = pd.DataFrame(nb).T
+    # nb.columns = batches
+    # eta =[]
+    # for b in batches:
+    #     eta.append((nb[b]/nb.sum(1)).values)
+    # eta = pd.DataFrame(eta).T
+    # eta.columns = batches
 
     delta = []
     for b in batches:
         delta.append(np.apply_along_axis(weighting, axis=1, arr=mtx, eta=eta[b].values))
     delta = pd.DataFrame(delta).T
     delta.columns = batches
-    delta[delta<0.0]=0.0
     
     batch_i =[]
     for b in batches:
