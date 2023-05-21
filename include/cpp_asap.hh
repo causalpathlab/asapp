@@ -20,6 +20,27 @@
 #include "latent_matrix.hh"
 
 // 
+//  create pseudo bulk data 
+// 
+
+class ASAPpbResult {
+    public:
+    ASAPpbResult(const Eigen::MatrixXf pb_):pb(pb_){}
+
+    Eigen::MatrixXf pb;
+};
+
+class ASAPpb {
+    public:
+    ASAPpb(const Eigen::MatrixXf in_X):X(in_X){}
+
+    ASAPpbResult create_pb();
+    
+    protected:
+        Eigen::MatrixXf X;
+};
+
+// 
 //  Degree correction PNMF model 
 // 
 

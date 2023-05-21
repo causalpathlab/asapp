@@ -194,7 +194,6 @@ dm = np.dot(delta.values,batch_i.T)
 adj_mtx = mtx/(dm + 1e-6)
 
 
------
 # updated_pb.append((pb/w)/(1/w))
 
 # pbulk[key] = np.array(updated_pb).sum(0)
