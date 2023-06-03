@@ -127,10 +127,10 @@ ASAPdcNMFResult ASAPdcNMFPredict::predict()
     model.update_column_topic(X);
 
 
-        if (eval_llik && t % thining == 0) {
-            llik = model.log_likelihood(X);
-            llik_trace.emplace_back(llik);
-        }
+    if (eval_llik && t % thining == 0) {
+        llik = model.log_likelihood(X);
+        llik_trace.emplace_back(llik);
+    }
 
     }
 

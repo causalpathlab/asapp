@@ -11,6 +11,7 @@
 
 
 #include "xoshiro.h"
+#include "annoylib.h"
 
 #include "math.hh"
 #include "mmutil.hh"
