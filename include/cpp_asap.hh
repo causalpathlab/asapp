@@ -25,19 +25,35 @@
 
 class ASAPpbResult {
     public:
-    ASAPpbResult(const Eigen::MatrixXf pb_):pb(pb_){}
+    ASAPpbResult(const Eigen::MatrixXf _pb):pb(_pb){}
 
     Eigen::MatrixXf pb;
 };
 
 class ASAPpb {
     public:
-    ASAPpb(const Eigen::MatrixXf in_X):X(in_X){}
+    ASAPpb(const Eigen::MatrixXf in_ysum,
+    const Eigen::MatrixXf in_zsum,
+    const Eigen::MatrixXf in_deltasum,
+    const Eigen::MatrixXf in_n,
+    const Eigen::MatrixXf in_p
+    ):
+    ysum_ds(in_ysum),
+    zsum_ds(in_zsum),
+    deltasum_db(in_deltasum),
+    n_bs(in_n),
+    p_bs(in_p)
+    {}
 
-    ASAPpbResult create_pb();
+    ASAPpbResult generate_pb();
     
     protected:
-        Eigen::MatrixXf X;
+        Eigen::MatrixXf ysum_ds;
+        Eigen::MatrixXf zsum_ds;
+        Eigen::MatrixXf deltasum_db;
+        Eigen::MatrixXf n_bs;
+        Eigen::MatrixXf p_bs;
+
 };
 
 // 

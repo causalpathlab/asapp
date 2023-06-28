@@ -13,7 +13,23 @@ using namespace std;
 
 PYBIND11_MODULE(asapc, m) {
     m.doc() = "CPP ASAP module";;
+
+
+    py::class_<ASAPpb>(m, "ASAPpb")
+    .def(py::init< Eigen::MatrixXf&, Eigen::MatrixXf&, Eigen::MatrixXf&, Eigen::MatrixXf&, Eigen::MatrixXf&>(),
+            py::arg("in_ysum"),
+            py::arg("in_zsum"),
+            py::arg("in_deltasum"),
+            py::arg("in_n"),
+            py::arg("in_p"),
+            )
+    .def("generate_pb", &ASAPpb::generate_pb,py::return_value_policy::reference_internal);
+
     
+    py::class_<ASAPpbResult>(m, "ASAPpbResult")
+    .def(py::init< Mat>())
+    .def_readwrite("pb", &ASAPpbResult::pb)
+
     py::class_<ASAPdcNMFResult>(m, "ASAPdcNMFResult")
     .def(py::init< Mat, Mat, Mat, Mat, Mat, Mat, Mat, Mat, std::vector<Scalar> >())
     .def_readwrite("beta_a", &ASAPdcNMFResult::beta_a)
