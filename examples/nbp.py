@@ -39,7 +39,7 @@ logging.basicConfig(filename=sample_out+'_model.log',
                         level=logging.INFO,
                         datefmt='%Y-%m-%d %H:%M:%S')
 
-dl = DataSet('pbmc',sample_in,sample_out)
+dl = DataSet(sample_in,sample_out)
 
 dl.initialize_data()
 dl.add_batch_label([i.split('_')[1] for i in dl.barcodes])

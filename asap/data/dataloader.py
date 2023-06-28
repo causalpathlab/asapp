@@ -1,18 +1,17 @@
 import pandas as  pd
 import numpy as np
-from scipy.sparse import csr_matrix,csc_matrix
+from scipy.sparse import csc_matrix
 import tables
 import h5py as h5
 
 class DataSet:
-		def __init__(self,sample,inpath,outpath):
-			self.sample = sample
+		def __init__(self,inpath,outpath):
 			self.inpath = inpath
 			self.outpath = outpath
 
-
 		def initialize_data(self):
 			f = h5.File(self.inpath+'.h5', 'r')
+			self.sample = list(f.keys())[0]
 			self.genes = [x.decode('utf-8') for x in f[self.sample]['gene_names'][()]]
 			self.shape = f[self.sample]['shape'][()]
 			self.barcodes = [x.decode('utf-8') for x in f[self.sample]['barcodes'][()]]
@@ -24,12 +23,13 @@ class DataSet:
 
 		def load_data(self,n=0):
 			
+			# li is starting index 
+			# hi is ending index
 			li = 0
-			
 			if n==0:
-				hi = self.shape[1]
+				hi = self.shape[1] # load all data
 			else:
-				hi = n
+				hi = n  # load user defined n data
 			
 			group = self.sample
 			
