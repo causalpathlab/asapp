@@ -27,8 +27,12 @@ PYBIND11_MODULE(asapc, m) {
 
     
     py::class_<ASAPpbResult>(m, "ASAPpbResult")
-    .def(py::init< Mat>())
-    .def_readwrite("pb", &ASAPpbResult::pb);
+    .def(py::init< Mat, Mat, Mat, Mat, Mat>())
+    .def_readwrite("pb", &ASAPpbResult::pb)
+    .def_readwrite("logpb", &ASAPpbResult::logpb)
+    .def_readwrite("pb_batch", &ASAPpbResult::pb_batch)
+    .def_readwrite("batch_effect", &ASAPpbResult::batch_effect)
+    .def_readwrite("log_batch_effect", &ASAPpbResult::log_batch_effect);
 
     py::class_<ASAPdcNMFResult>(m, "ASAPdcNMFResult")
     .def(py::init< Mat, Mat, Mat, Mat, Mat, Mat, Mat, Mat, std::vector<Scalar> >())

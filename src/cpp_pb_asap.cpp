@@ -15,27 +15,26 @@ ASAPpbResult ASAPpb::generate_pb()
     const Index S = ysum_ds.cols();
     const Index B = deltasum_db.cols();
 
+    
     gamma_param_t<Mat, RNG> delta_param(D, B, a0, b0, rng);
     gamma_param_t<Mat, RNG> mu_param(D, S, a0, b0, rng);
     gamma_param_t<Mat, RNG> gamma_param(D, S, a0, b0, rng);
 
-
+    // batch specific bias for each gene
     Mat delta_db = Mat::Ones(D, B);
+    Mat log_delta_db = Mat::Ones(D, B);
+    Mat delta_denom_db = Mat::Zero(D, B);
+    Mat delta_ds; 
     
+    // batch effect free expression for each pseudobulk sample
     Mat mu_ds = Mat::Ones(D, S);
     Mat log_mu_ds = Mat::Ones(D, S);
 
-    Mat delta_denom_db = Mat::Zero(D, B); 
-
+    // counterfactual bias
     Mat gamma_ds = Mat::Ones(D, S); 
 
+
     for (std::size_t t = 0; t < BATCH_ADJ_ITER; ++t) {
-
-        std::cout<<t<<std::endl;
-
-        // Mat a = delta_db;
-        // std::cout<<a.cols()<<std::endl;
-        // std::cout<<a.rows()<<std::endl;
 
         mu_param.update(ysum_ds + zsum_ds,
                         delta_db * n_bs +
@@ -55,12 +54,19 @@ ASAPpbResult ASAPpb::generate_pb()
         delta_param.update(deltasum_db, delta_denom_db);
         delta_param.calibrate();
         delta_db = delta_param.mean();
-
-        
     }
-    std::cout<<"ok"<<std::endl;
     
-    return mu_ds;
+    log_delta_db = delta_param.log_mean();
+    delta_ds = delta_db * p_bs;
+
+    mu_param.update(ysum_ds, delta_db * n_bs);
+    mu_param.calibrate();
+    mu_ds = mu_param.mean();
+    log_mu_ds = mu_param.log_mean();
+
+    ASAPpbResult res{mu_ds,log_mu_ds,delta_ds,delta_db,log_delta_db};
+    
+    return res;
 
 }
 

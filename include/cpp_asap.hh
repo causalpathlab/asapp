@@ -25,9 +25,25 @@
 
 class ASAPpbResult {
     public:
-    ASAPpbResult(const Eigen::MatrixXf _pb):pb(_pb){}
+    ASAPpbResult(
+    const Eigen::MatrixXf _pb,
+    const Eigen::MatrixXf _log_pb,
+    const Eigen::MatrixXf _pb_batch,
+    const Eigen::MatrixXf _batch_effect,
+    const Eigen::MatrixXf _log_batch_effect
+    ):
+    pb(_pb),
+    logpb(_log_pb),
+    pb_batch(_pb_batch),
+    batch_effect(_batch_effect),
+    log_batch_effect(_log_batch_effect)
+    {}
 
     Eigen::MatrixXf pb;
+    Eigen::MatrixXf logpb;
+    Eigen::MatrixXf pb_batch;
+    Eigen::MatrixXf batch_effect;
+    Eigen::MatrixXf log_batch_effect;
 };
 
 class ASAPpb {
