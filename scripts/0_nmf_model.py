@@ -10,7 +10,7 @@ import asapc
 import matplotlib.pylab as plt
 import seaborn as sns
 import colorcet as cc
-
+from sklearn.preprocessing import StandardScaler
 # import logging
 
 
@@ -41,12 +41,11 @@ pb_model = asapc.ASAPpb(asap.ysum,asap.zsum,asap.delta, asap.n_bs,asap.n_bs/asap
 pb_res = pb_model.generate_pb()
 inpath = sample_in
 outpath = sample_out
-np.savez(outpath+'_pbulk', pbulk= pb_res.pb)
+np.savez(outpath+'_pbulk', pbulk= pb_res.pb,pb_batch=pb_res.pb_batch,batch_effect=pb_res.batch_effect)
 
-
-# pbulkf = np.load(outpath+'_pbulk.npz')
-# pbulk = np.log1p(pbulkf['pbulk'])
-# K = 5
+pbulkf = np.load(outpath+'_pbulk.npz')
+pbulk = np.log1p(pbulkf['pbulk'])
+K = 5
 
 # ######## alt nmf model 
 
@@ -57,7 +56,7 @@ np.savez(outpath+'_pbulk', pbulk= pb_res.pb)
 
 # logging.info('alt nmf model...predict ')
 
-# from sklearn.preprocessing import StandardScaler
+
 # scaler = StandardScaler()
 # scaled = scaler.fit_transform(nmf.beta_log)
 
@@ -88,24 +87,24 @@ np.savez(outpath+'_pbulk', pbulk= pb_res.pb)
 ######## dc nmf model 
 
 # logging.info('dc nmf model...nmf ')
-# nmf_model = asapc.ASAPdcNMF(pbulk,K)
-# nmf = nmf_model.nmf()
+nmf_model = asapc.ASAPdcNMF(pbulk,K)
+nmf = nmf_model.nmf()
 
 # logging.info('dc nmf model...predict using alt ')
 
-# scaler = StandardScaler()
-# scaled = scaler.fit_transform(nmf.beta_log)
+scaler = StandardScaler()
+scaled = scaler.fit_transform(nmf.beta_log)
 
-# reg_model = asapc.ASAPaltNMFPredict(dl.mtx,scaled)
-# reg = reg_model.predict()
+reg_model = asapc.ASAPaltNMFPredict(dl.mtx,scaled)
+reg = reg_model.predict()
 
 # logging.info('dc nmf model...saving ')
 
-# np.savez(outpath+'_dcnmf',
-#         beta = nmf.beta,
-#         beta_log = nmf.beta_log,
-#         theta = reg.theta,
-#         corr = reg.corr)
+np.savez(outpath+'_dcnmf',
+        beta = nmf.beta,
+        beta_log = nmf.beta_log,
+        theta = reg.theta,
+        corr = reg.corr)
 
 
 #### predict pbulk 
