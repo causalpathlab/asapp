@@ -34,6 +34,8 @@ ASAPpbResult ASAPpb::generate_pb()
 
 
     Eigen::MatrixXf pb;
+
+    pb.setZero();
     
     return pb;
 

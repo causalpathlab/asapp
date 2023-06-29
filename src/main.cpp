@@ -21,14 +21,13 @@ PYBIND11_MODULE(asapc, m) {
             py::arg("in_zsum"),
             py::arg("in_deltasum"),
             py::arg("in_n"),
-            py::arg("in_p"),
-            )
+            py::arg("in_p"))
     .def("generate_pb", &ASAPpb::generate_pb,py::return_value_policy::reference_internal);
 
     
     py::class_<ASAPpbResult>(m, "ASAPpbResult")
     .def(py::init< Mat>())
-    .def_readwrite("pb", &ASAPpbResult::pb)
+    .def_readwrite("pb", &ASAPpbResult::pb);
 
     py::class_<ASAPdcNMFResult>(m, "ASAPdcNMFResult")
     .def(py::init< Mat, Mat, Mat, Mat, Mat, Mat, Mat, Mat, std::vector<Scalar> >())

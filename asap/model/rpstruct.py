@@ -178,9 +178,9 @@ def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
         zsum_ds.append(np.array(zsum_sample).mean(0))
     zsum_ds = np.array(zsum_ds)
 
-    p_bs = n_bs/n_bs.sum(0)
-
     delta_num_db = []         
     for b in batches:
         delta_num_db.append(mtx[:,bindexd[b]].sum(1))
     delta_num_db = np.array(delta_num_db)
+
+    return ysum_ds.T, zsum_ds.T, n_bs, delta_num_db.T
