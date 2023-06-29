@@ -33,28 +33,30 @@ def get_models(mtx,bindexd):
 
 
 
-def get_rp(mtx,rp_mat,batch_label):
+def get_rp(mtx,rp_mat,batch_label,nb):
 
     Z = np.dot(rp_mat,mtx).T
 
-    ## no batch correction 
-    # logger.info('Randomized QR factorized pseudo-bulk')    
-    Q, _ = qr(Z,mode='economic')
-    Q = (np.sign(Q) + 1)/2
+    if nb>1:
 
+        # batch correction 
+        # logger.info('Randomized QR factorized pseudo-bulk with batch correction')    
+        b_mat = []
+        for b in list(set(batch_label)):
+            b_mat.append([ 1 if x == b else 0 for x in batch_label])
+        b_mat = np.array(b_mat).T
+        
+        u_batch, _, _ = np.linalg.svd(b_mat,full_matrices=False)
+        Zres = Z - u_batch@u_batch.T@Z
+        Q, _ ,_ = np.linalg.svd(Zres, full_matrices=False)
+        Q = (np.sign(Q) + 1)/2
+    
+    else:
+        ## no batch correction 
+        # logger.info('Randomized QR factorized pseudo-bulk')    
+        Q, _ = qr(Z,mode='economic')
+        Q = (np.sign(Q) + 1)/2
 
-    ## batch correction 
-    # logger.info('Randomized QR factorized pseudo-bulk with batch correction')    
-    # b_mat = []
-    # for b in list(set(batch_label)):
-    #       b_mat.append([ 1 if x == b else 0 for x in batch_label])
-    # b_mat = np.array(b_mat).T
-    
-    # u_batch, _, _ = np.linalg.svd(b_mat,full_matrices=False)
-    # Zres = Z - u_batch@u_batch.T@Z
-    # Q, _ ,_ = np.linalg.svd(Zres, full_matrices=False)
-    # Q = (np.sign(Q) + 1)/2
-    
     df = pd.DataFrame(Q,dtype=int)
     df['code'] = df.astype(str).agg(''.join, axis=1)
     df = df.reset_index()
@@ -143,7 +145,7 @@ def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
 
     batches = list(set(batch_label))
     
-    Q,pbulkd = get_rp(mtx,rp_mat,batch_label)
+    Q,pbulkd = get_rp(mtx,rp_mat,batch_label,len(batches))
 
 
     ## ysum_ds
@@ -154,35 +156,37 @@ def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
         ysum_ds.append(mtx[:,value].sum(1))
     ysum_ds = np.array(ysum_ds)
 
-
-    ## zsum_ds
-    knn=5
-    
-    bindexd = {}
-    for b in batches:
-        bindexd[b] = [i for i,x in  enumerate(batch_label) if x == b]
-
-    logger.info('Generating batch tree ')
-    model_list = get_models(mtx,bindexd)
-
-
-    zsum_ds = [] 
     n_bs = np.zeros((len(batches),len(pbulkd)))
-    for pbi,pb in enumerate(pbulkd.keys()): 
-        print(pbi) 
-        pb_indxs =  pbulkd[pb] 
-        n_cells = len(pb_indxs) 
-        n_nbr = np.min([knn,n_cells])
-        zsum_sample = [] 
-        for cellidx in pb_indxs: 
-            n_bs[batches.index(batch_label[cellidx]),pbi] += 1
-            zsum_sample.append(counterfactual_nbr(model_list,batches,mtx,cellidx,batch_label[cellidx],n_nbr))
-        zsum_ds.append(np.array(zsum_sample).mean(0))
-    zsum_ds = np.array(zsum_ds)
+    zsum_ds = np.zeros((len(pbulkd),mtx.shape[0]))
+    delta_num_db = np.zeros((len(batches),mtx.shape[0]))
+    size_s = np.zeros((len(pbulkd)))
 
-    delta_num_db = []         
-    for b in batches:
-        delta_num_db.append(mtx[:,bindexd[b]].sum(1))
-    delta_num_db = np.array(delta_num_db)
+    if len(batches)>1:
+        ## zsum_ds
+        knn=5
+        bindexd = {}
+        for b in batches:
+            bindexd[b] = [i for i,x in  enumerate(batch_label) if x == b]
+
+        logger.info('Generating batch tree ')
+        model_list = get_models(mtx,bindexd)
+
+        zsum_ds = [] 
+        for pbi,pb in enumerate(pbulkd.keys()): 
+            print(pbi) 
+            pb_indxs =  pbulkd[pb] 
+            n_cells = len(pb_indxs) 
+            n_nbr = np.min([knn,n_cells])
+            zsum_sample = [] 
+            for cellidx in pb_indxs: 
+                n_bs[batches.index(batch_label[cellidx]),pbi] += 1
+                zsum_sample.append(counterfactual_nbr(model_list,batches,mtx,cellidx,batch_label[cellidx],n_nbr))
+            zsum_ds.append(np.array(zsum_sample).mean(0))
+        zsum_ds = np.array(zsum_ds)
+
+        delta_num_db = []         
+        for b in batches:
+            delta_num_db.append(mtx[:,bindexd[b]].sum(1))
+        delta_num_db = np.array(delta_num_db)
 
     return ysum_ds.T, zsum_ds.T, n_bs, delta_num_db.T, size_s

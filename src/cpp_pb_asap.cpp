@@ -30,39 +30,55 @@ ASAPpbResult ASAPpb::generate_pb()
     Mat mu_ds = Mat::Ones(D, S);
     Mat log_mu_ds = Mat::Ones(D, S);
 
+    if (B>1){
+
     // counterfactual bias
     Mat gamma_ds = Mat::Ones(D, S); 
 
 
     for (std::size_t t = 0; t < BATCH_ADJ_ITER; ++t) {
 
-        mu_param.update(ysum_ds + zsum_ds,
-                        delta_db * n_bs +
-                            ((gamma_ds.array().rowwise() * size_s.array()))
-                                .matrix());
+            mu_param.update(ysum_ds + zsum_ds,
+                            delta_db * n_bs +
+                                ((gamma_ds.array().rowwise() * size_s.array()))
+                                    .matrix());
+            mu_param.calibrate();
+            mu_ds = mu_param.mean();
+
+
+            gamma_param
+                .update(zsum_ds,
+                        (mu_ds.array().rowwise() * size_s.array()).matrix());
+            gamma_param.calibrate();
+            gamma_ds = gamma_param.mean();
+
+            delta_denom_db = mu_ds * n_bs.transpose();
+            delta_param.update(deltasum_db, delta_denom_db);
+            delta_param.calibrate();
+            delta_db = delta_param.mean();
+        }
+        
+        log_delta_db = delta_param.log_mean();
+        delta_ds = delta_db * p_bs;
+
+        mu_param.update(ysum_ds, delta_db * n_bs);
         mu_param.calibrate();
         mu_ds = mu_param.mean();
+        log_mu_ds = mu_param.log_mean();
 
 
-        gamma_param
-            .update(zsum_ds,
-                    (mu_ds.array().rowwise() * size_s.array()).matrix());
-        gamma_param.calibrate();
-        gamma_ds = gamma_param.mean();
+    }else{
 
-        delta_denom_db = mu_ds * n_bs.transpose();
-        delta_param.update(deltasum_db, delta_denom_db);
-        delta_param.calibrate();
-        delta_db = delta_param.mean();
+        // Mat temp_ds = Mat::Ones(D, S).array().rowwise() * size_s.array();
+        // mu_param.update(ysum_ds, temp_ds);
+        // mu_param.calibrate();
+        // mu_ds = mu_param.mean();
+        // log_mu_ds = mu_param.log_mean();
+
+        mu_ds = ysum_ds;
+
+
     }
-    
-    log_delta_db = delta_param.log_mean();
-    delta_ds = delta_db * p_bs;
-
-    mu_param.update(ysum_ds, delta_db * n_bs);
-    mu_param.calibrate();
-    mu_ds = mu_param.mean();
-    log_mu_ds = mu_param.log_mean();
 
     ASAPpbResult res{mu_ds,log_mu_ds,delta_ds,delta_db,log_delta_db};
     

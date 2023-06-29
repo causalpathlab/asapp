@@ -28,9 +28,10 @@ dl = DataSet(sample_in,sample_out)
 
 dl.initialize_data()
 
-df=pd.read_csv('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/simdata/simdata_batchlabel.csv')
+# df=pd.read_csv('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/simdata/simdata_bl.csv')
 # dl.add_batch_label([i.split('_')[1] for i in dl.barcodes])
-dl.add_batch_label(df.x.values)
+dl.add_batch_label([i.split('-')[1] for i in dl.barcodes])
+# dl.add_batch_label(df.x.values)
 dl.load_data()
 
 asap = ASAPNMF(adata=dl,tree_max_depth=10)
@@ -45,7 +46,7 @@ np.savez(outpath+'_pbulk', pbulk= pb_res.pb,pb_batch=pb_res.pb_batch,batch_effec
 
 pbulkf = np.load(outpath+'_pbulk.npz')
 pbulk = np.log1p(pbulkf['pbulk'])
-K = 5
+K = 10
 
 # ######## alt nmf model 
 
