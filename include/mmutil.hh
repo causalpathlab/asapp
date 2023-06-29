@@ -21,4 +21,6 @@ using IntVec = typename Eigen::Matrix<std::ptrdiff_t, Eigen::Dynamic, 1>;
 using IntegerMatrix = typename Eigen::
         Matrix<std::ptrdiff_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
 
+using RowVec = typename Eigen::internal::plain_row_type<Mat>::type;
+
 #endif

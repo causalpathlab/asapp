@@ -148,7 +148,9 @@ def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
 
     ## ysum_ds
     ysum_ds = []
+    size_s = []
     for key, value in pbulkd.items():
+        size_s.append(len(value))
         ysum_ds.append(mtx[:,value].sum(1))
     ysum_ds = np.array(ysum_ds)
 
@@ -183,4 +185,4 @@ def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
         delta_num_db.append(mtx[:,bindexd[b]].sum(1))
     delta_num_db = np.array(delta_num_db)
 
-    return ysum_ds.T, zsum_ds.T, n_bs, delta_num_db.T
+    return ysum_ds.T, zsum_ds.T, n_bs, delta_num_db.T, size_s

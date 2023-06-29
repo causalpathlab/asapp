@@ -61,7 +61,7 @@ class ASAPNMF:
 		if n_samples < self.chunk_size:
 			logger.info('Total number is sample ' + str(n_samples) +'..modelling entire dataset')
 			
-			self.ysum , self.zsum , self.n_bs, self.delta = self.generate_pbulk_mat(self.adata.mtx, rp_mat,self.adata.batch_label)
+			self.ysum , self.zsum , self.n_bs, self.delta, self.size = self.generate_pbulk_mat(self.adata.mtx, rp_mat,self.adata.batch_label)
 
 		else:
 			logger.info('Total number of sample is ' + str(n_samples) +'..modelling '+str(self.chunk_size) +' chunk of dataset')

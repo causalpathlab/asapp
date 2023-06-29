@@ -48,7 +48,7 @@ dl.initialize_data()
 dl.add_batch_label([i.split('_')[1] for i in dl.barcodes])
 dl.load_data()
 
-asap = ASAPNMF(adata=dl,tree_max_depth=3)
+asap = ASAPNMF(adata=dl,tree_max_depth=10)
 asap.get_pbulk()
 
 

@@ -36,13 +36,15 @@ class ASAPpb {
     const Eigen::MatrixXf in_zsum,
     const Eigen::MatrixXf in_deltasum,
     const Eigen::MatrixXf in_n,
-    const Eigen::MatrixXf in_p
+    const Eigen::MatrixXf in_p,
+    const RowVec in_size
     ):
     ysum_ds(in_ysum),
     zsum_ds(in_zsum),
     deltasum_db(in_deltasum),
     n_bs(in_n),
-    p_bs(in_p)
+    p_bs(in_p),
+    size_s(in_size)
     {}
 
     ASAPpbResult generate_pb();
@@ -53,6 +55,7 @@ class ASAPpb {
         Eigen::MatrixXf deltasum_db;
         Eigen::MatrixXf n_bs;
         Eigen::MatrixXf p_bs;
+        RowVec size_s;
 
 };
 

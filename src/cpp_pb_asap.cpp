@@ -23,6 +23,8 @@ ASAPpbResult ASAPpb::generate_pb()
     Mat delta_db, delta_sd_db, log_delta_db, log_delta_sd_db, delta_ds;
     Mat prob_bs, n_bs;
 
+    using RowVec = typename Eigen::internal::plain_row_type<Mat>::type;
+    RowVec size_s = RowVec::Zero(S);
 
     delta_db.resize(D, B); 
     delta_db.setOnes();

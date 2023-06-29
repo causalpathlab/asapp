@@ -16,12 +16,13 @@ PYBIND11_MODULE(asapc, m) {
 
 
     py::class_<ASAPpb>(m, "ASAPpb")
-    .def(py::init< Eigen::MatrixXf&, Eigen::MatrixXf&, Eigen::MatrixXf&, Eigen::MatrixXf&, Eigen::MatrixXf&>(),
+    .def(py::init< Eigen::MatrixXf&, Eigen::MatrixXf&, Eigen::MatrixXf&, Eigen::MatrixXf&, Eigen::MatrixXf&, RowVec& >(),
             py::arg("in_ysum"),
             py::arg("in_zsum"),
             py::arg("in_deltasum"),
             py::arg("in_n"),
-            py::arg("in_p"))
+            py::arg("in_p"),
+            py::arg("in_size"))
     .def("generate_pb", &ASAPpb::generate_pb,py::return_value_policy::reference_internal);
 
     
