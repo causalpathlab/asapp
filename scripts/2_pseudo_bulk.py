@@ -24,7 +24,7 @@ import numpy as np
 from asap.data.dataloader import DataSet
 from asap.util import topics
 from asap.annotation import ASAPNMF
-
+import asapc
 import matplotlib.pylab as plt
 import seaborn as sns
 import colorcet as cc
@@ -45,10 +45,16 @@ sample_out = args.home + args.experiment + args.output+ args.sample_id +'/'+args
 dl = DataSet(sample_in,sample_out)
 
 dl.initialize_data()
-dl.add_batch_label([i.split('_')[1] for i in dl.barcodes])
+
+df=pd.read_csv('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/simdata/simdata_batchlabel.csv')
+# dl.add_batch_label([i.split('_')[1] for i in dl.barcodes])
+dl.add_batch_label(df.x.values)
 dl.load_data()
 
 asap = ASAPNMF(adata=dl,tree_max_depth=10)
 asap.get_pbulk()
 
 
+t = asapc.ASAPpb(asap.ysum,asap.zsum,asap.delta, asap.n_bs,asap.n_bs/asap.n_bs.sum(0),asap.size) 
+t2 = t.generate_pb()
+t2.pb

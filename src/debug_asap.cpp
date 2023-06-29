@@ -16,11 +16,16 @@ int main()
 // ASAPaltNMF altmodel(mat,maxk);
 // altmodel.nmf();
 
-Eigen::MatrixXf y = Eigen::MatrixXf::Random(4, 3);
-Eigen::MatrixXf beta = Eigen::MatrixXf::Random(4, 2);
+Eigen::MatrixXf ysum_ds = Eigen::MatrixXf::Random(100, 25);
+Eigen::MatrixXf zsum_ds = Eigen::MatrixXf::Random(100, 25);
+Eigen::MatrixXf deltasum_db = Eigen::MatrixXf::Random(100, 2);
+Eigen::MatrixXf n_bs = Eigen::MatrixXf::Random(2,25);
+Eigen::MatrixXf p_bs = Eigen::MatrixXf::Random(2,25);
+RowVec size_s = RowVec::Ones(25);
 
-ASAPaltNMFPredict model(y,beta);
-model.predict();
+
+ASAPpb model(ysum_ds,zsum_ds,deltasum_db,n_bs,p_bs,size_s);
+model.generate_pb();
 
     // const std::size_t seed = 42;
 

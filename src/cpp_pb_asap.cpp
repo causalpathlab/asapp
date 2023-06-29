@@ -20,26 +20,47 @@ ASAPpbResult ASAPpb::generate_pb()
     gamma_param_t<Mat, RNG> gamma_param(D, S, a0, b0, rng);
 
 
-    Mat delta_db, delta_sd_db, log_delta_db, log_delta_sd_db, delta_ds;
-    Mat prob_bs, n_bs;
-
-    using RowVec = typename Eigen::internal::plain_row_type<Mat>::type;
-    RowVec size_s = RowVec::Zero(S);
-
-    delta_db.resize(D, B); 
-    delta_db.setOnes();
+    Mat delta_db = Mat::Ones(D, B);
+    
+    Mat mu_ds = Mat::Ones(D, S);
+    Mat log_mu_ds = Mat::Ones(D, S);
 
     Mat delta_denom_db = Mat::Zero(D, B); 
 
     Mat gamma_ds = Mat::Ones(D, S); 
 
+    for (std::size_t t = 0; t < BATCH_ADJ_ITER; ++t) {
+
+        std::cout<<t<<std::endl;
+
+        // Mat a = delta_db;
+        // std::cout<<a.cols()<<std::endl;
+        // std::cout<<a.rows()<<std::endl;
+
+        mu_param.update(ysum_ds + zsum_ds,
+                        delta_db * n_bs +
+                            ((gamma_ds.array().rowwise() * size_s.array()))
+                                .matrix());
+        mu_param.calibrate();
+        mu_ds = mu_param.mean();
 
 
-    Eigen::MatrixXf pb;
+        gamma_param
+            .update(zsum_ds,
+                    (mu_ds.array().rowwise() * size_s.array()).matrix());
+        gamma_param.calibrate();
+        gamma_ds = gamma_param.mean();
 
-    pb.setZero();
+        delta_denom_db = mu_ds * n_bs.transpose();
+        delta_param.update(deltasum_db, delta_denom_db);
+        delta_param.calibrate();
+        delta_db = delta_param.mean();
+
+        
+    }
+    std::cout<<"ok"<<std::endl;
     
-    return pb;
+    return mu_ds;
 
 }
 
