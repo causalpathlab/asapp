@@ -180,7 +180,6 @@ ASAPaltNMFPredictResult ASAPaltNMFPredict::predict()
     const std::size_t max_iter = 100;
     const bool verbose = false;
     const std::size_t NUM_THREADS = 1;
-    const std::size_t BLOCK_SIZE = 100;
 
     using RowVec = typename Eigen::internal::plain_row_type<Mat>::type;
     using ColVec = typename Eigen::internal::plain_col_type<Mat>::type;
@@ -188,7 +187,6 @@ ASAPaltNMFPredictResult ASAPaltNMFPredict::predict()
     const Index D = Y_dn.rows();
     const Index N = Y_dn.cols();
     const Index K = log_x.cols(); // number of topics
-    const Index block_size = BLOCK_SIZE;
     const Scalar TOL = 1e-20;
     const double EPS = 1e-4;
 

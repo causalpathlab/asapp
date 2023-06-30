@@ -29,8 +29,8 @@ dl = DataSet(sample_in,sample_out)
 dl.initialize_data()
 
 # df=pd.read_csv('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/simdata/simdata_bl.csv')
-# dl.add_batch_label([i.split('_')[1] for i in dl.barcodes])
-dl.add_batch_label([i.split('-')[1] for i in dl.barcodes])
+dl.add_batch_label([i.split('_')[1] for i in dl.barcodes])
+# dl.add_batch_label([i.split('-')[1] for i in dl.barcodes])
 # dl.add_batch_label(df.x.values)
 dl.load_data()
 
@@ -93,8 +93,16 @@ nmf = nmf_model.nmf()
 
 # logging.info('dc nmf model...predict using alt ')
 
+
+##TAKE REGRESSION 
+# x is delta_db/pb_res.batch_effect and y is nmf.beta_log
+
+u_batch, _, _ = np.linalg.svd(pb_res.batch_effect,full_matrices=False)
+nmf_beta_log = nmf.beta_log - u_batch@u_batch.T@nmf.beta_log
+
+
 scaler = StandardScaler()
-scaled = scaler.fit_transform(nmf.beta_log)
+scaled = scaler.fit_transform(nmf_beta_log)
 
 reg_model = asapc.ASAPaltNMFPredict(dl.mtx,scaled)
 reg = reg_model.predict()

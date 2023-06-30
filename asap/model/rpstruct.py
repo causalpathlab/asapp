@@ -46,8 +46,15 @@ def get_rp(mtx,rp_mat,batch_label,nb):
             b_mat.append([ 1 if x == b else 0 for x in batch_label])
         b_mat = np.array(b_mat).T
         
+
+        ## remove batch effect retained in low dimension
         u_batch, _, _ = np.linalg.svd(b_mat,full_matrices=False)
         Zres = Z - u_batch@u_batch.T@Z
+
+        ## correlation before and after removing batch effect
+        # print([[np.corrcoef(x,y)[0,1] for x in Z.T] for y in b_mat.T ])
+        # print([[np.corrcoef(x,y)[0,1] for x in Zres.T] for y in b_mat.T ])
+
         Q, _ ,_ = np.linalg.svd(Zres, full_matrices=False)
         Q = (np.sign(Q) + 1)/2
     
