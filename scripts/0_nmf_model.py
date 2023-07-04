@@ -29,7 +29,7 @@ dl = DataSet(sample_in,sample_out)
 dl.initialize_data()
 
 # df=pd.read_csv('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/simdata/simdata_bl.csv')
-dl.add_batch_label([i.split('_')[1] for i in dl.barcodes])
+dl.add_batch_label([i.split('@')[1] for i in dl.barcodes])
 # dl.add_batch_label([i.split('-')[1] for i in dl.barcodes])
 # dl.add_batch_label(df.x.values)
 dl.load_data()
