@@ -22,10 +22,10 @@ class DataSet:
 		with tables.open_file(self.inpath+'.h5', 'r') as f:
 			for group in f.walk_groups():
 				if '/' not in  group._v_name:
-					samples.append(group)
+					samples.append(group._v_name)
 		return samples 
 	
-	def initialize_data(self,sample_list):
+	def initialize_data(self,sample_list,n_per_sample):
 		f = hf.File(self.inpath+'.h5', 'r')
 
 		if len(sample_list) == 1:
@@ -34,44 +34,73 @@ class DataSet:
 			self.shape = f[self.sample]['shape'][()]
 			self.barcodes = [x.decode('utf-8') for x in f[self.sample]['barcodes'][()]]
 			f.close()
-			
+
 		else:
+			 ## get first dataset for gene list
+			self.genes = [x.decode('utf-8') for x in f[sample_list[0]]['gene_names'][()]]
+			self.sample = sample_list
+			barcodes = []
+			for sample in sample_list:
+				barcodes = barcodes + [x.decode('utf-8')+'_'+sample for x in f[sample]['barcodes'][()]][0:n_per_sample]
+			self.barcodes = barcodes
+			self.shape = [len(self.genes),len(self.barcodes)]
+			f.close()
+
 
 	def add_batch_label(self,batch_label):
 		self.batch_label = batch_label
 
 
-	def load_data(self,n=0):
+	def load_data(self,sample_list,n_per_sample):
 		
-		# li is starting index 
-		# hi is ending index
 		li = 0
-		if n==0:
-			hi = self.shape[1] # load all data
-		else:
-			hi = n  # load user defined n data
-		
-		group = self.sample
-		
-		with tables.open_file(self.inpath+'.h5', 'r') as f:
-			for group in f.walk_groups():
-				if self.sample == group._v_name:
-					data = getattr(group, 'data').read()
-					indices = getattr(group, 'indices').read()
-					indptr = getattr(group, 'indptr').read()
-					shape = getattr(group, 'shape').read()
+		hi = n_per_sample # load n data in each sample
 
-					dat = []
-					if len(indptr) < hi: hi = len(indptr)-1
-					
-					for ci in range(li,hi,1):
-						dat.append(np.asarray(
-						csc_matrix((data[indptr[ci]:indptr[ci+1]], 
-						indices[indptr[ci]:indptr[ci+1]], 
-						np.array([0,len(indices[indptr[ci]:indptr[ci+1]])])), 
-						shape=(shape[0],1)).todense()).flatten())
-					
-					self.mtx = np.array(dat).T
+		if len(sample_list) == 1:
+						
+			with tables.open_file(self.inpath+'.h5', 'r') as f:
+				for group in f.walk_groups():
+					if self.sample == group._v_name:
+						data = getattr(group, 'data').read()
+						indices = getattr(group, 'indices').read()
+						indptr = getattr(group, 'indptr').read()
+						shape = getattr(group, 'shape').read()
+
+						dat = []
+						if len(indptr) < hi: hi = len(indptr)-1
+						
+						for ci in range(li,hi,1):
+							dat.append(np.asarray(
+							csc_matrix((data[indptr[ci]:indptr[ci+1]], 
+							indices[indptr[ci]:indptr[ci+1]], 
+							np.array([0,len(indices[indptr[ci]:indptr[ci+1]])])), 
+							shape=(shape[0],1)).todense()).flatten())
+						
+						self.mtx = np.array(dat).T
+		else:
+						
+			with tables.open_file(self.inpath+'.h5', 'r') as f:
+
+				dat = []
+				for sample in sample_list: # need to loop sample to match initialize data barcode order
+
+					for group in f.walk_groups():
+						if sample == group._v_name:
+							data = getattr(group, 'data').read()
+							indices = getattr(group, 'indices').read()
+							indptr = getattr(group, 'indptr').read()
+							shape = getattr(group, 'shape').read()
+
+							if len(indptr) < hi: hi = len(indptr)-1
+							
+							for ci in range(li,hi,1):
+								dat.append(np.asarray(
+								csc_matrix((data[indptr[ci]:indptr[ci+1]], 
+								indices[indptr[ci]:indptr[ci+1]], 
+								np.array([0,len(indices[indptr[ci]:indptr[ci+1]])])), 
+								shape=(shape[0],1)).todense()).flatten())
+							
+				self.mtx = np.array(dat).T
 
 
 
@@ -146,10 +175,25 @@ class DataMerger:
 
 '''
 from data.dataloader import DataMerger as dm
+import pandas as pd
 osdm = dm('/data/sishir/data/osteosarcoma/',
 [
 'BC10', 'BC11', 'BC16', 'BC17', 'BC2', 'BC20', 'BC21', 'BC22', 'BC3', 'BC5', 'BC6'
 ])
 osdm.merge_genes()
 osdm.merge_data('osteosarcoma')
+'''
+
+'''
+from data.dataloader import DataSet as ds
+osds = ds('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/osteosarcoma/osteosarcoma','/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/osteosarcoma/osteosarcoma')
+sample_list = osds.get_samplenames()
+
+osds.initialize_data(sample_list,n_per_sample=100)
+bc = pd.DataFrame(osds.barcodes)
+pd.Series([x.split('_')[1] for x in bc[0].values]).value_counts() 
+len(bc[0].unique())
+
+osds.load_data(sample_list,n_per_sample=100)
+osds.mtx.shape
 '''

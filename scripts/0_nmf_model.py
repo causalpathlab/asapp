@@ -25,14 +25,16 @@ sample_out = args.home + args.experiment + args.output+ args.sample_id +'/'+args
 
 
 dl = DataSet(sample_in,sample_out)
-
-dl.initialize_data()
+n_per_sample=500
+sample_list = dl.get_samplenames()
+dl.initialize_data(sample_list,n_per_sample)
+dl.load_data(sample_list,n_per_sample)
 
 # df=pd.read_csv('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/simdata/simdata_bl.csv')
-dl.add_batch_label([i.split('@')[1] for i in dl.barcodes])
+# dl.add_batch_label([i.split('@')[1] for i in dl.barcodes])
+dl.add_batch_label([i.split('_')[1] for i in dl.barcodes])
 # dl.add_batch_label([i.split('-')[1] for i in dl.barcodes])
 # dl.add_batch_label(df.x.values)
-dl.load_data()
 
 asap = ASAPNMF(adata=dl,tree_max_depth=10)
 asap.get_pbulk()
