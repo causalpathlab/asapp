@@ -5,6 +5,9 @@ from typing import Literal
 from asap.data.dataloader import DataSet
 from asap.model import dcpmf
 from asap.model import rpstruct as rp
+import asapc
+from sklearn.preprocessing import StandardScaler
+
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +16,8 @@ class ASAPNMF:
 	def __init__(
 		self,
 		adata : DataSet,
-		tree_max_depth : int = 10
+		tree_max_depth : int = 10,
+		num_factors : int = 10
 	):
 		self.adata = adata
 		self.tree_max_depth = tree_max_depth
@@ -31,74 +35,82 @@ class ASAPNMF:
 		logger.info('Running randomizedQR factorization to generate pseudo-bulk data')
 		return rp.get_rpqr_psuedobulk(X,rp_mat,batch_label)
 		
+	def run_nmf(self):
 
-	def _generate_pbulk_batch(self,rp_mat):
-
-		'''
-		one sample more than batch size
-
-		many samples n_per_sample * sample size is more than batch size
-		'''
-
-		if len(self.adata.sample_list) == 1:
-
-			for sample in sample_list:
-				barcodes = barcodes + [x.decode('utf-8')+'_'+sample for x in f[sample]['barcodes'][()]][0:n_per_sample]
-
-
-		n_cells = self.adata.shape[1]
-		chunk_size = self.adata.batch_size
-
-		total_batches = int(n_cells/chunk_size)+1
-
-		self.ysum = pd.DataFrame()
-		self.zsum = pd.DataFrame() 
-		self.n_bs = pd.DataFrame()
-		self.delta = pd.DataFrame() 
-		self.size = pd.DataFrame()
-
-		for (i, istart) in enumerate(range(0, n_cells,self.chunk_size), 1):
-			iend = min(istart + chunk_size, n_cells)
-
-			
-			self.adata.barcodes = [x.decode('utf-8')+'_'+sample for x in f[sample]['barcodes'][()]][istart:iend]
-			
-			self.adata.load_data(istart,iend)
-
-			mini_batch = X_shuffled[:,istart: iend]
-			mini_batch_bl = batch_label_shuffled[istart: iend]
-			
-
-			ysum , zsum , n_bs, delta, size  = self.generate_pbulk_mat(mini_batch, rp_mat,mini_batch_bl)
-
-			self.ysum = pd.concat([self.ysum, ysum], axis=0, ignore_index=True)
-			self.zsum = pd.concat([self.zsum, zsum], axis=0, ignore_index=True)
-			self.n_bs = pd.concat([self.n_bs, n_bs], axis=0, ignore_index=True)
-			self.delta = pd.concat([self.delta, delta], axis=0, ignore_index=True)
-			self.size = pd.concat([self.size, size], axis=0, ignore_index=True)
-
-
-			logger.info('completed...' + str(i)+ ' of '+str(total_batches))
-		
-		self.pbulk_mat= self.pbulk_mat.to_numpy().T
-		
-		logger.info('Final pseudo-bulk matrix :' + str(self.pbulk_mat.shape))
-
-
-	def _generate_pbulk(self):
-
-		n_cells = self.adata.shape[1]
 		rp_mat = self.generate_random_projection_mat(self.adata.shape[0])
 		
-		if self.adata.shape[1] < self.adata.batch_size:
+		if self.adata.run_full_data:
+			self._run_nmf_full(rp_mat)
+		else:
+			self._run_nmf_batch(rp_mat)
 
-			logger.info('Total number of cells ' + str(n_cells) +'..modelling entire dataset')
-			
+	def _run_nmf_full(self,rp_mat):
+
+		## generate pseudo-bulk
+		self.ysum , self.zsum , self.n_bs, self.delta, self.size = self.generate_pbulk_mat(self.adata.mtx, rp_mat,self.adata.batch_label)
+
+		## batch correction model from pseudo-bulk
+		pb_model = asapc.ASAPpb(self.ysum,self.zsum,self.delta, self.n_bs,self.n_bs/self.n_bs.sum(0),self.size) 
+		pb_res = pb_model.generate_pb()
+
+		## nmf 
+		pbulk = np.log1p(pb_res.pb)
+		nmf_model = asapc.ASAPdcNMF(pbulk,self.num_factors)
+		nmf = nmf_model.nmf()
+
+		## correct batch from dictionary
+		u_batch, _, _ = np.linalg.svd(pb_res.batch_effect,full_matrices=False)
+		nmf_beta_log = nmf.beta_log - u_batch@u_batch.T@nmf.beta_log
+
+		## predict
+		scaler = StandardScaler()
+		scaled = scaler.fit_transform(nmf_beta_log)
+		reg_model = asapc.ASAPaltNMFPredict(self.adata.mtx,scaled)
+		reg = reg_model.predict()
+
+		np.savez(self.adata.outpath+'_dcnmf',
+				beta = nmf.beta,
+				beta_log = nmf.beta_log,
+				theta = reg.theta,
+				corr = reg.corr)
+
+	def _run_nmf_batch(self,rp_mat):
+
+		total_cells = self.adata.shape[1]
+		batch_size = self.adata.batch_size
+
+		for (i, istart) in enumerate(range(0, total_cells,batch_size), 1):
+
+			iend = min(istart + batch_size, total_cells)
+
+			self.adata.load_datainfo_batch(i,istart,iend)
+			self.adata.load_data_batch(i,istart,iend)				
+
+			## generate pseudo-bulk
 			self.ysum , self.zsum , self.n_bs, self.delta, self.size = self.generate_pbulk_mat(self.adata.mtx, rp_mat,self.adata.batch_label)
 
-		else:
-			logger.info('Total number of cells ' + str(n_cells) +'..modelling '+str(self.chunk_size) +' chunk of dataset')
-			self._generate_pbulk_batch(rp_mat)
+			## batch correction model from pseudo-bulk
+			pb_model = asapc.ASAPpb(self.ysum,self.zsum,self.delta, self.n_bs,self.n_bs/self.n_bs.sum(0),self.size) 
+			pb_res = pb_model.generate_pb()
 
-	def get_pbulk(self):
-		self._generate_pbulk()
+			## nmf 
+			pbulk = np.log1p(pb_res.pb)
+			nmf_model = asapc.ASAPdcNMF(pbulk,self.num_factors)
+			nmf = nmf_model.nmf()
+
+			## correct batch from dictionary
+			u_batch, _, _ = np.linalg.svd(pb_res.batch_effect,full_matrices=False)
+			nmf_beta_log = nmf.beta_log - u_batch@u_batch.T@nmf.beta_log
+
+			## predict
+			scaler = StandardScaler()
+			scaled = scaler.fit_transform(nmf_beta_log)
+			reg_model = asapc.ASAPaltNMFPredict(self.adata.mtx,scaled)
+			reg = reg_model.predict()
+
+			np.savez(self.adata.outpath+'_'+str(iend)+'_dcnmf',
+					beta = nmf.beta,
+					beta_log = nmf.beta_log,
+					theta = reg.theta,
+					corr = reg.corr)
+
