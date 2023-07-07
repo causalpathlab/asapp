@@ -55,9 +55,10 @@ class DataSet:
 					self.sample_batch_size[sample] = f[sample]['shape'][()][1]
 
 			else:
+				self.run_full_data = False
 				for sample in sample_list:
 					self.sample_batch_size[sample] = int(((f[sample]['shape'][()][1])/n_cells ) * self.batch_size)
-				self.run_full_data = False
+		f.close()
 
 	def initialize_data(self,sample_list,batch_size):
 
@@ -79,11 +80,10 @@ class DataSet:
 		elif total_samples > 1 and self.run_full_data:
 			## get first dataset for gene list
 			self.genes = [x.decode('utf-8') for x in f[sample_list[0]]['gene_names'][()]]
-			self.sample_list = sample_list
 			barcodes = []
 			for sample in self.sample_list:
 				start_index = 0
-				end_index = self.sample_batch_size[self.sample_list[0]]
+				end_index = self.sample_batch_size[sample]
 				barcodes = barcodes + [x.decode('utf-8')+'_'+sample for x in f[sample]['barcodes'][()]][start_index:end_index]
 			self.barcodes = barcodes
 			self.shape = [len(self.genes),len(self.barcodes)]
@@ -105,7 +105,6 @@ class DataSet:
 
 			## get first dataset for gene list
 			self.genes = [x.decode('utf-8') for x in f[sample_list[0]]['gene_names'][()]]
-			self.sample_list = sample_list
 
 			len_barcodes = []
 			for sample in sample_list:
@@ -153,7 +152,7 @@ class DataSet:
 			self.barcodes = barcodes
 			self.batch_label = batch_label
 		
-		f.close()
+			f.close()
 
 
 	def load_full_data(self):
@@ -165,7 +164,7 @@ class DataSet:
 
 			with tables.open_file(self.inpath+'.h5', 'r') as f:
 				for group in f.walk_groups():
-					if self.sample == group._v_name:
+					if self.sample_list[0] == group._v_name:
 						data = getattr(group, 'data').read()
 						indices = getattr(group, 'indices').read()
 						indptr = getattr(group, 'indptr').read()
@@ -193,7 +192,7 @@ class DataSet:
 						if sample == group._v_name:
 
 							start_index = 0
-							end_index = self.sample_batch_size[self.sample_list[0]]
+							end_index = self.sample_batch_size[sample]
 
 							data = getattr(group, 'data').read()
 							indices = getattr(group, 'indices').read()
@@ -218,7 +217,7 @@ class DataSet:
 			
 			with tables.open_file(self.inpath+'.h5', 'r') as f:
 				for group in f.walk_groups():
-					if self.sample == group._v_name:
+					if self.sample_list[0] == group._v_name:
 						data = getattr(group, 'data').read()
 						indices = getattr(group, 'indices').read()
 						indptr = getattr(group, 'indptr').read()
@@ -266,8 +265,6 @@ class DataSet:
 								shape=(shape[0],1)).todense()).flatten())
 							
 				self.mtx = np.array(dat).T
-
-
 
 class DataMerger:
 	def __init__(self,inpath,sample_names):

@@ -6,7 +6,7 @@ import numpy as np
 from asap.data.dataloader import DataSet
 from asap.util import topics
 from asap.annotation import ASAPNMF
-import asapc
+# import asapc
 import matplotlib.pylab as plt
 import seaborn as sns
 import colorcet as cc
@@ -25,10 +25,9 @@ sample_out = args.home + args.experiment + args.output+ args.sample_id +'/'+args
 
 
 dl = DataSet(sample_in,sample_out)
-n_per_sample=100
 sample_list = dl.get_samplenames()
-dl.initialize_data(sample_list,n_per_sample)
-dl.load_data(sample_list,n_per_sample)
+dl.initialize_data(sample_list,1000000)
+
 
 # df=pd.read_csv('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/simdata/simdata_bl.csv')
 # dl.add_batch_label([i.split('@')[1] for i in dl.barcodes])
