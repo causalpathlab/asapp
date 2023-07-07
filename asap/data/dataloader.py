@@ -9,6 +9,7 @@ class DataSet:
 	def __init__(self,inpath,outpath):
 		self.inpath = inpath
 		self.outpath = outpath
+		self.batch_size = 1000
 
 	def load_datainfo(self):
 		with tables.open_file(self.inpath+'.h5', 'r') as f:
@@ -26,37 +27,67 @@ class DataSet:
 		return samples 
 	
 	def initialize_data(self,sample_list,n_per_sample):
+
 		f = hf.File(self.inpath+'.h5', 'r')
 
-		if len(sample_list) == 1:
-			self.sample = sample_list[0]
-			self.genes = [x.decode('utf-8') for x in f[self.sample]['gene_names'][()]]
-			self.shape = f[self.sample]['shape'][()]
-			self.barcodes = [x.decode('utf-8') for x in f[self.sample]['barcodes'][()]]
+		total_samples = len(sample_list)
+
+		if total_samples == 1 and n_per_sample < self.batch_size:
+			self.sample_list = sample_list[0]
+			self.genes = [x.decode('utf-8') for x in f[self.sample_list[0]]['gene_names'][()]]
+			self.shape = f[self.sample_list[0]]['shape'][()]
+			self.barcodes = [x.decode('utf-8') for x in f[self.sample_list[0]]['barcodes'][()]]
 			f.close()
 
-		else:
-			 ## get first dataset for gene list
+			self.load_data(0,n_per_sample)
+
+		elif total_samples > 1 and (n_per_sample*total_samples) < self.batch_size:
+			## get first dataset for gene list
 			self.genes = [x.decode('utf-8') for x in f[sample_list[0]]['gene_names'][()]]
-			self.sample = sample_list
+			self.sample_list = sample_list
 			barcodes = []
-			for sample in sample_list:
+			for sample in self.sample_list:
 				barcodes = barcodes + [x.decode('utf-8')+'_'+sample for x in f[sample]['barcodes'][()]][0:n_per_sample]
 			self.barcodes = barcodes
 			self.shape = [len(self.genes),len(self.barcodes)]
 			f.close()
 
+			self.load_data(0,n_per_sample)
+
+		elif total_samples == 1 and n_per_sample > self.batch_size:
+		
+			self.sample_list = sample_list[0]
+			self.genes = [x.decode('utf-8') for x in f[self.sample_list[0]]['gene_names'][()]]
+			self.shape = f[self.sample_list[0]]['shape'][()]
+			
+			self.barcodes = None
+			self.mtx = None
+			
+			f.close()
+		
+		elif total_samples > 1 and (n_per_sample*total_samples) > self.batch_size:
+
+			## get first dataset for gene list
+			self.genes = [x.decode('utf-8') for x in f[sample_list[0]]['gene_names'][()]]
+			self.sample_list = sample_list
+
+			len_barcodes = []
+			for sample in sample_list:
+				len_barcodes += f[sample]['shape'][()][1]
+			self.shape = [len(self.genes),len_barcodes]
+			
+			self.barcodes = None
+			self.mtx = None
+			
+			f.close()
 
 	def add_batch_label(self,batch_label):
 		self.batch_label = batch_label
 
 
-	def load_data(self,sample_list,n_per_sample):
+	def load_data(self,start_index, end_index):
 		
-		li = 0
-		hi = n_per_sample # load n data in each sample
-
-		if len(sample_list) == 1:
+		if len(self.sample_list) == 1:
 						
 			with tables.open_file(self.inpath+'.h5', 'r') as f:
 				for group in f.walk_groups():
@@ -69,7 +100,7 @@ class DataSet:
 						dat = []
 						if len(indptr) < hi: hi = len(indptr)-1
 						
-						for ci in range(li,hi,1):
+						for ci in range(start_index,end_index,1):
 							dat.append(np.asarray(
 							csc_matrix((data[indptr[ci]:indptr[ci+1]], 
 							indices[indptr[ci]:indptr[ci+1]], 
@@ -82,7 +113,7 @@ class DataSet:
 			with tables.open_file(self.inpath+'.h5', 'r') as f:
 
 				dat = []
-				for sample in sample_list: # need to loop sample to match initialize data barcode order
+				for sample in self.sample_list: # need to loop sample to match initialize data barcode order
 
 					for group in f.walk_groups():
 						if sample == group._v_name:
@@ -93,7 +124,7 @@ class DataSet:
 
 							if len(indptr) < hi: hi = len(indptr)-1
 							
-							for ci in range(li,hi,1):
+							for ci in range(start_index,end_index,1):
 								dat.append(np.asarray(
 								csc_matrix((data[indptr[ci]:indptr[ci+1]], 
 								indices[indptr[ci]:indptr[ci+1]], 

@@ -25,7 +25,7 @@ sample_out = args.home + args.experiment + args.output+ args.sample_id +'/'+args
 
 
 dl = DataSet(sample_in,sample_out)
-n_per_sample=500
+n_per_sample=100
 sample_list = dl.get_samplenames()
 dl.initialize_data(sample_list,n_per_sample)
 dl.load_data(sample_list,n_per_sample)
