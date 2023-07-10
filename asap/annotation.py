@@ -21,6 +21,7 @@ class ASAPNMF:
 	):
 		self.adata = adata
 		self.tree_max_depth = tree_max_depth
+		self.num_factors = num_factors
 	
 	def generate_random_projection_mat(self,X_rows):
 		rp_mat = []
@@ -35,14 +36,14 @@ class ASAPNMF:
 		logger.info('Running randomizedQR factorization to generate pseudo-bulk data')
 		return rp.get_rpqr_psuedobulk(X,rp_mat,batch_label)
 		
-	def run_nmf(self):
+	def run_nmf(self,batch_iteration):
 
 		rp_mat = self.generate_random_projection_mat(self.adata.shape[0])
 		
 		if self.adata.run_full_data:
 			self._run_nmf_full(rp_mat)
 		else:
-			self._run_nmf_batch(rp_mat)
+			self._run_nmf_batch(rp_mat,batch_iteration)
 
 	def _run_nmf_full(self,rp_mat):
 
@@ -74,7 +75,7 @@ class ASAPNMF:
 				theta = reg.theta,
 				corr = reg.corr)
 
-	def _run_nmf_batch(self,rp_mat):
+	def _run_nmf_batch(self,rp_mat,batch_iteration):
 
 		total_cells = self.adata.shape[1]
 		batch_size = self.adata.batch_size
@@ -112,5 +113,10 @@ class ASAPNMF:
 					beta = nmf.beta,
 					beta_log = nmf.beta_log,
 					theta = reg.theta,
-					corr = reg.corr)
+					corr = reg.corr,
+					barcodes = self.adata.barcodes,
+					batch_label = self.adata.batch_label
+					)
 
+			if i == batch_iteration:
+				break
