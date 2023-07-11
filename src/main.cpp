@@ -50,7 +50,11 @@ PYBIND11_MODULE(asapc, m) {
     .def(py::init< Eigen::MatrixXf&, int>(),
             py::arg("in_Y"),
             py::arg("in_maxK"))
-    .def("nmf", &ASAPdcNMF::nmf,py::return_value_policy::reference_internal);
+    .def("nmf", &ASAPdcNMF::nmf,py::return_value_policy::reference_internal)
+    .def("online_nmf", &ASAPdcNMF::online_nmf,
+            py::arg("in_beta_a"),
+            py::arg("in_beta_b"),    
+            py::return_value_policy::reference_internal);
 
     py::class_<ASAPdcNMFPredict>(m, "ASAPdcNMFPredict")
     .def(py::init< Eigen::MatrixXf&, Eigen::MatrixXf&, Eigen::MatrixXf&>(),

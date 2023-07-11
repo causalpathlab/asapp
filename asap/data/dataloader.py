@@ -73,7 +73,7 @@ class DataSet:
 			self.genes = [x.decode('utf-8') for x in f[self.sample_list[0]]['gene_names'][()]]
 			self.shape = f[self.sample_list[0]]['shape'][()]
 			self.barcodes = [x.decode('utf-8') for x in f[self.sample_list[0]]['barcodes'][()]]
-			self.batch_label = [x.decode('utf-8') for x in f[sample]['batch_label'][()]]
+			self.batch_label = [x.decode('utf-8') for x in f[self.sample_list[0]]['batch_label'][()]]
 			f.close()
 
 			self.load_full_data()

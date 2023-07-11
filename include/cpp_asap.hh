@@ -107,6 +107,7 @@ class ASAPdcNMF {
     ASAPdcNMF(const Eigen::MatrixXf in_Y,int in_maxK):Y(in_Y),maxK(in_maxK){}
 
     ASAPdcNMFResult nmf();
+    ASAPdcNMFResult online_nmf(const Eigen::MatrixXf in_beta_a, const Eigen::MatrixXf in_beta_b);
     
     protected:
         int maxK;

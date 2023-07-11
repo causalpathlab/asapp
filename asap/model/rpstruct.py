@@ -180,7 +180,6 @@ def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
 
         zsum_ds = [] 
         for pbi,pb in enumerate(pbulkd.keys()): 
-            print(pbi) 
             pb_indxs =  pbulkd[pb] 
             n_cells = len(pb_indxs) 
             n_nbr = np.min([knn,n_cells])

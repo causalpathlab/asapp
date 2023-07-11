@@ -23,10 +23,10 @@ sample_out = args.home + args.experiment + args.output+ args.sample_id +'/'+args
 
 
 
-tree_max_depth = 10
+tree_max_depth = 7
 num_factors = 10
-batch_size = 10000
-batch_iteration = 1
+batch_size = 1000
+batch_iteration = 10
 
 dl = DataSet(sample_in,sample_out)
 sample_list = dl.get_samplenames()

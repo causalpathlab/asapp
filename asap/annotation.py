@@ -80,24 +80,27 @@ class ASAPNMF:
 		total_cells = self.adata.shape[1]
 		batch_size = self.adata.batch_size
 
-		for (i, istart) in enumerate(range(0, total_cells,batch_size), 1):
+		## just take first batch 
+		for (i, istart) in enumerate(range(0, total_cells,batch_size), 1): break
 
-			iend = min(istart + batch_size, total_cells)
+		iend = min(istart + batch_size, total_cells)
 
-			self.adata.load_datainfo_batch(i,istart,iend)
-			self.adata.load_data_batch(i,istart,iend)				
+		self.adata.load_datainfo_batch(i,istart,iend)
+		self.adata.load_data_batch(i,istart,iend)				
 
-			## generate pseudo-bulk
-			self.ysum , self.zsum , self.n_bs, self.delta, self.size = self.generate_pbulk_mat(self.adata.mtx, rp_mat,self.adata.batch_label)
+		## generate pseudo-bulk
+		self.ysum , self.zsum , self.n_bs, self.delta, self.size = self.generate_pbulk_mat(self.adata.mtx, rp_mat,self.adata.batch_label)
 
-			## batch correction model from pseudo-bulk
-			pb_model = asapc.ASAPpb(self.ysum,self.zsum,self.delta, self.n_bs,self.n_bs/self.n_bs.sum(0),self.size) 
-			pb_res = pb_model.generate_pb()
+		## batch correction model from pseudo-bulk
+		pb_model = asapc.ASAPpb(self.ysum,self.zsum,self.delta, self.n_bs,self.n_bs/self.n_bs.sum(0),self.size) 
+		pb_res = pb_model.generate_pb()
 
-			## nmf 
-			pbulk = np.log1p(pb_res.pb)
-			nmf_model = asapc.ASAPdcNMF(pbulk,self.num_factors)
-			nmf = nmf_model.nmf()
+		## nmf 
+		pbulk = np.log1p(pb_res.pb)
+		nmf_model = asapc.ASAPdcNMF(pbulk,self.num_factors)
+		nmf = nmf_model.nmf()
+
+		if batch_iteration == 1:
 
 			## correct batch from dictionary
 			u_batch, _, _ = np.linalg.svd(pb_res.batch_effect,full_matrices=False)
@@ -117,6 +120,56 @@ class ASAPNMF:
 					barcodes = self.adata.barcodes,
 					batch_label = self.adata.batch_label
 					)
+		else:
 
-			if i == batch_iteration:
-				break
+			nmf_beta_a = nmf.beta_a
+			nmf_beta_b = nmf.beta_b
+			nmf_final_beta = None
+
+			for (i, istart) in enumerate(range(0, total_cells,batch_size), 1): 
+
+				print('running...'+str(i))
+				
+				## ignore first iteration b/c it is already computed in the above step
+				if i ==1 : continue
+
+				iend = min(istart + batch_size, total_cells)
+
+				## clear previous batch
+				self.adata.mtx = None
+				self.adata.barcodes = None
+				self.adata.batch_label = None
+
+				## get current batch
+				self.adata.load_datainfo_batch(i,istart,iend)
+				self.adata.load_data_batch(i,istart,iend)	
+
+				print(str(self.adata.mtx.shape))	
+
+				if self.adata.mtx.shape[1]<int(batch_size/2):break
+
+				## generate pseudo-bulk
+				current_ysum , current_zsum , current_n_bs, current_delta, current_size = self.generate_pbulk_mat(self.adata.mtx, rp_mat,self.adata.batch_label)
+
+				## batch correction model from pseudo-bulk
+				pb_model = asapc.ASAPpb(current_ysum,current_zsum,current_delta, current_n_bs,current_n_bs/current_n_bs.sum(0),current_size) 
+				pb_res = pb_model.generate_pb()
+
+				
+				print(str(pb_res.pb.shape))
+				## nmf 
+				pbulk = np.log1p(pb_res.pb)
+
+				## here we need to use old model and keep updating beta with new pseudo-bulk data 
+				nmf_model_batch = asapc.ASAPdcNMF(pbulk,self.num_factors)
+				nmf_batch = nmf_model_batch.online_nmf(nmf_beta_a, nmf_beta_b)
+				
+				nmf_beta_a = nmf_batch.beta_a
+				nmf_beta_b = nmf_batch.beta_b
+
+				nmf_final_beta = nmf_batch.beta
+				
+
+			np.savez(self.adata.outpath+'_'+str(iend)+'_dcnmf_final_beta',
+					beta = nmf_final_beta
+					)
