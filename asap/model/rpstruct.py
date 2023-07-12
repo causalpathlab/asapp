@@ -147,13 +147,29 @@ def counterfactual_nbr(model_list,batches,mtx,cellidx,batchid,nbr):
     return np.array(cf_cell).mean(0)
 
 
-     
-def get_rpqr_psuedobulk(mtx,rp_mat,batch_label):
+def sample_pseudo_bulk(pbulkd,sample_size):
+    pbulkd_sample = {}
+    for key, value in pbulkd.items():
+        if len(value)>sample_size:
+            pbulkd_sample[key] = random.sample(value,sample_size)
+        else:
+            pbulkd_sample[key] = value
+    return pbulkd_sample 
+         
+
+def get_rpqr_psuedobulk(mtx,rp_mat,batch_label,downsample_pbulk):
 
     batches = list(set(batch_label))
+
+    logger.info('Number of batches... '+ str(len(batches)))
     
     Q,pbulkd = get_rp(mtx,rp_mat,batch_label,len(batches))
 
+    logger.info('Pseudo-bulk size... '+ str(len(pbulkd)))
+
+    if downsample_pbulk:
+        sample_size = 10
+        pbulkd = sample_pseudo_bulk(pbulkd,sample_size)
 
     ## ysum_ds
     ysum_ds = []

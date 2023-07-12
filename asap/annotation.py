@@ -17,11 +17,13 @@ class ASAPNMF:
 		self,
 		adata : DataSet,
 		tree_max_depth : int = 10,
-		num_factors : int = 10
+		num_factors : int = 10,
+		downsample_pbulk: bool = False
 	):
 		self.adata = adata
 		self.tree_max_depth = tree_max_depth
 		self.num_factors = num_factors
+		self.downsample_pbulk = downsample_pbulk
 	
 	def generate_random_projection_mat(self,X_rows):
 		rp_mat = []
@@ -34,9 +36,13 @@ class ASAPNMF:
 	def generate_pbulk_mat(self,X,rp_mat,batch_label):
 		
 		logger.info('Running randomizedQR factorization to generate pseudo-bulk data')
-		return rp.get_rpqr_psuedobulk(X,rp_mat,batch_label)
+		return rp.get_rpqr_psuedobulk(X,rp_mat,batch_label,self.downsample_pbulk)
 		
 	def run_nmf(self,batch_iteration):
+
+		logging.info('ASAPNMF running...')
+		logging.info('Data size... '+str(self.adata.shape))
+		logging.info('Batch size... '+str(self.adata.batch_size))
 
 		rp_mat = self.generate_random_projection_mat(self.adata.shape[0])
 		
@@ -47,13 +53,17 @@ class ASAPNMF:
 
 	def _run_nmf_full(self,rp_mat):
 
+		logging.info('ASAPNMF running full data mode...')
+
 		## generate pseudo-bulk
 		self.ysum , self.zsum , self.n_bs, self.delta, self.size = self.generate_pbulk_mat(self.adata.mtx, rp_mat,self.adata.batch_label)
 
+		logging.info('Batch correction estimate...')
 		## batch correction model from pseudo-bulk
 		pb_model = asapc.ASAPpb(self.ysum,self.zsum,self.delta, self.n_bs,self.n_bs/self.n_bs.sum(0),self.size) 
 		pb_res = pb_model.generate_pb()
 
+		logging.info('NMF..')
 		## nmf 
 		pbulk = np.log1p(pb_res.pb)
 		nmf_model = asapc.ASAPdcNMF(pbulk,self.num_factors)
@@ -63,6 +73,7 @@ class ASAPNMF:
 		u_batch, _, _ = np.linalg.svd(pb_res.batch_effect,full_matrices=False)
 		nmf_beta_log = nmf.beta_log - u_batch@u_batch.T@nmf.beta_log
 
+		logging.info('Prediction...')
 		## predict
 		scaler = StandardScaler()
 		scaled = scaler.fit_transform(nmf_beta_log)
