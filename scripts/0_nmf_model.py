@@ -31,8 +31,8 @@ tree_max_depth = 10
 num_factors = 10
 batch_size = 10000
 batch_iteration = 1
-downsample_pseudobulk = False
-downsample_size = 100
+downsample_pseudobulk = True
+downsample_size = 10
 
 dl = DataSet(sample_in,sample_out)
 sample_list = dl.get_samplenames()

@@ -3,7 +3,7 @@ import numpy as np
 import logging
 from typing import Literal
 from asap.data.dataloader import DataSet
-from asap.model import dcpmf
+from asap.model import nmf,dcpmf
 from asap.model import rpstruct as rp
 import asapc
 from sklearn.preprocessing import StandardScaler
@@ -56,9 +56,27 @@ class ASAPNMF:
 			self._run_prbc_nmf_batch(rp_mat,batch_iteration)
 		elif self.method == 'pobc' and self.adata.run_full_data :
 			self._run_pobc_nmf_full(rp_mat)
+		elif self.method == 'nmf' and self.adata.run_full_data :
+			self._run_nmf_full(rp_mat)
 		
+	def _run_nmf_full(self,rp_mat):
 
+		logging.info('ASAPNMF running nmf full data mode...')
 
+		## generate pseudo-bulk
+		self.ysum , self.zsum , self.n_bs, self.delta, self.size = self.generate_pbulk_mat(self.adata.mtx, rp_mat,self.adata.batch_label)
+
+		logging.info('NMF..')
+		## nmf 
+		nmf_model = nmf.mu(self.ysum)
+
+		logging.info('Saving model...')
+
+		np.savez(self.adata.outpath+'_dcnmf',
+				beta = nmf_model.W,
+				theta = nmf_model.H,
+				loss = nmf_model.loss)
+	
 	def _run_prbc_nmf_full(self,rp_mat):
 
 		logging.info('ASAPNMF running prbc - pre nmf batch correction full data mode...')
