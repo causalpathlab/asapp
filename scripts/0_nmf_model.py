@@ -28,16 +28,16 @@ logging.basicConfig(filename=sample_out+'_model.log',
 						datefmt='%Y-%m-%d %H:%M:%S')
 
 tree_max_depth = 10
-num_factors = 10
-batch_size = 10000
+num_factors = 18
+batch_size = 25000
 batch_iteration = 1
 downsample_pseudobulk = True
-downsample_size = 10
+downsample_size = 100
 
 dl = DataSet(sample_in,sample_out)
 sample_list = dl.get_samplenames()
 dl.initialize_data(sample_list,batch_size)
 
 
-asap = ASAPNMF(dl,tree_max_depth,num_factors,downsample_pseudobulk,downsample_size)
+asap = ASAPNMF(dl,tree_max_depth,num_factors,downsample_pseudobulk,downsample_size,'prbc')
 asap.run_nmf(batch_iteration)

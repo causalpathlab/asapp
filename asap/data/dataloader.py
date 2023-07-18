@@ -3,6 +3,9 @@ import numpy as np
 from scipy.sparse import csc_matrix
 import h5py as hf
 import tables
+import glob
+import os
+
 
 
 class DataSet:
@@ -10,20 +13,20 @@ class DataSet:
 		self.inpath = inpath
 		self.outpath = outpath
 
-	def load_datainfo(self):
+	def get_datainfo(self):
 		with tables.open_file(self.inpath+'.h5', 'r') as f:
 			for group in f.walk_groups():
 				if '/' not in  group._v_name:
 					shape = getattr(group, 'shape').read()
 					print(str(group)+'....'+str(shape))
 
-	def get_samplenames(self):
-		samples = []
+	def get_dataset_names(self):
+		datasets = []
 		with tables.open_file(self.inpath+'.h5', 'r') as f:
 			for group in f.walk_groups():
 				if '/' not in  group._v_name:
-					samples.append(group._v_name)
-		return samples 
+					datasets.append(group._v_name)
+		return datasets
 	
 	def _estimate_batch_mode(self,sample_list,batch_size):
 
@@ -274,12 +277,82 @@ class DataSet:
 							
 				self.mtx = np.array(dat).T
 
-class DataMerger:
+class DataMergerH5:
+	def __init__(self,inpath):
+		self.inpath = inpath
+		self.datasets = glob.glob(inpath+'*.h5ad')
+
+
+	def get_datainfo(self):
+		for ds in self.datasets:
+			f = hf.File(ds, 'r')
+			print('Dataset : '+ os.path.basename(ds).replace('.h5ad','') 
+	 		+' , cells : '+ str(len(f['X']['indptr'])) + ', genes : ' + str(f['var']['feature_name']['categories'].shape[0]))
+		f.close()
+
+	def merge_genes(self,filter_genes = None):
+		final_genes = []
+		for ds_i, ds in enumerate(self.datasets):
+			f = hf.File(ds, 'r')
+			if ds_i ==0:
+				final_genes = set([x.decode('utf-8') for x in list(f['var']['feature_name']['categories']) ])
+			else:
+				current_genes = set([x.decode('utf-8') for x in list(f['var']['feature_name']['categories']) ])
+				final_genes = final_genes.intersection(current_genes)
+			f.close()
+
+		self.genes = list(final_genes)
+		self.sample_gene_indices ={}
+
+		for ds_i, ds in enumerate(self.datasets):
+			f = hf.File(ds, 'r')
+			current_genes = set([x.decode('utf-8') for x in list(f['var']['feature_name']['categories']) ])
+			self.sample_gene_indices[os.path.basename(ds).replace('.h5ad','')] = [index for index, element in enumerate(current_genes) if element in final_genes]      
+			f.close()
+	
+	def merge_data(self,fname):
+	
+		for si,ds in enumerate(self.datasets):
+
+			dataset = os.path.basename(ds).replace('.h5ad','')
+			dataset_f = hf.File(ds, 'r')
+
+			print('processing...'+dataset)
+			
+			if si ==0:
+				f = hf.File(self.inpath+fname+'.h5','w')
+			else:
+				f = hf.File(self.inpath+fname+'.h5','a')
+
+			grp = f.create_group(dataset)
+
+			grp.create_dataset('barcodes', data = dataset_f['obs']['_index'] ,compression='gzip')
+
+			grp.create_dataset('donor_id',data=dataset_f['obs']['donor_id']['categories'],compression='gzip')
+
+			grp.create_dataset('genes',data=self.genes,compression='gzip')
+
+			grp.create_dataset('indptr',data=dataset_f['X']['indptr'],compression='gzip')
+			grp.create_dataset('indices',data=dataset_f['X']['indices'],compression='gzip')
+			grp.create_dataset('data',data=dataset_f['X']['data'],dtype=np.int32,compression='gzip')
+
+			
+			data_shape = np.array([len(dataset_f['X']['indptr']),
+			dataset_f['var']['feature_name']['categories'].shape[0]])
+
+			grp.create_dataset('shape',data=data_shape)
+			
+			grp.create_dataset('sample_selected_gene_indices',data=self.sample_gene_indices[dataset],compression='gzip')
+
+
+			f.close()
+
+class DataMergerMTX:
 	def __init__(self,inpath,sample_names):
 		self.inpath = inpath
 		self.samples = sample_names
 
-	def merge_genes(self):
+	def merge_genes(self,filter_genes = None):
 		final_genes = []
 		for si,sample in enumerate(self.samples):
 			print('processing...'+sample)
@@ -289,7 +362,9 @@ class DataMerger:
 			else:	
 				current_genes = set([(x).replace('-','_') + '_' + (y).replace('-','_') for x,y in zip(df[0],df[1])])
 				final_genes = final_genes.intersection(current_genes)
-		self.genes = list(final_genes)
+		if filter_genes != None:
+			keep_genes = [x for x in list(final_genes) if x in filter_genes]
+		self.genes = keep_genes
 
 	
 	def merge_data(self,fname):
@@ -307,7 +382,6 @@ class DataMerger:
 
 			mm = mmread(self.inpath+sample+'/matrix.mtx.gz')
 			mtx = mm.todense()
-			smat = csc_matrix(mtx)
 			
 			df_rows = pd.read_csv(self.inpath+sample+'/features.tsv.gz',sep='\t',header=None)
 			df_rows['gene'] = [(x).replace('-','_') + '_' + (y).replace('-','_') for x,y in zip(df_rows[0],df_rows[1])]
@@ -318,27 +392,30 @@ class DataMerger:
 			df.columns = df_cols[0].values
 			df.index = df_rows['gene'].values
 			df = df.T
+			
 			## filter preselected common genes
 			print('pre-selection size..'+str(df.shape))
 			df = df[self.genes].T
 			print('post-selection size..'+str(df.shape))
 
+			smat = csc_matrix(df.to_numpy())
+			
 			grp = f.create_group(sample)
 
-			grp.create_dataset('barcodes',data=df_cols[0].values)
+			grp.create_dataset('barcodes',data=df_cols[0].values,compression='gzip')
 
-			genes = [ str(x) for x in df_rows['gene'].values]
-			gene_names = [ str(x) for x in df_rows['gene'].values]
+			genes = [ str(x) for x in df.index.values]
+			gene_names = [ str(x) for x in df.index.values]
 
 
 			batch_label = [ sample for x in range(len(df.columns))]
 
-			grp.create_dataset('batch_label',data=batch_label)
-			grp.create_dataset('genes',data=genes)
-			grp.create_dataset('gene_names',data=gene_names)
-			grp.create_dataset('indptr',data=smat.indptr)
-			grp.create_dataset('indices',data=smat.indices)
-			grp.create_dataset('data',data=smat.data,dtype=np.int32)
+			grp.create_dataset('batch_label',data=batch_label,compression='gzip')
+			grp.create_dataset('genes',data=genes,compression='gzip')
+			grp.create_dataset('gene_names',data=gene_names,compression='gzip')
+			grp.create_dataset('indptr',data=smat.indptr,compression='gzip')
+			grp.create_dataset('indices',data=smat.indices,compression='gzip')
+			grp.create_dataset('data',data=smat.data,dtype=np.int32,compression='gzip')
 
 			arr_shape = np.array([len(f[sample]['genes'][()]),len(f[sample]['barcodes'][()])])
 
@@ -347,20 +424,18 @@ class DataMerger:
 
 
 
+
 '''
-from data.dataloader import DataMerger as dm
+from data.dataloader import DataMergerH5 as dm
 import pandas as pd
-osdm = dm('/data/sishir/data/osteosarcoma/',
-[
-'BC10', 'BC11', 'BC16', 'BC17', 'BC2', 'BC20', 'BC21', 'BC22', 'BC3', 'BC5', 'BC6'
-])
+osdm = dm('/data/sishir/data/tabula_sapiens/')
 osdm.merge_genes()
-osdm.merge_data('osteosarcoma')
+osdm.merge_data('tabulasap')
 '''
 
 '''
 from data.dataloader import DataSet as ds
-osds = ds('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/osteosarcoma/osteosarcoma','/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/osteosarcoma/osteosarcoma')
+osds = ds('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/tabula_sapiens/tabulasap','/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/tabula_sapiens/tabulasap')
 sample_list = osds.get_samplenames()
 
 osds.initialize_data(sample_list,n_per_sample=100)

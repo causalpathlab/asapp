@@ -64,7 +64,7 @@ class ASAPNMF:
 		logging.info('ASAPNMF running nmf full data mode...')
 
 		## generate pseudo-bulk
-		self.ysum , self.zsum , self.n_bs, self.delta, self.size = self.generate_pbulk_mat(self.adata.mtx, rp_mat,self.adata.batch_label)
+		self.ysum = self.generate_pbulk_mat(self.adata.mtx, rp_mat,self.adata.batch_label)
 
 		logging.info('NMF..')
 		## nmf 
