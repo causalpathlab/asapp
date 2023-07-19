@@ -20,7 +20,7 @@ class ASAPNMF:
 		num_factors : int = 10,
 		downsample_pbulk: bool = False,
 		downsample_size: int = 100,
-		method: str = 'pobc'
+		method: str = 'prbc'
 	):
 		self.adata = adata
 		self.tree_max_depth = tree_max_depth
