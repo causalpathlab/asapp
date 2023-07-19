@@ -76,8 +76,7 @@ class DataSet:
 			self.genes = [x.decode('utf-8') for x in f[self.dataset_list[0]]['genes'][()]]
 			self.shape = f[self.dataset_list[0]]['shape'][()]
 			self.barcodes = [x.decode('utf-8') for x in f[self.dataset_list[0]]['barcodes'][()]]
-			self.donor_id = [x.decode('utf-8') for x in f[self.dataset_list[0]]['donor_id'][()]]
-			self.batch_label = [ self.dataset_list[0] for x in f[self.dataset_list[0]]['donor_id'][()]]
+			self.batch_label = [ self.dataset_list[0] for x in f[self.dataset_list[0]]['barcodes'][()]]
 			f.close()
 
 			self.load_full_data()
@@ -89,16 +88,13 @@ class DataSet:
 			
 			barcodes = []
 			batch_label = []
-			donor_id = []
 			for ds in self.dataset_list:
 				start_index = 0
 				end_index = self.dataset_batch_size[ds]
-				barcodes = barcodes + [x.decode('utf-8')+'_'+ds for x in f[ds]['barcodes'][()]][start_index:end_index]
-				donor_id = donor_id + [x.decode('utf-8')+'_'+ds for x in f[ds]['donor_id'][()]][start_index:end_index]
-				batch_label = batch_label + [ds for x in f[ds]['donor_id'][()]][start_index:end_index]
+				barcodes = barcodes + [x.decode('utf-8')+'@'+ds for x in f[ds]['barcodes'][()]][start_index:end_index]
+				batch_label = batch_label + [ds for x in f[ds]['barcodes'][()]][start_index:end_index]
 			
 			self.barcodes = barcodes
-			self.donor_id = donor_id
 			self.batch_label = batch_label
 
 			self.shape = [len(self.barcodes),len(self.genes)]
@@ -123,17 +119,13 @@ class DataSet:
 
 			len_barcodes = 0
 			for ds in self.dataset_list:
-				len_barcodes += f[ds]['shape'][()][1]
+				len_barcodes += f[ds]['shape'][()][0]
 			self.shape = [len_barcodes,len(self.genes)]
 			
 			self.barcodes = None
 			self.mtx = None
 			
 			f.close()
-
-	def add_batch_label(self,batch_label):
-		self.batch_label = batch_label
-
 
 	def load_datainfo_batch(self,batch_index,start_index, end_index):
 
@@ -142,32 +134,28 @@ class DataSet:
 		if len(self.dataset_list) == 1:
 			ds = self.dataset_list[0]
 
-			if self.shape[0] < end_index: end_index = self.shape[0] - 1
+			if self.shape[0] < end_index: end_index = self.shape[0] 
 
-			self.barcodes = [x.decode('utf-8')+'_'+ds for x in f[ds]['barcodes'][()]][start_index:end_index]
-			self.donor_id = [x.decode('utf-8')+'_'+ds for x in f[ds]['donor_id'][()]][start_index:end_index]
-			self.batch_label = [ds for  x in f[ds]['donor_id'][()]][start_index:end_index]
+			self.barcodes = [x.decode('utf-8')+'@'+ds for x in f[ds]['barcodes'][()]][start_index:end_index]
+			self.batch_label = [ds for  x in f[ds]['barcodes'][()]][start_index:end_index]
 			f.close()
 
 		else:
 
 			barcodes = []
-			donor_id = []
 			batch_label = []
 			for ds in self.dataset_list:
 
 				end_index =  self.dataset_batch_size[ds] * batch_index
 				start_index = 	end_index - self.dataset_batch_size[ds]			
 
-				sample_size = f[ds]['shape'][()][0]
-				if sample_size < end_index: end_index = sample_size-1
+				dataset_size = f[ds]['shape'][()][0]
+				if dataset_size < end_index: end_index = dataset_size
 
-				barcodes = barcodes + [x.decode('utf-8')+'_'+ds for x in f[ds]['barcodes'][()]][start_index:end_index]
-				donor_id = batch_label + [x.decode('utf-8')+'_'+ds for x in f[ds]['donor_id'][()]][start_index:end_index]
-				batch_label = batch_label + [ds for x in f[ds]['donor_id'][()]][start_index:end_index]
+				barcodes = barcodes + [x.decode('utf-8')+'@'+ds for x in f[ds]['barcodes'][()]][start_index:end_index]
+				batch_label = batch_label + [ds for x in f[ds]['barcodes'][()]][start_index:end_index]
 
 			self.barcodes = barcodes
-			self.donor_id = donor_id
 			self.batch_label = batch_label
 		
 			f.close()
@@ -189,24 +177,20 @@ class DataSet:
 						shape = getattr(group, 'shape').read()
 
 						dat = []
-						if len(indptr) < end_index: end_index = len(indptr)-1
-						
 						for ci in range(start_index,end_index,1):
-
 							dat.append(np.asarray(
 							csr_matrix((data[indptr[ci]:indptr[ci+1]], 
 							indices[indptr[ci]:indptr[ci+1]], 
 							np.array([0,len(indices[indptr[ci]:indptr[ci+1]])])), 
 							shape=(1,shape[1])).todense()).flatten())
 						
-						self.mtx = np.array(dat).T
+						self.mtx = np.asarray(dat)
 		else:
 						
 			with tables.open_file(self.inpath+'.h5', 'r') as f:
 
-				dat = []
 				# need to loop sample to match initialize data barcode order
-				for ds in self.dataset_list:
+				for ds_i,ds in enumerate(self.dataset_list):
 
 					for group in f.walk_groups():
 						if  ds == group._v_name:
@@ -218,17 +202,22 @@ class DataSet:
 							indices = getattr(group, 'indices').read()
 							indptr = getattr(group, 'indptr').read()
 							shape = getattr(group, 'shape').read()
-
-							if len(indptr) < end_index: end_index = len(indptr)-1
+							sample_selected_gene_indices = getattr(group, 'sample_selected_gene_indices').read()
 							
+							ds_dat = []
 							for ci in range(start_index,end_index,1):
-								dat.append(np.asarray(
-								csc_matrix((data[indptr[ci]:indptr[ci+1]], 
+								ds_dat.append(np.asarray(
+								csr_matrix((data[indptr[ci]:indptr[ci+1]], 
 								indices[indptr[ci]:indptr[ci+1]], 
 								np.array([0,len(indices[indptr[ci]:indptr[ci+1]])])), 
-								shape=(shape[0],1)).todense()).flatten())
+								shape=(1,shape[1])).todense()).flatten())
 							
-				self.mtx = np.array(dat).T
+							ds_dat = np.asarray(ds_dat)
+							ds_dat = ds_dat[:,sample_selected_gene_indices]
+							if ds_i == 0:
+								self.mtx = ds_dat
+							else:
+								self.mtx = np.vstack((self.mtx,ds_dat))
 
 
 	def load_data_batch(self,batch_index, start_index, end_index):
@@ -244,8 +233,6 @@ class DataSet:
 						shape = getattr(group, 'shape').read()
 
 						dat = []
-						# if len(indptr) < end_index: end_index = len(indptr)-1
-						
 						for ci in range(start_index,end_index,1):
 							dat.append(np.asarray(
 							csr_matrix((data[indptr[ci]:indptr[ci+1]], 
@@ -253,14 +240,13 @@ class DataSet:
 							np.array([0,len(indices[indptr[ci]:indptr[ci+1]])])), 
 							shape=(1,shape[1])).todense()).flatten())
 						
-						self.mtx = np.array(dat).T
+						self.mtx = np.array(dat)
 		else:
 
 			with tables.open_file(self.inpath+'.h5', 'r') as f:
 
-				dat = []
 				# need to loop sample to match initialize data barcode order
-				for ds in self.dataset_list: 
+				for ds_i,ds in enumerate(self.dataset_list): 
 
 					for group in f.walk_groups():
 						
@@ -274,17 +260,22 @@ class DataSet:
 							indices = getattr(group, 'indices').read()
 							indptr = getattr(group, 'indptr').read()
 							shape = getattr(group, 'shape').read()
-
-							if len(indptr) < end_index: end_index = len(indptr)-1
+							sample_selected_gene_indices = getattr(group, 'sample_selected_gene_indices').read()
 							
+							ds_dat = []
 							for ci in range(start_index,end_index,1):
-								dat.append(np.asarray(
-								csc_matrix((data[indptr[ci]:indptr[ci+1]], 
+								ds_dat.append(np.asarray(
+								csr_matrix((data[indptr[ci]:indptr[ci+1]], 
 								indices[indptr[ci]:indptr[ci+1]], 
 								np.array([0,len(indices[indptr[ci]:indptr[ci+1]])])), 
-								shape=(shape[0],1)).todense()).flatten())
+								shape=(1,shape[1])).todense()).flatten())
 							
-				self.mtx = np.array(dat).T
+							ds_dat = np.asarray(ds_dat)
+							ds_dat = ds_dat[:,sample_selected_gene_indices]
+							if ds_i == 0:
+								self.mtx = ds_dat
+							else:
+								self.mtx = np.vstack((self.mtx,ds_dat))
 
 class DataMerger:
 	def __init__(self,inpath):
@@ -296,8 +287,9 @@ class DataMerger:
 		for ds in self.datasets:
 			f = hf.File(ds, 'r')
 			print('Dataset : '+ os.path.basename(ds).replace('.h5ad','') 
-	 		+' , cells : '+ str(len(f['obs']['_index'])) + ', genes : ' + str(f['var']['feature_name']['categories'].shape[0]))
-		f.close()
+	 		+' , cells : '+ str(len(f['obs']['_index'])) + 
+			', genes : ' + str(f['var']['feature_name']['categories'].shape[0]))
+			f.close()
 
 	def merge_genes(self,filter_genes = None):
 		final_genes = []
@@ -311,24 +303,24 @@ class DataMerger:
 			f.close()
 
 		self.genes = list(final_genes)
-		self.sample_gene_indices ={}
+		self.dataset_selected_gene_indices = {}
 
 		for ds_i, ds in enumerate(self.datasets):
 			f = hf.File(ds, 'r')
 			current_genes = set([x.decode('utf-8') for x in list(f['var']['feature_name']['categories']) ])
-			self.sample_gene_indices[os.path.basename(ds).replace('.h5ad','')] = [index for index, element in enumerate(current_genes) if element in final_genes]      
+			self.dataset_selected_gene_indices[os.path.basename(ds).replace('.h5ad','')] = [index for index, element in enumerate(current_genes) if element in final_genes]      
 			f.close()
 	
 	def merge_data(self,fname):
 	
-		for si,ds in enumerate(self.datasets):
+		for ds_i,ds in enumerate(self.datasets):
 
 			dataset = os.path.basename(ds).replace('.h5ad','')
 			dataset_f = hf.File(ds, 'r')
 
 			print('processing...'+dataset)
 			
-			if si ==0:
+			if ds_i ==0:
 				f = hf.File(self.inpath+fname+'.h5','w')
 			else:
 				f = hf.File(self.inpath+fname+'.h5','a')
@@ -336,9 +328,6 @@ class DataMerger:
 			grp = f.create_group(dataset)
 
 			grp.create_dataset('barcodes', data = dataset_f['obs']['_index'] ,compression='gzip')
-
-			grp.create_dataset('donor_id',data=dataset_f['obs']['donor_id']['categories'],compression='gzip')
-
 			grp.create_dataset('genes',data=self.genes,compression='gzip')
 
 			grp.create_dataset('indptr',data=dataset_f['X']['indptr'],compression='gzip')
@@ -351,6 +340,6 @@ class DataMerger:
 
 			grp.create_dataset('shape',data=data_shape)
 			
-			grp.create_dataset('sample_selected_gene_indices',data=self.sample_gene_indices[dataset],compression='gzip')
+			grp.create_dataset('dataset_selected_gene_indices',data=self.dataset_selected_gene_indices[dataset],compression='gzip')
 
 			f.close()
