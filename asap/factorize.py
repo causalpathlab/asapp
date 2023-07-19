@@ -48,7 +48,7 @@ class ASAPNMF:
 		logging.info('Data size... '+str(self.adata.shape))
 		logging.info('Batch size... '+str(self.adata.batch_size))
 
-		rp_mat = self.generate_random_projection_mat(self.adata.shape[0])
+		rp_mat = self.generate_random_projection_mat(self.adata.shape[1])
 		
 		if self.method == 'prbc' and self.adata.run_full_data :
 			self._run_prbc_nmf_full(rp_mat)
@@ -103,7 +103,7 @@ class ASAPNMF:
 		## predict
 		scaler = StandardScaler()
 		scaled = scaler.fit_transform(nmf_beta_log)
-		reg_model = asapc.ASAPaltNMFPredict(self.adata.mtx,scaled)
+		reg_model = asapc.ASAPaltNMFPredict(self.adata.mtx.T,scaled)
 		reg = reg_model.predict()
 
 		logging.info('Saving model...')
@@ -151,7 +151,7 @@ class ASAPNMF:
 
 		logging.info('ASAPNMF running prbc - pre nmf batch correction batch data mode...')
 
-		total_cells = self.adata.shape[1]
+		total_cells = self.adata.shape[0]
 		batch_size = self.adata.batch_size
 
 		## just take first batch 
@@ -163,7 +163,7 @@ class ASAPNMF:
 		self.adata.load_data_batch(i,istart,iend)				
 
 		## generate pseudo-bulk
-		self.ysum , self.zsum , self.n_bs, self.delta, self.size = self.generate_pbulk_mat(self.adata.mtx, rp_mat,self.adata.batch_label)
+		self.ysum , self.zsum , self.n_bs, self.delta, self.size = self.generate_pbulk_mat(self.adata.mtx.T, rp_mat,self.adata.batch_label)
 
 		logging.info('Batch correction estimate...')
 
@@ -188,7 +188,7 @@ class ASAPNMF:
 			## predict
 			scaler = StandardScaler()
 			scaled = scaler.fit_transform(nmf_beta_log)
-			reg_model = asapc.ASAPaltNMFPredict(self.adata.mtx,scaled)
+			reg_model = asapc.ASAPaltNMFPredict(self.adata.mtx.T,scaled)
 			reg = reg_model.predict()
 
 			logging.info('Saving model...')

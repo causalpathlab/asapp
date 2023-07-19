@@ -202,7 +202,7 @@ class DataSet:
 							indices = getattr(group, 'indices').read()
 							indptr = getattr(group, 'indptr').read()
 							shape = getattr(group, 'shape').read()
-							sample_selected_gene_indices = getattr(group, 'sample_selected_gene_indices').read()
+							dataset_selected_gene_indices = getattr(group, 'dataset_selected_gene_indices').read()
 							
 							ds_dat = []
 							for ci in range(start_index,end_index,1):
@@ -213,7 +213,7 @@ class DataSet:
 								shape=(1,shape[1])).todense()).flatten())
 							
 							ds_dat = np.asarray(ds_dat)
-							ds_dat = ds_dat[:,sample_selected_gene_indices]
+							ds_dat = ds_dat[:,dataset_selected_gene_indices]
 							if ds_i == 0:
 								self.mtx = ds_dat
 							else:
@@ -260,7 +260,7 @@ class DataSet:
 							indices = getattr(group, 'indices').read()
 							indptr = getattr(group, 'indptr').read()
 							shape = getattr(group, 'shape').read()
-							sample_selected_gene_indices = getattr(group, 'sample_selected_gene_indices').read()
+							dataset_selected_gene_indices = getattr(group, 'dataset_selected_gene_indices').read()
 							
 							ds_dat = []
 							for ci in range(start_index,end_index,1):
@@ -271,7 +271,7 @@ class DataSet:
 								shape=(1,shape[1])).todense()).flatten())
 							
 							ds_dat = np.asarray(ds_dat)
-							ds_dat = ds_dat[:,sample_selected_gene_indices]
+							ds_dat = ds_dat[:,dataset_selected_gene_indices]
 							if ds_i == 0:
 								self.mtx = ds_dat
 							else:
@@ -343,3 +343,12 @@ class DataMerger:
 			grp.create_dataset('dataset_selected_gene_indices',data=self.dataset_selected_gene_indices[dataset],compression='gzip')
 
 			f.close()
+
+
+# from asap.data.dataloader import DataMerger as dm                                                               
+# tsdm = dm('data/tabula_sapiens/')                                                                               
+# tsdm.get_datainfo()                                                                                             
+# ##Dataset : immune_264k , cells : 264824, genes : 58604
+# ##Dataset : bc_117k , cells : 117346, genes : 33234
+# tsdm.merge_genes()                                                                                              
+# tsdm.merge_data('tabula_sapiens')   
