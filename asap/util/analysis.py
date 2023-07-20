@@ -1,7 +1,16 @@
 import pandas as pd
 import numpy as np
 import warnings
+import matplotlib.pylab as plt
+import seaborn as sns
+import colorcet as cc
 warnings.simplefilter(action='ignore', category=FutureWarning)
+
+
+def pbulk_hist(asap):
+	sns.histplot(x=[len(asap.pbulkd[x])for x in asap.pbulkd.keys()])
+	plt.savefig(asap.adata.outpath+'_pbulk_hist.png')
+	plt.close()
 
 def generate_gene_vals(df,top_n,top_genes,label):
 

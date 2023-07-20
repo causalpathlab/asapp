@@ -5,6 +5,8 @@ import h5py as hf
 import tables
 import glob
 import os
+import logging
+logger = logging.getLogger(__name__)
 
 
 
@@ -240,7 +242,7 @@ class DataSet:
 							np.array([0,len(indices[indptr[ci]:indptr[ci+1]])])), 
 							shape=(1,shape[1])).todense()).flatten())
 						
-						self.mtx = np.array(dat)
+						return np.asarray(dat)
 		else:
 
 			with tables.open_file(self.inpath+'.h5', 'r') as f:
@@ -251,6 +253,8 @@ class DataSet:
 					for group in f.walk_groups():
 						
 						if ds == group._v_name:
+
+							logging.info('Loading data from...'+ds)
 
 							## update index according to each sample 	
 							end_index =  self.dataset_batch_size[ds] * batch_index
@@ -276,9 +280,15 @@ class DataSet:
 							ds_dat = np.asarray(ds_dat)
 							ds_dat = ds_dat[:,dataset_selected_gene_indices]
 							if ds_i == 0:
-								self.mtx = ds_dat
+								mtx = ds_dat
 							else:
-								self.mtx = np.vstack((self.mtx,ds_dat))
+								mtx = np.vstack((mtx,ds_dat))
+				
+					logging.info(ds + ' size :'+ str(mtx.shape))
+
+				return mtx
+			
+
 
 class DataMergerTS:
 	def __init__(self,inpath):

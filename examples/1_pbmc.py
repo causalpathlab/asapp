@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 from asap.data.dataloader import DataSet
 from asap.factorize import ASAPNMF
-from asap.util import topics
+from asap.util import analysis
 import matplotlib.pylab as plt
 import seaborn as sns
 import colorcet as cc
@@ -54,11 +54,11 @@ df_theta = pd.DataFrame(model['corr'])
 # df_theta.index = dl.barcodes
 
 # %%
-df_top = topics.get_topic_top_genes(df_beta.iloc[:,:],top_n=10)
+df_top = analysis.get_topic_top_genes(df_beta.iloc[:,:],top_n=10)
 df_top = df_top.pivot(index='Topic',columns='Gene',values='Proportion')
 # df_top[df_top>20] = 20
 sns.clustermap(df_top.T,cmap='viridis')
-plt.savefig(dl.outpath+'beta.png')
+plt.savefig(dl.outpath+'beta.png');plt.close()
 # %%
 import umap
 from sklearn.cluster import KMeans
@@ -89,11 +89,11 @@ plt.legend(title='Topic',title_fontsize=18, fontsize=14,loc='center left', bbox_
 # p.axes.set_title("topics from bulkNMF",fontsize=30)
 p.set_xlabel("UMAP1",fontsize=20)
 p.set_ylabel("UMAP2",fontsize=20)
-plt.savefig(dl.outpath+'theta_topic.png')
+plt.savefig(dl.outpath+'theta_topic.png');plt.close()
 
 # %%
 df_umap['batch'] = [x.split('@')[1]for x in df_umap['cell']]
 cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap['batch'].unique()))
 p = sns.scatterplot(data=df_umap, x='umap1', y='umap2', hue='batch',s=5,palette=cp,legend=True)
 plt.legend(title='batch',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))
-plt.savefig(dl.outpath+'theta_batch.png')
+plt.savefig(dl.outpath+'theta_batch.png');plt.close()

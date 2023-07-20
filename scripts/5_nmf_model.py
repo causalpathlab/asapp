@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from asap.data.dataloader import DataSet
-from asap.util import topics
+from asap.util import analysis
 
 import matplotlib.pylab as plt
 import seaborn as sns
@@ -33,7 +33,7 @@ model = np.load(sample_out+'_dcnmf.npz')
 top_genes = 10
 df_beta = pd.DataFrame(np.exp(model['beta']).T)
 df_beta.columns = dl.cols
-df_top = topics.get_topic_top_genes(df_beta.iloc[:,:],top_n=top_genes)
+df_top = analysis.get_topic_top_genes(df_beta.iloc[:,:],top_n=top_genes)
 df_top.to_csv(dl.outpath+'_beta_top_genes.csv.gz',index=False,compression='gzip')
 
 

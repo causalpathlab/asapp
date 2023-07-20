@@ -33,36 +33,41 @@ def get_models(mtx,bindexd):
 
 
 
-def get_rp(mtx,rp_mat,batch_label,nb,method):
+def get_rp_with_bc(mtx,rp_mat,batch_label):
 
     Z = np.dot(rp_mat,mtx).T
 
-    if nb>1 and method == 'batch_effect':
-
-        # batch correction 
-        logger.info('Randomized QR factorized pseudo-bulk with regressing out batch effect')    
-        b_mat = []
-        for b in list(set(batch_label)):
-            b_mat.append([ 1 if x == b else 0 for x in batch_label])
-        b_mat = np.array(b_mat).T
-        
-
-        ## remove batch effect retained in low dimension
-        u_batch, _, _ = np.linalg.svd(b_mat,full_matrices=False)
-        Zres = Z - u_batch@u_batch.T@Z
-
-        ## correlation before and after removing batch effect
-        # print([[np.corrcoef(x,y)[0,1] for x in Z.T] for y in b_mat.T ])
-        # print([[np.corrcoef(x,y)[0,1] for x in Zres.T] for y in b_mat.T ])
-
-        Q, _ ,_ = np.linalg.svd(Zres, full_matrices=False)
-        Q = (np.sign(Q) + 1)/2
+    # batch correction 
+    logger.info('Randomized QR factorized pseudo-bulk with regressing out batch effect')    
+    b_mat = []
+    for b in list(set(batch_label)):
+        b_mat.append([ 1 if x == b else 0 for x in batch_label])
+    b_mat = np.array(b_mat).T
     
-    else:
-        ## no batch correction 
-        logger.info('Randomized QR factorized pseudo-bulk with NO regressing out batch effect')    
-        Q, _ ,_ = np.linalg.svd(Z, full_matrices=False)
-        Q = (np.sign(Q) + 1)/2
+
+    ## remove batch effect retained in low dimension
+    u_batch, _, _ = np.linalg.svd(b_mat,full_matrices=False)
+    Zres = Z - u_batch@u_batch.T@Z
+
+    ## correlation before and after removing batch effect
+    # print([[np.corrcoef(x,y)[0,1] for x in Z.T] for y in b_mat.T ])
+    # print([[np.corrcoef(x,y)[0,1] for x in Zres.T] for y in b_mat.T ])
+
+    Q, _ ,_ = np.linalg.svd(Zres, full_matrices=False)
+    Q = (np.sign(Q) + 1)/2
+
+
+    df = pd.DataFrame(Q,dtype=int)
+    df['code'] = df.astype(str).agg(''.join, axis=1)
+    df = df.reset_index()
+    df = df[['index','code']]
+    return Q,df.groupby('code').agg(lambda x: list(x)).reset_index().set_index('code').to_dict()['index']
+
+def get_rp(mtx,rp_mat):
+
+    Z = np.dot(rp_mat,mtx).T
+    Q, _ ,_ = np.linalg.svd(Z, full_matrices=False)
+    Q = (np.sign(Q) + 1)/2
 
     df = pd.DataFrame(Q,dtype=int)
     df['code'] = df.astype(str).agg(''.join, axis=1)
@@ -94,66 +99,77 @@ def sample_pseudo_bulk(pbulkd,sample_size):
             pbulkd_sample[key] = value
     return pbulkd_sample     
 
-def get_rpqr_psuedobulk(mtx,rp_mat,batch_label,downsample_pbulk,downsample_size,method):
+
+def get_rpqr_psuedobulk(mtx,rp_mat,downsample_pbulk,downsample_size,mode,res=None):
+    
+    Q,pbulkd = get_rp(mtx,rp_mat)
+
+    logger.info('Pseudo-bulk size... '+ mode +' '+ str(len(pbulkd)))
+
+    if downsample_pbulk:
+        pbulkd = sample_pseudo_bulk(pbulkd,downsample_size)
+
+    ysum_ds = []
+    for key, value in pbulkd.items():
+        ysum_ds.append(mtx[:,value].mean(1))
+
+    if mode == 'full':
+        return {mode:{'pb_data':np.array(ysum_ds).T, 'pb_dict':pbulkd}}
+    else:
+         res.put({mode:{'pb_data':np.array(ysum_ds).T, 'pb_dict':pbulkd}})
+        
+def get_rpqr_psuedobulk_with_bc(mtx,rp_mat,batch_label,downsample_pbulk,downsample_size):
 
     batches = list(set(batch_label))
 
     logger.info('Number of batches... '+ str(len(batches)))
     
-    Q,pbulkd = get_rp(mtx,rp_mat,batch_label,len(batches),method)
+    Q,pbulkd = get_rp_with_bc(mtx,rp_mat,batch_label)
 
     logger.info('Pseudo-bulk size... '+ str(len(pbulkd)))
 
     if downsample_pbulk:
         pbulkd = sample_pseudo_bulk(pbulkd,downsample_size)
 
-    if method == 'batch_effect':
-        ## ysum_ds
-        ysum_ds = []
-        size_s = []
-        for key, value in pbulkd.items():
-            size_s.append(len(value))
-            ysum_ds.append(mtx[:,value].sum(1))
-        ysum_ds = np.array(ysum_ds)
+    ## ysum_ds
+    ysum_ds = []
+    size_s = []
+    for key, value in pbulkd.items():
+        size_s.append(len(value))
+        ysum_ds.append(mtx[:,value].sum(1))
+    ysum_ds = np.array(ysum_ds)
 
-        n_bs = np.zeros((len(batches),len(pbulkd)))
-        zsum_ds = np.zeros((len(pbulkd),mtx.shape[0]))
-        delta_num_db = np.zeros((len(batches),mtx.shape[0]))
-        size_s = np.zeros((len(pbulkd)))
+    n_bs = np.zeros((len(batches),len(pbulkd)))
+    zsum_ds = np.zeros((len(pbulkd),mtx.shape[0]))
+    delta_num_db = np.zeros((len(batches),mtx.shape[0]))
+    size_s = np.zeros((len(pbulkd)))
 
-        if len(batches)>1:
-            ## zsum_ds
-            knn=5
-            bindexd = {}
-            for b in batches:
-                bindexd[b] = [i for i,x in  enumerate(batch_label) if x == b]
+    if len(batches)>1:
+        ## zsum_ds
+        knn=5
+        bindexd = {}
+        for b in batches:
+            bindexd[b] = [i for i,x in  enumerate(batch_label) if x == b]
 
-            logger.info('Generating batch tree ')
-            model_list = get_models(mtx,bindexd)
+        logger.info('Generating batch tree ')
+        model_list = get_models(mtx,bindexd)
 
-            zsum_ds = [] 
-            for pbi,pb in enumerate(pbulkd.keys()): 
-                pb_indxs =  pbulkd[pb] 
-                n_cells = len(pb_indxs) 
-                n_nbr = np.min([knn,n_cells])
-                zsum_sample = [] 
-                for cellidx in pb_indxs: 
-                    n_bs[batches.index(batch_label[cellidx]),pbi] += 1
-                    zsum_sample.append(counterfactual_nbr(model_list,batches,mtx,cellidx,batch_label[cellidx],n_nbr))
-                zsum_ds.append(np.array(zsum_sample).mean(0))
-            zsum_ds = np.array(zsum_ds)
+        zsum_ds = [] 
+        for pbi,pb in enumerate(pbulkd.keys()): 
+            pb_indxs =  pbulkd[pb] 
+            n_cells = len(pb_indxs) 
+            n_nbr = np.min([knn,n_cells])
+            zsum_sample = [] 
+            for cellidx in pb_indxs: 
+                n_bs[batches.index(batch_label[cellidx]),pbi] += 1
+                zsum_sample.append(counterfactual_nbr(model_list,batches,mtx,cellidx,batch_label[cellidx],n_nbr))
+            zsum_ds.append(np.array(zsum_sample).mean(0))
+        zsum_ds = np.array(zsum_ds)
 
-            delta_num_db = []         
-            for b in batches:
-                delta_num_db.append(mtx[:,bindexd[b]].sum(1))
-            delta_num_db = np.array(delta_num_db)
+        delta_num_db = []         
+        for b in batches:
+            delta_num_db.append(mtx[:,bindexd[b]].sum(1))
+        delta_num_db = np.array(delta_num_db)
 
-        return ysum_ds.T, zsum_ds.T, n_bs, delta_num_db.T, size_s
-    
-    elif method == 'nmf':
-        ysum_ds = []
-        for key, value in pbulkd.items():
-            ysum_ds.append(mtx[:,value].mean(1))
-        return np.array(ysum_ds).T
-
-         
+    return ysum_ds.T, zsum_ds.T, n_bs, delta_num_db.T, size_s
+            

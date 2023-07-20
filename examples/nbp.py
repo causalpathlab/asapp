@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from asap.data.dataloader import DataSet
 from asap.factorize import ASAPNMF
-from asap.util import topics
+from asap.util import analysis
 import matplotlib.pylab as plt
 import seaborn as sns
 import colorcet as cc

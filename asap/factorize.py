@@ -38,11 +38,6 @@ class ASAPNMF:
 		logger.info('Random projection matrix :' + str(rp_mat.shape))
 		return rp_mat
 	
-	def generate_pbulk_mat(self,X,rp_mat,batch_label,pbulk_method):
-		
-		logger.info('Running randomizedQR factorization to generate pseudo-bulk data')
-		return rp.get_rpqr_psuedobulk(X,rp_mat,batch_label,self.downsample_pbulk,self.downsample_size,pbulk_method)
-
 	def estimate_batch_effect(self,rp_mat):
 
 		logging.info('ASAPNMF estimating batch effect in current data size...')
@@ -50,7 +45,7 @@ class ASAPNMF:
 		rp_mat = self.generate_random_projection_mat(self.adata.shape[1])
 		
 		## generate pseudo-bulk
-		self.ysum , self.zsum , self.n_bs, self.delta, self.size = self.generate_pbulk_mat(self.adata.mtx.T, rp_mat,self.adata.batch_label,'batch_effect')
+		self.ysum , self.zsum , self.n_bs, self.delta, self.size = rp.get_rpqr_psuedobulk_with_bc(self.adata.mtx.T, rp_mat,self.adata.batch_label,self.downsample_pbulk,self.downsample_size)
 
 		logging.info('Batch correction estimate...')
 		## batch correction model from pseudo-bulk
@@ -62,32 +57,84 @@ class ASAPNMF:
 		np.savez(self.adata.outpath+'_pbulk_batcheffect',
 				pbulk = pb_res.pb,
 				batch_effect = pb_res.batch_effect)
+	
+	def generate_pseudobulk_batch(self,batch_i,start_index,end_index,rp_mat,result_queue,lock):
+
+		logging.info('Processing_'+str(batch_i) +'_' +str(start_index)+'_'+str(end_index))
 		
+		lock.acquire()
+		local_mtx = self.adata.load_data_batch(batch_i,start_index,end_index)	
+		lock.release()
 
-	def run_nmf(self):
+		rp.get_rpqr_psuedobulk(local_mtx.T, 
+			rp_mat, 
+			self.downsample_pbulk,self.downsample_size,
+			str(batch_i) +'_' +str(start_index)+'_'+str(end_index),
+			result_queue
+			)			
 
-		logging.info('ASAPNMF running...')
-		logging.info('Data size... '+str(self.adata.shape))
-		logging.info('Batch size... '+str(self.adata.batch_size))
+	def generate_pseudobulk(self):
+
+		logging.info('Pseudo-bulk generation...')
+		
+		total_cells = self.adata.shape[0]
+		total_genes = self.adata.shape[1]
+		batch_size = self.adata.batch_size
+
+		logging.info('Data size...cell x gene '+str(total_cells) +'x'+ str(total_genes))
+		logging.info('Batch size... '+str(batch_size))
 
 		rp_mat = self.generate_random_projection_mat(self.adata.shape[1])
 		
+		if total_cells<batch_size:
+
+			## generate pseudo-bulk
+			self.pb_result = rp.get_rpqr_psuedobulk(self.adata.mtx.T, rp_mat,self.adata.batch_label,self.downsample_pbulk,self.downsample_size,'full')
+
+		else:
+
+			threads = []
+			result_queue = queue.Queue()
+			lock = threading.Lock()
+
+			for (i, istart) in enumerate(range(0, total_cells,batch_size), 1): 
+
+				iend = min(istart + batch_size, total_cells)
+								
+				thread = threading.Thread(target=self.generate_pseudobulk_batch, args=(i,istart,iend, rp_mat,result_queue,lock))
+				
+				threads.append(thread)
+				thread.start()
+
+			for t in threads:
+				t.join()
+
+			self.pb_result = []
+			while not result_queue.empty():
+				self.pb_result.append(result_queue.get())
+			
+
+	def filter_pbulk(self,min_size):
+
+		sample_counts = np.array([len(self.pbulkd[x])for x in self.pbulkd.keys()])
+		keep_indices = np.where(sample_counts>min_size)[0].flatten() 
+
+		self.ysum = self.ysum[:,keep_indices]
+		self.pbulkd = {key: value for i, (key, value) in enumerate(self.pbulkd.items()) if i in keep_indices}
+
+	def run_nmf(self):
+		
 		if self.method == 'asap' and self.adata.run_full_data :
-			self._run_asap_nmf_full(rp_mat)
+			self._run_asap_nmf_full()
 		elif self.method == 'asap' and not self.adata.run_full_data :
-			self._run_asap_nmf_batch(rp_mat)
+			self._run_asap_nmf_batch()
 		elif self.method == 'cnmf' and self.adata.run_full_data :
-			self._run_cnmf_full(rp_mat)
+			self._run_cnmf_full()
 		
 	def _run_cnmf_full(self,rp_mat):
 
 		logging.info('ASAPNMF running classical nmf method in full data mode...')
 
-		## generate pseudo-bulk
-		self.ysum = self.generate_pbulk_mat(self.adata.mtx.T, rp_mat,self.adata.batch_label,'nmf')
-
-		logging.info('NMF..')
-		## nmf 
 		nmf_model = nmf.mu(self.ysum)
 
 		logging.info('Saving model...')
@@ -101,11 +148,6 @@ class ASAPNMF:
 
 		logging.info('ASAPNMF running full data mode...')
 
-		## generate pseudo-bulk
-		self.ysum = self.generate_pbulk_mat(self.adata.mtx.T, rp_mat,self.adata.batch_label,'nmf')
-
-		logging.info('NMF..')
-		## nmf 
 		pbulk = np.log1p(self.ysum)
 		nmf_model = asapc.ASAPdcNMF(self.ysum,self.num_factors)
 		nmf = nmf_model.nmf()
@@ -124,40 +166,6 @@ class ASAPNMF:
 				beta_log = nmf.beta_log,
 				theta = reg.theta,
 				corr = reg.corr)
-
-	def _run_asap_nmf_batch(self,rp_mat):
-
-		logging.info('ASAPNMF running pobc - post nmf batch correction batch data mode...')
-
-		total_cells = self.adata.shape[0]
-		batch_size = self.adata.batch_size
-
-		threads = []
-		result_queue = queue.Queue()
-
-		for (i, istart) in enumerate(range(0, total_cells,batch_size), 1): 
-
-			logging.info('Processing %s, %s, %s,', (i,istart,iend))
-
-
-			iend = min(istart + batch_size, total_cells)
-
-			self.adata.load_datainfo_batch(i,istart,iend)
-			self.adata.load_data_batch(i,istart,iend)				
-
-
-			thread = threading.Thread(target=self.generate_pbulk_mat, args=(self.adata.mtx.T, rp_mat,self.adata.batch_label))
-			threads.append(thread)
-			thread.start()
-
-		for t in threads:
-			t.join()
-
-		result_list = []
-		while not result_queue.empty():
-			result_list.append(result_queue.get())
-		
-		self.ysum = result_list
 
 
 		# total_cells = asap.adata.shape[0]
