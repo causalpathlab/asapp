@@ -37,7 +37,7 @@ def get_rp(mtx,rp_mat,batch_label,nb,method):
 
     Z = np.dot(rp_mat,mtx).T
 
-    if nb>1 and method == 'prbc':
+    if nb>1 and method == 'batch_effect':
 
         # batch correction 
         logger.info('Randomized QR factorized pseudo-bulk with regressing out batch effect')    
@@ -107,7 +107,7 @@ def get_rpqr_psuedobulk(mtx,rp_mat,batch_label,downsample_pbulk,downsample_size,
     if downsample_pbulk:
         pbulkd = sample_pseudo_bulk(pbulkd,downsample_size)
 
-    if method == 'prbc':
+    if method == 'batch_effect':
         ## ysum_ds
         ysum_ds = []
         size_s = []
@@ -150,10 +150,10 @@ def get_rpqr_psuedobulk(mtx,rp_mat,batch_label,downsample_pbulk,downsample_size,
 
         return ysum_ds.T, zsum_ds.T, n_bs, delta_num_db.T, size_s
     
-    elif method == 'pobc':
+    elif method == 'nmf':
         ysum_ds = []
         for key, value in pbulkd.items():
-            ysum_ds.append(mtx[:,value].sum(1))
+            ysum_ds.append(mtx[:,value].mean(1))
         return np.array(ysum_ds).T
 
          

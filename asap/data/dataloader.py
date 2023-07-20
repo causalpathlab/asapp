@@ -263,6 +263,9 @@ class DataSet:
 							dataset_selected_gene_indices = getattr(group, 'dataset_selected_gene_indices').read()
 							
 							ds_dat = []
+
+							if end_index >= shape[0] : end_index = shape[0] - 1
+
 							for ci in range(start_index,end_index,1):
 								ds_dat.append(np.asarray(
 								csr_matrix((data[indptr[ci]:indptr[ci+1]], 
@@ -277,7 +280,7 @@ class DataSet:
 							else:
 								self.mtx = np.vstack((self.mtx,ds_dat))
 
-class DataMerger:
+class DataMergerTS:
 	def __init__(self,inpath):
 		self.inpath = inpath
 		self.datasets = glob.glob(inpath+'*.h5ad')
@@ -344,11 +347,106 @@ class DataMerger:
 
 			f.close()
 
+class DataMerger10X:
+	def __init__(self,inpath):
+		self.inpath = inpath
+		self.datasets = glob.glob(inpath+'*.h5')
 
-# from asap.data.dataloader import DataMerger as dm                                                               
-# tsdm = dm('data/tabula_sapiens/')                                                                               
-# tsdm.get_datainfo()                                                                                             
-# ##Dataset : immune_264k , cells : 264824, genes : 58604
-# ##Dataset : bc_117k , cells : 117346, genes : 33234
-# tsdm.merge_genes()                                                                                              
-# tsdm.merge_data('tabula_sapiens')   
+
+	def get_datainfo(self):
+		for ds in self.datasets:
+			f = hf.File(ds, 'r')
+			print('Dataset : '+ os.path.basename(ds).replace('.h5','') 
+	 		+' , cells : '+ str(f['matrix']['barcodes'].shape[0]) + 
+			', genes : ' + str(f['matrix']['features']['id'].shape[0]))
+			f.close()
+
+	def merge_genes(self,filter_genes = None):
+		final_genes = []
+		for ds_i, ds in enumerate(self.datasets):
+			f = hf.File(ds, 'r')
+			if ds_i ==0:
+				final_genes = set([x.decode('utf-8') for x in list(f['matrix']['features']['id']) ])
+			else:
+				current_genes = set([x.decode('utf-8') for x in list(f['matrix']['features']['id']) ])
+				final_genes = final_genes.intersection(current_genes)
+			f.close()
+
+		self.genes = list(final_genes)
+		self.dataset_selected_gene_indices = {}
+
+		for ds_i, ds in enumerate(self.datasets):
+			f = hf.File(ds, 'r')
+			current_genes = set([x.decode('utf-8') for x in list(f['matrix']['features']['id']) ])
+			self.dataset_selected_gene_indices[os.path.basename(ds).replace('.h5','')] = [index for index, element in enumerate(current_genes) if element in final_genes]      
+			f.close()
+	
+	def merge_data(self,fname):
+	
+		for ds_i,ds in enumerate(self.datasets):
+
+			dataset = os.path.basename(ds).replace('.h5','')
+			dataset_f = hf.File(ds, 'r')
+
+			print('processing...'+dataset)
+			
+			if ds_i ==0:
+				f = hf.File(self.inpath+fname+'.h5','w')
+			else:
+				f = hf.File(self.inpath+fname+'.h5','a')
+
+			grp = f.create_group(dataset)
+
+			grp.create_dataset('barcodes', data = dataset_f['matrix']['barcodes'] ,compression='gzip')
+			grp.create_dataset('genes',data=self.genes,compression='gzip')
+			
+			grp.create_dataset('indptr',data=dataset_f['matrix']['indptr'],compression='gzip')
+			grp.create_dataset('indices',data=dataset_f['matrix']['indices'],compression='gzip')
+			grp.create_dataset('data',data=dataset_f['matrix']['data'],compression='gzip')
+
+			nc = tuple(dataset_f['matrix']['shape'])[0]
+			nr = tuple(dataset_f['matrix']['shape'])[1]
+			
+			data_shape = np.array([nr,nc])
+
+			grp.create_dataset('shape',data=data_shape)
+			
+			grp.create_dataset('dataset_selected_gene_indices',data=self.dataset_selected_gene_indices[dataset],compression='gzip')
+
+			f.close()
+
+'''
+from asap.data.dataloader import DataMergerTS as dm                                                               
+tsdm = dm('data/tabula_sapiens/')                                                                               
+tsdm.get_datainfo()                                                                                             
+##Dataset : immune_264k , cells : 264824, genes : 58604
+##Dataset : bc_117k , cells : 117346, genes : 33234
+tsdm.merge_genes()                                                                                              
+tsdm.merge_data('tabula_sapiens')   
+
+from asap.data.dataloader import DataMerger10X as dm                                                               
+tsdm = dm('data/pbmc/')                                                                               
+tsdm.get_datainfo()       
+# Dataset : pbmc3p , cells : 10194, genes : 36601
+# Dataset : pbmc5p , cells : 10548, genes : 36620                                                                                      
+tsdm.merge_genes()                                                                                              
+tsdm.merge_data('pbmc')   
+
+
+def is_csr_or_csc(data, indptr, indices):
+    num_rows = len(indptr) - 1
+    num_cols = max(indices) + 1
+
+    # Check for CSR format
+    if len(data) == len(indices) and len(indptr) == num_rows + 1 and max(indices) < num_cols:
+        return "CSR"
+
+    # Check for CSC format
+    if len(data) == len(indices) and len(indptr) == num_cols + 1 and max(indices) < num_rows:
+        return "CSC"
+
+    return "Not CSR or CSC"
+    
+is_csr_or_csc(mtx_data, mtx_indptr, mtx_indices)
+
+'''

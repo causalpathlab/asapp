@@ -1,3 +1,4 @@
+
 from asap.util.io import read_config
 from collections import namedtuple
 from pathlib import Path
@@ -29,15 +30,13 @@ logging.basicConfig(filename=sample_out+'_model.log',
 
 tree_max_depth = 10
 num_factors = 10
-batch_size = 50000
-batch_iteration = 1
+batch_size = 25000
 downsample_pseudobulk = True
-downsample_size = 100
+downsample_size = 10
 
 dl = DataSet(sample_in,sample_out)
 sample_list = dl.get_dataset_names()
 dl.initialize_data(sample_list,batch_size)
 
-
-asap = ASAPNMF(dl,tree_max_depth,num_factors,downsample_pseudobulk,downsample_size,'prbc')
-asap.run_nmf(batch_iteration)
+asap = ASAPNMF(dl,tree_max_depth,num_factors,downsample_pseudobulk,downsample_size,'asap')
+asap.run_nmf()
