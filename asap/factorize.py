@@ -145,14 +145,12 @@ class ASAPNMF:
 
 	def run_nmf(self):
 		
-		if self.method == 'asap' and self.adata.run_full_data :
+		if self.method == 'asap':
 			self._run_asap_nmf_full()
-		elif self.method == 'asap' and not self.adata.run_full_data :
-			self._run_asap_nmf_batch()
 		elif self.method == 'cnmf' and self.adata.run_full_data :
 			self._run_cnmf_full()
 		
-	def _run_cnmf_full(self,rp_mat):
+	def _run_cnmf_full(self):
 
 		logging.info('ASAPNMF running classical nmf method in full data mode...')
 
@@ -164,10 +162,27 @@ class ASAPNMF:
 				beta = nmf_model.W,
 				theta = nmf_model.H,
 				loss = nmf_model.loss)
-				
-	def _run_asap_nmf_full(self,rp_mat):
 
-		logging.info('ASAPNMF running full data mode...')
+	def asap_nmf_predict_batch(self,batch_i,start_index,end_index,beta,result_queue,lock):
+
+		logging.info('Processing_'+str(batch_i) +'_' +str(start_index)+'_'+str(end_index))
+		
+		lock.acquire()
+		local_mtx = self.adata.load_data_batch(batch_i,start_index,end_index)	
+		lock.release()
+
+		reg_model = asapc.ASAPaltNMFPredict(local_mtx.T,beta)
+		reg = reg_model.predict()
+
+		result_queue.put({
+			str(batch_i) +'_' +str(start_index)+'_'+str(end_index):
+			{'theta':reg.theta, 'corr': reg.corr}}
+			)
+
+
+	def _run_asap_nmf_full(self):
+
+		logging.info('NMF running...')
 
 		nmf_model = asapc.ASAPdcNMF(np.log1p(self.ysum),self.num_factors)
 		nmf = nmf_model.nmf()
@@ -175,79 +190,51 @@ class ASAPNMF:
 		logging.info('Prediction...')
 		## predict
 		scaler = StandardScaler()
-		scaled = scaler.fit_transform(nmf.beta_log)
-		reg_model = asapc.ASAPaltNMFPredict(self.adata.mtx.T,scaled)
-		reg = reg_model.predict()
+		beta_log_scaled = scaler.fit_transform(nmf.beta_log)
 
-		logging.info('Saving model...')
+		total_cells = self.adata.shape[0]
+		batch_size = self.adata.batch_size
 
-		np.savez(self.adata.outpath+'_dcnmf',
+		if total_cells<batch_size:
+
+			logging.info('NMF prediction full data mode...')
+
+			reg_model = asapc.ASAPaltNMFPredict(self.adata.mtx.T,beta_log_scaled)
+			reg = reg_model.predict()
+
+			logging.info('Saving model...')
+
+			np.savez(self.adata.outpath+'_dcnmf',
+					beta = nmf.beta,
+					beta_log = nmf.beta_log,
+					theta = reg.theta,
+					corr = reg.corr)		
+		else:
+
+			logging.info('NMF prediction batch data mode...')
+
+			threads = []
+			result_queue = queue.Queue()
+			lock = threading.Lock()
+
+			for (i, istart) in enumerate(range(0, total_cells,batch_size), 1): 
+
+				iend = min(istart + batch_size, total_cells)
+								
+				thread = threading.Thread(target=self.asap_nmf_predict_batch, args=(i,istart,iend, beta_log_scaled,result_queue,lock))
+				
+				threads.append(thread)
+				thread.start()
+
+			for t in threads:
+				t.join()
+
+			self.predict_result = []
+			while not result_queue.empty():
+				self.predict_result.append(result_queue.get())
+			
+			np.savez(self.adata.outpath+'_dcnmf',
 				beta = nmf.beta,
 				beta_log = nmf.beta_log,
-				theta = reg.theta,
-				corr = reg.corr)
-
-
-		# total_cells = asap.adata.shape[0]
-		# batch_size = asap.adata.batch_size
-
-
-		# threads = []
-		# result_queue = queue.Queue()
-
-		# for (i, istart) in enumerate(range(0, total_cells,batch_size), 1): 
-
-		# 	iend = min(istart + batch_size, total_cells)
-
-		# 	logging.info('Processing_'+str(i) +'_' +str(istart)+'_'+str(iend))
-
-		# 	asap.adata.load_datainfo_batch(i,istart,iend)
-		# 	asap.adata.load_data_batch(i,istart,iend)				
-
-
-		# 	thread = threading.Thread(target=asap.generate_pbulk_mat, args=(asap.adata.mtx.T, rp_mat,asap.adata.batch_label))
-		# 	threads.append(thread)
-		# 	thread.start()
-
-		# for t in threads:
-		# 	t.join()
-
-		# result_list = []
-		# while not result_queue.empty():
-		# 	result_list.append(result_queue.get())
-		
-		# self.ysum = result_list
-			# # ## generate pseudo-bulk
-			# ysum = self.generate_pbulk_mat()
-
-			# if i ==1:
-			# 	self.ysum = ysum
-			# else:
-			# 	self.ysum = np.hstack((self.ysum,ysum))
-
-		# logging.info('No batch correction estimate in this step...')
-		# logging.info('NMF..')
-		## nmf 
-		# pbulk = np.log1p(self.ysum)
-		# nmf_model = asapc.ASAPdcNMF(self.ysum,self.num_factors)
-		# nmf = nmf_model.nmf()
-
-		# ## correct batch from dictionary
-		# logging.info('No batch correction for beta dict in this step...')
-
-		# logging.info('Prediction...')
-		# ## predict
-		# scaler = StandardScaler()
-		# scaled = scaler.fit_transform(nmf.beta_log)
-		# reg_model = asapc.ASAPaltNMFPredict(self.adata.mtx,scaled)
-		# reg = reg_model.predict()
-
-		# logging.info('Saving model...')
-
-		# np.savez(self.adata.outpath+'_pobc_dcnmf',
-		# 		beta = nmf.beta,
-		# 		beta_log = nmf.beta_log,
-		# 		theta = reg.theta,
-		# 		corr = reg.corr)
-
+				predict_result = self.predict_result)
 

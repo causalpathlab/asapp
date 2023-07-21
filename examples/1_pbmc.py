@@ -32,7 +32,7 @@ logging.basicConfig(filename=sample_out+'_model.log',
 
 tree_max_depth = 10
 num_factors = 10
-batch_size = 25000
+batch_size = 5000
 downsample_pseudobulk = True
 downsample_size = 100
 
@@ -45,12 +45,13 @@ print(dl.outpath)
 
 
 # %%
-model = np.load(sample_out+'_dcnmf.npz')
+model = np.load(sample_out+'_dcnmf.npz',allow_pickle=True)
 
 # %%
 df_beta = pd.DataFrame(model['beta'].T)
 # df_beta.columns = [x for x in dl.genes]
-df_theta = pd.DataFrame(model['corr'])
+
+df_theta = pd.DataFrame(model['predict_result'][0]['1_0_5000']['corr'])
 # df_theta.index = dl.barcodes
 
 # %%
@@ -65,7 +66,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
 df_umap= pd.DataFrame()
-df_umap['cell'] = dl.barcodes
+# df_umap['cell'] = dl.barcodes
 # df_umap['topic_bulk'] = [x for x in df_theta.iloc[:,:].idxmax(axis=1)]
 
 scaler = StandardScaler()
