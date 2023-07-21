@@ -8,10 +8,19 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 def pbulk_hist(asap):
-	sns.histplot(x=[len(asap.pbulkd[x])for x in asap.pbulkd.keys()])
-	plt.savefig(asap.adata.outpath+'_pbulk_hist.png')
-	plt.close()
-
+	if len(asap.pbulkd) ==1 :
+		sns.histplot(x=[len(asap.pbulkd[x])for x in asap.pbulkd.keys()])
+		plt.savefig(asap.adata.outpath+'_pbulk_hist_full.png')
+		plt.close()
+	else:
+		pblen = []
+		for k,v in enumerate(asap.pbulkd):
+			for in_v in asap.pbulkd[v].values():
+				pblen.append(len(in_v))
+		sns.histplot(x=pblen)
+		plt.savefig(asap.adata.outpath+'_pbulk_hist_batch.png')
+		plt.close()
+		
 def generate_gene_vals(df,top_n,top_genes,label):
 
 	top_genes_collection = []

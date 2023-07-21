@@ -114,13 +114,34 @@ class ASAPNMF:
 				self.pb_result.append(result_queue.get())
 			
 
-	def filter_pbulk(self,min_size):
+	def filter_pbulk(self,min_size=5):
 
-		sample_counts = np.array([len(self.pbulkd[x])for x in self.pbulkd.keys()])
-		keep_indices = np.where(sample_counts>min_size)[0].flatten() 
+		if len(self.pb_result) == 1:
+			sample_counts = np.array([len(self.pbulkd[x])for x in self.pbulkd.keys()])
+			keep_indices = np.where(sample_counts>min_size)[0].flatten() 
 
-		self.ysum = self.ysum[:,keep_indices]
-		self.pbulkd = {key: value for i, (key, value) in enumerate(self.pbulkd.items()) if i in keep_indices}
+			self.ysum = self.ysum[:,keep_indices]
+			self.pbulkd = {key: value for i, (key, value) in enumerate(self.pbulkd.items()) if i in keep_indices}
+
+		else:
+			self.pbulkd = {}
+			for indx,result_batch in enumerate(self.pb_result):
+
+				pbulkd = result_batch[[k for k in result_batch.keys()][0]]['pb_dict']
+				ysum = result_batch[[k for k in result_batch.keys()][0]]['pb_data']
+
+				sample_counts = np.array([len(pbulkd[x])for x in pbulkd.keys()])
+				keep_indices = np.where(sample_counts>min_size)[0].flatten() 
+
+				ysum = ysum[:,keep_indices]
+				pbulkd = {key: value for i, (key, value) in enumerate(pbulkd.items()) if i in keep_indices}
+
+				if indx == 0:
+					self.ysum = ysum
+				else:
+					self.ysum = np.hstack((self.ysum,ysum))
+				
+				self.pbulkd[[k for k in result_batch.keys()][0]] = pbulkd
 
 	def run_nmf(self):
 		
@@ -148,8 +169,7 @@ class ASAPNMF:
 
 		logging.info('ASAPNMF running full data mode...')
 
-		pbulk = np.log1p(self.ysum)
-		nmf_model = asapc.ASAPdcNMF(self.ysum,self.num_factors)
+		nmf_model = asapc.ASAPdcNMF(np.log1p(self.ysum),self.num_factors)
 		nmf = nmf_model.nmf()
 
 		logging.info('Prediction...')
