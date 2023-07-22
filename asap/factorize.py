@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import logging
-from typing import Literal
 from asap.data.dataloader import DataSet
 from asap.model import nmf,dcpmf
 from asap.model import rpstruct as rp
@@ -21,7 +20,8 @@ class ASAPNMF:
 		num_factors : int = 10,
 		downsample_pbulk: bool = False,
 		downsample_size: int = 100,
-		method: str = 'asap'
+		method: str = 'asap',
+		maxthreads: int = 16
 	):
 		self.adata = adata
 		self.tree_max_depth = tree_max_depth
@@ -29,11 +29,12 @@ class ASAPNMF:
 		self.downsample_pbulk = downsample_pbulk
 		self.downsample_size = downsample_size
 		self.method = method
+		self.maxthreads = maxthreads
 	
-	def generate_random_projection_mat(self,X_rows):
+	def generate_random_projection_mat(self,ndims):
 		rp_mat = []
 		for _ in range(self.tree_max_depth):
-			rp_mat.append(np.random.normal(size = (X_rows,1)).flatten())                      
+			rp_mat.append(np.random.normal(size = (ndims,1)).flatten())                      
 		rp_mat = np.asarray(rp_mat)
 		logger.info('Random projection matrix :' + str(rp_mat.shape))
 		return rp_mat
@@ -58,10 +59,12 @@ class ASAPNMF:
 				pbulk = pb_res.pb,
 				batch_effect = pb_res.batch_effect)
 	
-	def generate_pseudobulk_batch(self,batch_i,start_index,end_index,rp_mat,result_queue,lock):
+	def generate_pseudobulk_batch(self,batch_i,start_index,end_index,rp_mat,result_queue,lock,sema):
 
 		logging.info('Processing_'+str(batch_i) +'_' +str(start_index)+'_'+str(end_index))
 		
+		sema.acquire()
+
 		lock.acquire()
 		local_mtx = self.adata.load_data_batch(batch_i,start_index,end_index)	
 		lock.release()
@@ -71,10 +74,11 @@ class ASAPNMF:
 			self.downsample_pbulk,self.downsample_size,
 			str(batch_i) +'_' +str(start_index)+'_'+str(end_index),
 			result_queue
-			)			
+			)
+		sema.release()			
 
 	def generate_pseudobulk(self):
-
+		
 		logging.info('Pseudo-bulk generation...')
 		
 		total_cells = self.adata.shape[0]
@@ -89,19 +93,20 @@ class ASAPNMF:
 		if total_cells<batch_size:
 
 			## generate pseudo-bulk
-			self.pb_result = rp.get_rpqr_psuedobulk(self.adata.mtx.T, rp_mat,self.downsample_pbulk,self.downsample_size,'full')
+			self.pbulk_result = rp.get_rpqr_psuedobulk(self.adata.mtx.T, rp_mat,self.downsample_pbulk,self.downsample_size,'full')
 
 		else:
 
 			threads = []
 			result_queue = queue.Queue()
 			lock = threading.Lock()
+			sema = threading.Semaphore(value=self.maxthreads)
 
 			for (i, istart) in enumerate(range(0, total_cells,batch_size), 1): 
 
 				iend = min(istart + batch_size, total_cells)
 								
-				thread = threading.Thread(target=self.generate_pseudobulk_batch, args=(i,istart,iend, rp_mat,result_queue,lock))
+				thread = threading.Thread(target=self.generate_pseudobulk_batch, args=(i,istart,iend, rp_mat,result_queue,lock,sema))
 				
 				threads.append(thread)
 				thread.start()
@@ -109,26 +114,26 @@ class ASAPNMF:
 			for t in threads:
 				t.join()
 
-			self.pb_result = []
+			self.pbulk_result = []
 			while not result_queue.empty():
-				self.pb_result.append(result_queue.get())
+				self.pbulk_result.append(result_queue.get())
 			
 
 	def filter_pbulk(self,min_size=5):
 
-		if len(self.pb_result) == 1:
+		if len(self.pbulk_result) == 1:
 			
-			pbulkd = self.pb_result['full']['pb_dict'] 
+			pbulkd = self.pbulk_result['full']['pb_dict'] 
 
 			sample_counts = np.array([len(pbulkd[x])for x in pbulkd.keys()])
 			keep_indices = np.where(sample_counts>min_size)[0].flatten() 
 
-			self.ysum = self.pb_result['full']['pb_data'][:,keep_indices]
-			self.pbulkd = {key: value for i, (key, value) in enumerate(pbulkd.items()) if i in keep_indices}
+			self.pbulk_ysum = self.pbulk_result['full']['pb_data'][:,keep_indices]
+			self.pbulk_indices = {key: value for i, (key, value) in enumerate(pbulkd.items()) if i in keep_indices}
 
 		else:
-			self.pbulkd = {}
-			for indx,result_batch in enumerate(self.pb_result):
+			self.pbulk_indices = {}
+			for indx,result_batch in enumerate(self.pbulk_result):
 
 				pbulkd = result_batch[[k for k in result_batch.keys()][0]]['pb_dict']
 				ysum = result_batch[[k for k in result_batch.keys()][0]]['pb_data']
@@ -140,11 +145,11 @@ class ASAPNMF:
 				pbulkd = {key: value for i, (key, value) in enumerate(pbulkd.items()) if i in keep_indices}
 
 				if indx == 0:
-					self.ysum = ysum
+					self.pbulk_ysum = ysum
 				else:
-					self.ysum = np.hstack((self.ysum,ysum))
+					self.pbulk_ysum = np.hstack((self.pbulk_ysum,ysum))
 				
-				self.pbulkd[[k for k in result_batch.keys()][0]] = pbulkd
+				self.pbulk_indices[[k for k in result_batch.keys()][0]] = pbulkd
 
 	def run_nmf(self):
 		
@@ -157,7 +162,7 @@ class ASAPNMF:
 
 		logging.info('ASAPNMF running classical nmf method in full data mode...')
 
-		nmf_model = nmf.mu(self.ysum)
+		nmf_model = nmf.mu(self.pbulk_ysum)
 
 		logging.info('Saving model...')
 
@@ -166,10 +171,11 @@ class ASAPNMF:
 				theta = nmf_model.H,
 				loss = nmf_model.loss)
 
-	def asap_nmf_predict_batch(self,batch_i,start_index,end_index,beta,result_queue,lock):
+	def asap_nmf_predict_batch(self,batch_i,start_index,end_index,beta,result_queue,lock,sema):
 
 		logging.info('Processing_'+str(batch_i) +'_' +str(start_index)+'_'+str(end_index))
 		
+		sema.acquire()
 		lock.acquire()
 		local_mtx = self.adata.load_data_batch(batch_i,start_index,end_index)	
 		lock.release()
@@ -181,17 +187,16 @@ class ASAPNMF:
 			str(batch_i) +'_' +str(start_index)+'_'+str(end_index):
 			{'theta':reg.theta, 'corr': reg.corr}}
 			)
+		sema.release()
 
 
 	def _run_asap_nmf_full(self):
 
 		logging.info('NMF running...')
 
-		nmf_model = asapc.ASAPdcNMF(np.log1p(self.ysum),self.num_factors)
+		nmf_model = asapc.ASAPdcNMF(np.log1p(self.pbulk_ysum),self.num_factors)
 		nmf = nmf_model.nmf()
 
-		logging.info('Prediction...')
-		## predict
 		scaler = StandardScaler()
 		beta_log_scaled = scaler.fit_transform(nmf.beta_log)
 
@@ -208,10 +213,9 @@ class ASAPNMF:
 			logging.info('Saving model...')
 
 			np.savez(self.adata.outpath+'_dcnmf',
-					beta = nmf.beta,
-					beta_log = nmf.beta_log,
-					theta = reg.theta,
-					corr = reg.corr)		
+					nmf_beta = nmf.beta,
+					predict_theta = reg.theta,
+					predict_corr = reg.corr)		
 		else:
 
 			logging.info('NMF prediction batch data mode...')
@@ -219,12 +223,13 @@ class ASAPNMF:
 			threads = []
 			result_queue = queue.Queue()
 			lock = threading.Lock()
+			sema = threading.Semaphore(value=self.maxthreads)
 
 			for (i, istart) in enumerate(range(0, total_cells,batch_size), 1): 
 
 				iend = min(istart + batch_size, total_cells)
 								
-				thread = threading.Thread(target=self.asap_nmf_predict_batch, args=(i,istart,iend, beta_log_scaled,result_queue,lock))
+				thread = threading.Thread(target=self.asap_nmf_predict_batch, args=(i,istart,iend, beta_log_scaled,result_queue,lock,sema))
 				
 				threads.append(thread)
 				thread.start()
@@ -237,7 +242,7 @@ class ASAPNMF:
 				predict_result.append(result_queue.get())
 			
 
-			barcodes = []
+			self.predict_barcodes = []
 			for bi,b in enumerate(predict_result):
 				for i, (key, value) in enumerate(b.items()):
 
@@ -245,20 +250,21 @@ class ASAPNMF:
 					start_index = int(key.split('_')[1])
 					end_index = int(key.split('_')[2])
 
-					barcodes = barcodes + self.adata.load_datainfo_batch(batch_index,start_index,end_index)
+					self.predict_barcodes = self.predict_barcodes + self.adata.load_datainfo_batch(batch_index,start_index,end_index)
 
 					if bi ==0 :
-						theta = value['theta']
-						corr = value['corr']
+						self.predict_theta = value['theta']
+						self.predict_corr = value['corr']
 					else:
-						theta = np.vstack((theta,value['theta']))
-						corr = np.vstack((corr,value['corr']))
+						self.predict_theta = np.vstack((self.predict_theta,value['theta']))
+						self.predict_corr = np.vstack((self.predict_corr,value['corr']))
+
+			logging.info('Saving model...')
 
 			np.savez(self.adata.outpath+'_dcnmf',
-				beta = nmf.beta,
-				beta_log = nmf.beta_log,
-				predict_barcdoes = barcodes,
-				predict_theta = theta,
-				predict_corr = corr)
+				nmf_beta = nmf.beta,
+				predict_barcodes = self.predict_barcodes,
+				predict_theta = self.predict_theta,
+				predict_corr = self.predict_corr)
 
 

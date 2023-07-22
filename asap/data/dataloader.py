@@ -155,8 +155,6 @@ class DataSet:
 			f.close()
 			return barcodes
 		
-
-
 	def load_full_data(self):
 		
 		if len(self.dataset_list) == 1:
