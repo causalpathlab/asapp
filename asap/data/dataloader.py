@@ -78,7 +78,6 @@ class DataSet:
 			self.genes = [x.decode('utf-8') for x in f[self.dataset_list[0]]['genes'][()]]
 			self.shape = f[self.dataset_list[0]]['shape'][()]
 			self.barcodes = [x.decode('utf-8') for x in f[self.dataset_list[0]]['barcodes'][()]]
-			self.batch_label = [ self.dataset_list[0] for x in f[self.dataset_list[0]]['barcodes'][()]]
 			f.close()
 
 			self.load_full_data()
@@ -89,15 +88,12 @@ class DataSet:
 			self.genes = [x.decode('utf-8') for x in f[dataset_list[0]]['genes'][()]]
 			
 			barcodes = []
-			batch_label = []
 			for ds in self.dataset_list:
 				start_index = 0
 				end_index = self.dataset_batch_size[ds]
 				barcodes = barcodes + [x.decode('utf-8')+'@'+ds for x in f[ds]['barcodes'][()]][start_index:end_index]
-				batch_label = batch_label + [ds for x in f[ds]['barcodes'][()]][start_index:end_index]
 			
 			self.barcodes = barcodes
-			self.batch_label = batch_label
 
 			self.shape = [len(self.barcodes),len(self.genes)]
 			f.close()
@@ -138,14 +134,14 @@ class DataSet:
 
 			if self.shape[0] < end_index: end_index = self.shape[0] 
 
-			self.barcodes = [x.decode('utf-8')+'@'+ds for x in f[ds]['barcodes'][()]][start_index:end_index]
-			self.batch_label = [ds for  x in f[ds]['barcodes'][()]][start_index:end_index]
+			barcodes = [x.decode('utf-8')+'@'+ds for x in f[ds]['barcodes'][()]][start_index:end_index]
 			f.close()
+
+			return barcodes
 
 		else:
 
 			barcodes = []
-			batch_label = []
 			for ds in self.dataset_list:
 
 				end_index =  self.dataset_batch_size[ds] * batch_index
@@ -155,12 +151,10 @@ class DataSet:
 				if dataset_size < end_index: end_index = dataset_size
 
 				barcodes = barcodes + [x.decode('utf-8')+'@'+ds for x in f[ds]['barcodes'][()]][start_index:end_index]
-				batch_label = batch_label + [ds for x in f[ds]['barcodes'][()]][start_index:end_index]
 
-			self.barcodes = barcodes
-			self.batch_label = batch_label
-		
 			f.close()
+			return barcodes
+		
 
 
 	def load_full_data(self):
@@ -357,6 +351,21 @@ class DataMergerTS:
 
 			f.close()
 
+def is_csr_or_csc(data, indptr, indices):
+    num_rows = len(indptr) - 1
+    num_cols = max(indices) + 1
+
+    # Check for CSR format
+    if len(data) == len(indices) and len(indptr) == num_rows + 1 and max(indices) < num_cols:
+        return "CSR"
+
+    # Check for CSC format
+    if len(data) == len(indices) and len(indptr) == num_cols + 1 and max(indices) < num_rows:
+        return "CSC"
+
+    return "Not CSR or CSC"
+
+
 class DataMerger10X:
 	def __init__(self,inpath):
 		self.inpath = inpath
@@ -440,23 +449,6 @@ tsdm.get_datainfo()
 # Dataset : pbmc3p , cells : 10194, genes : 36601
 # Dataset : pbmc5p , cells : 10548, genes : 36620                                                                                      
 tsdm.merge_genes()                                                                                              
-tsdm.merge_data('pbmc')   
-
-
-def is_csr_or_csc(data, indptr, indices):
-    num_rows = len(indptr) - 1
-    num_cols = max(indices) + 1
-
-    # Check for CSR format
-    if len(data) == len(indices) and len(indptr) == num_rows + 1 and max(indices) < num_cols:
-        return "CSR"
-
-    # Check for CSC format
-    if len(data) == len(indices) and len(indptr) == num_cols + 1 and max(indices) < num_rows:
-        return "CSC"
-
-    return "Not CSR or CSC"
-    
-is_csr_or_csc(mtx_data, mtx_indptr, mtx_indices)
+tsdm.merge_data('pbmc_2ds_2b')   
 
 '''

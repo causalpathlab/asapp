@@ -49,10 +49,16 @@ model = np.load(sample_out+'_dcnmf.npz',allow_pickle=True)
 
 # %%
 df_beta = pd.DataFrame(model['beta'].T)
-# df_beta.columns = [x for x in dl.genes]
+df_beta.columns = dl.genes
 
-df_theta = pd.DataFrame(model['predict_result'][0]['1_0_5000']['corr'])
+### if full data 
+# df_theta = pd.DataFrame(model['corr'])
 # df_theta.index = dl.barcodes
+
+
+## if batch data 
+df_theta = pd.DataFrame(model['predict_corr'])
+df_theta.index = model['predict_barcdoes']
 
 # %%
 df_top = analysis.get_topic_top_genes(df_beta.iloc[:,:],top_n=10)
@@ -66,7 +72,8 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
 df_umap= pd.DataFrame()
-# df_umap['cell'] = dl.barcodes
+df_umap['cell'] = df_theta.index.values
+
 # df_umap['topic_bulk'] = [x for x in df_theta.iloc[:,:].idxmax(axis=1)]
 
 scaler = StandardScaler()
@@ -75,7 +82,7 @@ kmeans = KMeans(n_clusters=10, init='k-means++',random_state=0).fit(scaled)
 df_umap['topic_bulk'] = kmeans.labels_
 
 umap_2d = umap.UMAP(n_components=2, init='random', random_state=0,min_dist=0.4,metric='cosine')
-proj_2d = umap_2d.fit(df_theta.iloc[:,1:])
+proj_2d = umap_2d.fit(df_theta.iloc[:,:])
 df_umap[['umap1','umap2']] = umap_2d.embedding_[:,[0,1]]
 df_umap
 
@@ -93,7 +100,7 @@ p.set_ylabel("UMAP2",fontsize=20)
 plt.savefig(dl.outpath+'theta_topic.png');plt.close()
 
 # %%
-df_umap['batch'] = [x.split('@')[1]for x in df_umap['cell']]
+df_umap['batch'] = [x.split('-')[0]for x in df_umap['cell']]
 cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap['batch'].unique()))
 p = sns.scatterplot(data=df_umap, x='umap1', y='umap2', hue='batch',s=5,palette=cp,legend=True)
 plt.legend(title='batch',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))

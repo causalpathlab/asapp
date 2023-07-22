@@ -89,7 +89,7 @@ class ASAPNMF:
 		if total_cells<batch_size:
 
 			## generate pseudo-bulk
-			self.pb_result = rp.get_rpqr_psuedobulk(self.adata.mtx.T, rp_mat,self.adata.batch_label,self.downsample_pbulk,self.downsample_size,'full')
+			self.pb_result = rp.get_rpqr_psuedobulk(self.adata.mtx.T, rp_mat,self.downsample_pbulk,self.downsample_size,'full')
 
 		else:
 
@@ -117,11 +117,14 @@ class ASAPNMF:
 	def filter_pbulk(self,min_size=5):
 
 		if len(self.pb_result) == 1:
-			sample_counts = np.array([len(self.pbulkd[x])for x in self.pbulkd.keys()])
+			
+			pbulkd = self.pb_result['full']['pb_dict'] 
+
+			sample_counts = np.array([len(pbulkd[x])for x in pbulkd.keys()])
 			keep_indices = np.where(sample_counts>min_size)[0].flatten() 
 
-			self.ysum = self.ysum[:,keep_indices]
-			self.pbulkd = {key: value for i, (key, value) in enumerate(self.pbulkd.items()) if i in keep_indices}
+			self.ysum = self.pb_result['full']['pb_data'][:,keep_indices]
+			self.pbulkd = {key: value for i, (key, value) in enumerate(pbulkd.items()) if i in keep_indices}
 
 		else:
 			self.pbulkd = {}
@@ -229,12 +232,33 @@ class ASAPNMF:
 			for t in threads:
 				t.join()
 
-			self.predict_result = []
+			predict_result = []
 			while not result_queue.empty():
-				self.predict_result.append(result_queue.get())
+				predict_result.append(result_queue.get())
 			
+
+			barcodes = []
+			for bi,b in enumerate(predict_result):
+				for i, (key, value) in enumerate(b.items()):
+
+					batch_index = int(key.split('_')[0])
+					start_index = int(key.split('_')[1])
+					end_index = int(key.split('_')[2])
+
+					barcodes = barcodes + self.adata.load_datainfo_batch(batch_index,start_index,end_index)
+
+					if bi ==0 :
+						theta = value['theta']
+						corr = value['corr']
+					else:
+						theta = np.vstack((theta,value['theta']))
+						corr = np.vstack((corr,value['corr']))
+
 			np.savez(self.adata.outpath+'_dcnmf',
 				beta = nmf.beta,
 				beta_log = nmf.beta_log,
-				predict_result = self.predict_result)
+				predict_barcdoes = barcodes,
+				predict_theta = theta,
+				predict_corr = corr)
+
 
