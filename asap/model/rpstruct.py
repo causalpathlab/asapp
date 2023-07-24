@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 import logging
 logger = logging.getLogger(__name__)
-
+from sklearn.utils.extmath import randomized_svd
+from sklearn.preprocessing import StandardScaler
 import annoy
 import random
 
@@ -64,10 +65,14 @@ def get_rp_with_bc(mtx,rp_mat,batch_label):
 
 def get_rp(mtx,rp_mat):
 
-    Z = np.dot(rp_mat,mtx).T
-    Q, _ ,_ = np.linalg.svd(Z, full_matrices=False)
-    Q = (np.sign(Q) + 1)/2
+    Z = np.dot(rp_mat,mtx)
+    _, _, Q = randomized_svd(Z, n_components= Z.shape[0], random_state=0)
+    
+    Q = Q.T
+    scaler = StandardScaler()
+    Q = scaler.fit_transform(Q)
 
+    Q = (np.sign(Q) + 1)/2
     df = pd.DataFrame(Q,dtype=int)
     df['code'] = df.astype(str).agg(''.join, axis=1)
     df = df.reset_index()

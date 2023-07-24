@@ -69,14 +69,11 @@ ASAPpbResult ASAPpb::generate_pb()
 
     }else{
 
-        // Mat temp_ds = Mat::Ones(D, S).array().rowwise() * size_s.array();
-        // mu_param.update(ysum_ds, temp_ds);
-        // mu_param.calibrate();
-        // mu_ds = mu_param.mean();
-        // log_mu_ds = mu_param.log_mean();
-
-        mu_ds = ysum_ds;
-
+        Mat temp_ds = Mat::Ones(D, S).array().rowwise() * size_s.array();
+        mu_param.update(ysum_ds, temp_ds);
+        mu_param.calibrate();
+        mu_ds = mu_param.mean();
+        log_mu_ds = mu_param.log_mean();
 
     }
 
