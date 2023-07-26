@@ -68,9 +68,8 @@ def get_rp(mtx,rp_mat):
     Z = np.dot(rp_mat,mtx)
     _, _, Q = randomized_svd(Z, n_components= Z.shape[0], random_state=0)
     
-    Q = Q.T
     scaler = StandardScaler()
-    Q = scaler.fit_transform(Q)
+    Q = scaler.fit_transform(Q.T)
 
     Q = (np.sign(Q) + 1)/2
     df = pd.DataFrame(Q,dtype=int)

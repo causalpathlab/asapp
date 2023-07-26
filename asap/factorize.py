@@ -39,6 +39,9 @@ class ASAPNMF:
 		logger.info('Random projection matrix :' + str(rp_mat.shape))
 		return rp_mat
 	
+	def assign_batch_label(self,batch_label):
+		self.adata.batch_label = batch_label
+
 	def estimate_batch_effect(self,rp_mat):
 
 		logging.info('ASAPNMF estimating batch effect in current data size...')
@@ -260,11 +263,8 @@ class ASAPNMF:
 						self.predict_corr = np.vstack((self.predict_corr,value['corr']))
 
 			logging.info('Saving model...')
-
 			np.savez(self.adata.outpath+'_dcnmf',
 				nmf_beta = nmf.beta,
 				predict_barcodes = self.predict_barcodes,
 				predict_theta = self.predict_theta,
 				predict_corr = self.predict_corr)
-
-
