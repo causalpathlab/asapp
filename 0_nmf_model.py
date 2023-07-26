@@ -31,15 +31,16 @@ logging.basicConfig(filename=sample_out+'_model.log',
 
 tree_max_depth = 10
 num_factors = 10
-batch_size = 5000
+batch_size = 25000
 downsample_pseudobulk = True
 downsample_size = 100
+bn = 2
 
 dl = DataSet(sample_in,sample_out)
 sample_list = dl.get_dataset_names()
 dl.initialize_data(sample_list,batch_size)
 
-asap = ASAPNMF(dl,tree_max_depth,num_factors,downsample_pseudobulk,downsample_size,'asap')
+asap = ASAPNMF(dl,tree_max_depth,num_factors,downsample_pseudobulk,downsample_size,'asap',num_batch=bn)
 asap.generate_pseudobulk()
 asap.filter_pbulk(5) 
 asap.run_nmf()

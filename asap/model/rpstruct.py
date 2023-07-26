@@ -107,8 +107,6 @@ def get_rpqr_psuedobulk(mtx,rp_mat,downsample_pbulk,downsample_size,mode,res=Non
     
     Q,pbulkd = get_rp(mtx,rp_mat)
 
-    logger.info('Pseudo-bulk size... '+ mode +' '+ str(len(pbulkd)))
-
     if downsample_pbulk:
         pbulkd = sample_pseudo_bulk(pbulkd,downsample_size)
 

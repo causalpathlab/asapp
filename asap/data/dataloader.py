@@ -246,7 +246,7 @@ class DataSet:
 						
 						if ds == group._v_name:
 
-							logging.info('Loading data from...'+ds)
+							logging.info('Loading data from...'+ds + ' batch : '+str(batch_index))
 
 							## update index according to each sample 	
 							end_index =  self.dataset_batch_size[ds] * batch_index
@@ -272,13 +272,12 @@ class DataSet:
 							ds_dat = np.asarray(ds_dat)
 							ds_dat = ds_dat[:,dataset_selected_gene_indices]
 							if ds_i == 0:
+								logging.info(ds + ' batch : '+str(batch_index) + ' size :'+ str(ds_dat.shape))
 								mtx = ds_dat
 							else:
 								mtx = np.vstack((mtx,ds_dat))
-				
-					logging.info(ds + ' size :'+ str(mtx.shape))
-
-				return mtx
+								logging.info(ds + ' batch : '+str(batch_index) + ' size :'+ str(ds_dat.shape))
+			return mtx
 			
 
 
@@ -434,7 +433,7 @@ class DataMerger10X:
 
 '''
 from asap.data.dataloader import DataMergerTS as dm                                                               
-tsdm = dm('data/tabula_sapiens/')                                                                               
+tsdm = dm('data/tabula_sapiens')                                                                               
 tsdm.get_datainfo()                                                                                             
 ##Dataset : immune_264k , cells : 264824, genes : 58604
 ##Dataset : bc_117k , cells : 117346, genes : 33234

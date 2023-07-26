@@ -21,7 +21,8 @@ class ASAPNMF:
 		downsample_pbulk: bool = False,
 		downsample_size: int = 100,
 		method: str = 'asap',
-		maxthreads: int = 16
+		maxthreads: int = 16,
+		num_batch: int = 1
 	):
 		self.adata = adata
 		self.tree_max_depth = tree_max_depth
@@ -30,6 +31,7 @@ class ASAPNMF:
 		self.downsample_size = downsample_size
 		self.method = method
 		self.maxthreads = maxthreads
+		self.number_batches = num_batch
 	
 	def generate_random_projection_mat(self,ndims):
 		rp_mat = []
@@ -64,21 +66,25 @@ class ASAPNMF:
 	
 	def generate_pseudobulk_batch(self,batch_i,start_index,end_index,rp_mat,result_queue,lock,sema):
 
-		logging.info('Processing_'+str(batch_i) +'_' +str(start_index)+'_'+str(end_index))
-		
-		sema.acquire()
+		if batch_i <= self.number_batches:
 
-		lock.acquire()
-		local_mtx = self.adata.load_data_batch(batch_i,start_index,end_index)	
-		lock.release()
+			logging.info('Pseudo-bulk generation for '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index))
+			
+			sema.acquire()
 
-		rp.get_rpqr_psuedobulk(local_mtx.T, 
-			rp_mat, 
-			self.downsample_pbulk,self.downsample_size,
-			str(batch_i) +'_' +str(start_index)+'_'+str(end_index),
-			result_queue
-			)
-		sema.release()			
+			lock.acquire()
+			local_mtx = self.adata.load_data_batch(batch_i,start_index,end_index)	
+			lock.release()
+
+			rp.get_rpqr_psuedobulk(local_mtx.T, 
+				rp_mat, 
+				self.downsample_pbulk,self.downsample_size,
+				str(batch_i) +'_' +str(start_index)+'_'+str(end_index),
+				result_queue
+				)
+			sema.release()			
+		else:
+			logging.info('Pseudo-bulk NOT generated for '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(self.number_batches))
 
 	def generate_pseudobulk(self):
 		
@@ -90,6 +96,7 @@ class ASAPNMF:
 
 		logging.info('Data size...cell x gene '+str(total_cells) +'x'+ str(total_genes))
 		logging.info('Batch size... '+str(batch_size))
+		logging.info('Data batch to process... '+str(self.number_batches))
 
 		rp_mat = self.generate_random_projection_mat(self.adata.shape[1])
 		
@@ -121,10 +128,9 @@ class ASAPNMF:
 			while not result_queue.empty():
 				self.pbulk_result.append(result_queue.get())
 			
-
 	def filter_pbulk(self,min_size=5):
 
-		if len(self.pbulk_result) == 1:
+		if len(self.pbulk_result) == 1 and self.adata.run_full_data:
 			
 			pbulkd = self.pbulk_result['full']['pb_dict'] 
 
@@ -153,6 +159,8 @@ class ASAPNMF:
 					self.pbulk_ysum = np.hstack((self.pbulk_ysum,ysum))
 				
 				self.pbulk_indices[[k for k in result_batch.keys()][0]] = pbulkd
+		logging.info('Pseudo-bulk size :' +str(self.pbulk_ysum.shape))
+
 
 	def run_nmf(self):
 		
@@ -176,21 +184,27 @@ class ASAPNMF:
 
 	def asap_nmf_predict_batch(self,batch_i,start_index,end_index,beta,result_queue,lock,sema):
 
-		logging.info('Processing_'+str(batch_i) +'_' +str(start_index)+'_'+str(end_index))
+
+		if batch_i <= self.number_batches:
+
+			logging.info('Prediction for batch '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index))
+			
+			sema.acquire()
+			lock.acquire()
+			local_mtx = self.adata.load_data_batch(batch_i,start_index,end_index)	
+			lock.release()
+
+			reg_model = asapc.ASAPaltNMFPredict(local_mtx.T,beta)
+			reg = reg_model.predict()
+
+			result_queue.put({
+				str(batch_i) +'_' +str(start_index)+'_'+str(end_index):
+				{'theta':reg.theta, 'corr': reg.corr}}
+				)
+			sema.release()
 		
-		sema.acquire()
-		lock.acquire()
-		local_mtx = self.adata.load_data_batch(batch_i,start_index,end_index)	
-		lock.release()
-
-		reg_model = asapc.ASAPaltNMFPredict(local_mtx.T,beta)
-		reg = reg_model.predict()
-
-		result_queue.put({
-			str(batch_i) +'_' +str(start_index)+'_'+str(end_index):
-			{'theta':reg.theta, 'corr': reg.corr}}
-			)
-		sema.release()
+		else:
+			logging.info('NO Prediction for batch '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(self.number_batches))
 
 
 	def _run_asap_nmf_full(self):

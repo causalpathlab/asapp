@@ -30,7 +30,7 @@ sample_out = args.home + args.experiment + args.output+ args.sample_id +'/'+args
 
 tree_max_depth = 10
 num_factors = 10
-batch_size = 5000
+batch_size = 25000
 downsample_pseudobulk = True
 downsample_size = 100
 
@@ -48,14 +48,21 @@ model = np.load(sample_out+'_dcnmf.npz',allow_pickle=True)
 # 
 df_beta = pd.DataFrame(model['nmf_beta'].T)
 df_beta.columns = dl.genes
+df_top = analysis.get_topic_top_genes(df_beta.iloc[:,:],top_n=10)
+df_top = df_top.pivot(index='Topic',columns='Gene',values='Proportion')
+# df_top[df_top>20] = 20
+sns.clustermap(df_top.T,cmap='viridis')
+plt.savefig(dl.outpath+'beta.png');plt.close()
+
 
 scaler = StandardScaler()
 df_corr = pd.DataFrame(scaler.fit_transform(model['predict_corr']))
 # df_corr = pd.DataFrame(model['predict_corr'])
 df_corr.index = model['predict_barcodes']
+df_corr.index = dl.barcodes
 
 mtx = df_corr.to_numpy()
-batch_label = ([x.split('-')[0] for x in model['predict_barcodes']])
+batch_label = ([x.split('-')[0] for x in df_corr.index.values])
 
 
 f = hf.File(dl.inpath+'.h5','r')
@@ -64,13 +71,6 @@ f.close()
 
 
 ###########
-# 
-df_top = analysis.get_topic_top_genes(df_beta.iloc[:,:],top_n=10)
-df_top = df_top.pivot(index='Topic',columns='Gene',values='Proportion')
-# df_top[df_top>20] = 20
-sns.clustermap(df_top.T,cmap='viridis')
-plt.savefig(dl.outpath+'beta.png');plt.close()
-# 
 
 df_umap= pd.DataFrame()
 df_umap['cell'] = df_corr.index.values
@@ -85,7 +85,7 @@ from asap.util import batch_correction as bc
 
 ###############  bbknn 
 
-adata = bc.batch_correction_bbknn(mtx,batch_label,model['predict_barcodes'],dl.genes)
+adata = bc.batch_correction_bbknn(mtx,batch_label,df_corr.index.values,dl.genes)
 df_umap['umap1'] = adata.obsm['X_umap'][:,0]
 df_umap['umap2'] = adata.obsm['X_umap'][:,1]
 
@@ -112,7 +112,8 @@ plt.savefig(dl.outpath+'theta_batch_ct_bbknn.png', bbox_inches='tight');plt.clos
 ############### scanorama 
 
 df_corr_sc = pd.DataFrame(bc.batch_correction_scanorama(mtx,batch_label,alpha=0.01,sigma=15))
-df_corr_sc.index = model['predict_barcodes']
+# df_corr_sc.index = model['predict_barcodes']
+df_corr_sc.index = dl.barcodes
 np.corrcoef(df_corr.iloc[:,0],df_corr_sc.iloc[:,0])
 
 df_umap_sc = df_umap[['cell','topic_bulk','batch','ct']]
