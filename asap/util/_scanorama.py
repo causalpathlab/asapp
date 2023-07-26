@@ -170,8 +170,9 @@ def fill_table(table, i, curr_ds, datasets, base_ds=0,
 # Fill table of alignment scores.
 def find_alignments_table(datasets, knn=KNN, approx=APPROX, verbose=VERBOSE,
                           prenormalized=False):
-    # if not prenormalized:
-    #     datasets = [ normalize(ds, axis=1) for ds in datasets ]
+    if not prenormalized:
+        print('normalizing...')
+        datasets = [ normalize(ds, axis=1) for ds in datasets ]
 
     table = {}
     for i in range(len(datasets)):

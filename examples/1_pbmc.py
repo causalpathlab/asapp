@@ -1,4 +1,3 @@
-# %%
 import sys
 sys.path.append('../')
 from asap.util.io import read_config
@@ -7,13 +6,17 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from asap.data.dataloader import DataSet
-from asap.factorize import ASAPNMF
 from asap.util import analysis
 import matplotlib.pylab as plt
 import seaborn as sns
 import colorcet as cc
+from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-import logging
+import umap
+import h5py as hf
+
+plt.figure(figsize=(10,6))
+plt.tight_layout()
 
 experiment = '/projects/experiments/asapp/'
 server = Path.home().as_posix()
@@ -24,11 +27,6 @@ args = namedtuple('Struct',experiment_config.keys())(*experiment_config.values()
 sample_in = args.home + args.experiment + args.input+ args.sample_id +'/'+args.sample_id
 sample_out = args.home + args.experiment + args.output+ args.sample_id +'/'+args.sample_id
 
-
-logging.basicConfig(filename=sample_out+'_model.log',
-						format='%(asctime)s %(levelname)-8s %(message)s',
-						level=logging.INFO,
-						datefmt='%Y-%m-%d %H:%M:%S')
 
 tree_max_depth = 10
 num_factors = 10
@@ -44,85 +42,103 @@ print(dl.inpath)
 print(dl.outpath)
 
 
-# %%
+# 
 model = np.load(sample_out+'_dcnmf.npz',allow_pickle=True)
 
-# %%
+# 
 df_beta = pd.DataFrame(model['nmf_beta'].T)
 df_beta.columns = dl.genes
 
 scaler = StandardScaler()
 df_corr = pd.DataFrame(scaler.fit_transform(model['predict_corr']))
+# df_corr = pd.DataFrame(model['predict_corr'])
 df_corr.index = model['predict_barcodes']
 
 mtx = df_corr.to_numpy()
 batch_label = ([x.split('-')[0] for x in model['predict_barcodes']])
 
-from asap.util import batch_correction as bc 
 
-df_corr = pd.DataFrame(bc.batch_correction_scanorama(mtx,batch_label))
-df_corr.index = model['predict_barcodes']
+f = hf.File(dl.inpath+'.h5','r')
+ct = ['ct'+str(x) for x in f['pbmc']['cell_type']]
+f.close()
+
 
 ###########
-# %%
+# 
 df_top = analysis.get_topic_top_genes(df_beta.iloc[:,:],top_n=10)
 df_top = df_top.pivot(index='Topic',columns='Gene',values='Proportion')
 # df_top[df_top>20] = 20
 sns.clustermap(df_top.T,cmap='viridis')
 plt.savefig(dl.outpath+'beta.png');plt.close()
-# %%
-import umap
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
+# 
 
 df_umap= pd.DataFrame()
 df_umap['cell'] = df_corr.index.values
 
-# df_umap['topic_bulk'] = [x for x in df_corr.iloc[:,:].idxmax(axis=1)]
-
 kmeans = KMeans(n_clusters=10, init='k-means++',random_state=0).fit(df_corr)
 df_umap['topic_bulk'] = kmeans.labels_
+df_umap['batch'] = batch_label
 
-umap_2d = umap.UMAP(n_components=2, init='random', random_state=0,min_dist=0.4,metric='cosine')
-proj_2d = umap_2d.fit(df_corr.iloc[:,:])
-df_umap[['umap1','umap2']] = umap_2d.embedding_[:,[0,1]]
-df_umap
+############### bc
 
-# df_umap = pd.read_csv(sample_out+'_theta_umap.csv')
-# df_umap.columns = ['cell','umap1','umap2']
+from asap.util import batch_correction as bc 
+
+###############  bbknn 
+
+adata = bc.batch_correction_bbknn(mtx,batch_label,model['predict_barcodes'],dl.genes)
+df_umap['umap1'] = adata.obsm['X_umap'][:,0]
+df_umap['umap2'] = adata.obsm['X_umap'][:,1]
 
 
-# %%
 cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap['topic_bulk'].unique()))
 p = sns.scatterplot(data=df_umap, x='umap1', y='umap2', hue='topic_bulk',s=5,palette=cp,legend=True)
 plt.legend(title='Topic',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))
 # p.axes.set_title("topics from bulkNMF",fontsize=30)
 p.set_xlabel("UMAP1",fontsize=20)
 p.set_ylabel("UMAP2",fontsize=20)
-plt.savefig(dl.outpath+'theta_topic.png');plt.close()
+plt.savefig(dl.outpath+'theta_topic_bbknn.png', bbox_inches='tight');plt.close()
 
-# %%
-df_umap['batch'] = [x.split('-')[0]for x in df_umap['cell']]
 cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap['batch'].unique()))
 p = sns.scatterplot(data=df_umap, x='umap1', y='umap2', hue='batch',s=5,palette=cp,legend=True)
 plt.legend(title='batch',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))
-plt.savefig(dl.outpath+'theta_batch.png');plt.close()
-
-
-
-
-
-import h5py as hf
-f = hf.File(dl.inpath+'.h5','r')
-ct = ['ct'+str(x) for x in f['pbmc']['cell_type']]
-f.close()
-
-
+plt.savefig(dl.outpath+'theta_batch_bbknn.png', bbox_inches='tight');plt.close()
 
 df_umap['ct'] = ct
 cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap['ct'].unique()))
 p = sns.scatterplot(data=df_umap, x='umap1', y='umap2', hue='ct',s=5,palette=cp,legend=True)
 plt.legend(title='ct',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))
-plt.savefig(dl.outpath+'theta_batch_ct.png');plt.close()
+plt.savefig(dl.outpath+'theta_batch_ct_bbknn.png', bbox_inches='tight');plt.close()
 
+############### scanorama 
+
+df_corr_sc = pd.DataFrame(bc.batch_correction_scanorama(mtx,batch_label,alpha=0.01,sigma=15))
+df_corr_sc.index = model['predict_barcodes']
+np.corrcoef(df_corr.iloc[:,0],df_corr_sc.iloc[:,0])
+
+df_umap_sc = df_umap[['cell','topic_bulk','batch','ct']]
+
+umap_2d = umap.UMAP(n_components=2, init='random', random_state=0,min_dist=0.4,metric='cosine')
+proj_2d = umap_2d.fit(df_corr_sc)
+df_umap_sc[['umap1','umap2']] = umap_2d.embedding_[:,[0,1]]
+
+cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap_sc['topic_bulk'].unique()))
+p = sns.scatterplot(data=df_umap_sc, x='umap1', y='umap2', hue='topic_bulk',s=5,palette=cp,legend=True)
+plt.legend(title='Topic',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))
+# p.axes.set_title("topics from bulkNMF",fontsize=30)
+p.set_xlabel("UMAP1",fontsize=20)
+p.set_ylabel("UMAP2",fontsize=20)
+plt.savefig(dl.outpath+'theta_topic_sc.png', bbox_inches='tight');plt.close()
+
+df_umap_sc['batch'] = [x.split('-')[0]for x in df_umap_sc['cell']]
+cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap_sc['batch'].unique()))
+p = sns.scatterplot(data=df_umap_sc, x='umap1', y='umap2', hue='batch',s=5,palette=cp,legend=True)
+plt.legend(title='batch',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))
+plt.savefig(dl.outpath+'theta_batch_sc.png', bbox_inches='tight');plt.close()
+
+cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap_sc['ct'].unique()))
+p = sns.scatterplot(data=df_umap_sc, x='umap1', y='umap2', hue='ct',s=5,palette=cp,legend=True)
+plt.legend(title='ct',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))
+plt.savefig(dl.outpath+'theta_batch_ct_sc.png', bbox_inches='tight');plt.close()
+
+#############
 
