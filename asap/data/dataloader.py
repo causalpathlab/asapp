@@ -433,7 +433,7 @@ class DataMerger10X:
 
 '''
 from asap.data.dataloader import DataMergerTS as dm                                                               
-tsdm = dm('data/tabula_sapiens')                                                                               
+tsdm = dm('data/tabula_sapiens/')                                                                               
 tsdm.get_datainfo()                                                                                             
 ##Dataset : immune_264k , cells : 264824, genes : 58604
 ##Dataset : bc_117k , cells : 117346, genes : 33234

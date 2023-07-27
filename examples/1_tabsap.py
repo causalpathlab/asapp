@@ -59,25 +59,36 @@ scaler = StandardScaler()
 df_corr = pd.DataFrame(scaler.fit_transform(model['predict_corr']))
 # df_corr = pd.DataFrame(model['predict_corr'])
 df_corr.index = model['predict_barcodes']
-df_corr.index = dl.barcodes
 
 mtx = df_corr.to_numpy()
 batch_label = ([x.split('@')[1] for x in df_corr.index.values])
 
 
-f = hf.File(dl.inpath+'.h5','r')
-ct = ['ct'+str(x) for x in f['pbmc']['cell_type']]
-f.close()
+inpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/data/tabula_sapiens/'
+cell_type = []
+for ds in dl.dataset_list:
+    
+    f = hf.File(inpath+ds+'.h5ad','r')
+    cell_ids = [x.decode('utf-8') for x in f['obs']['_index']]
+    codes = list(f['obs']['cell_type']['codes'])
+    cat = [x.decode('utf-8') for x in f['obs']['cell_type']['categories']]
+    f.close()
+    
+    catd ={}
+    for ind,itm in enumerate(cat):catd[ind]=itm
+    
+    cell_type = cell_type + [ [x,catd[y]] for x,y in zip(cell_ids,codes)]
 
-
+df_ct = pd.DataFrame(cell_type,columns=['cell','celltype'])
 ###########
 
 df_umap= pd.DataFrame()
-df_umap['cell'] = df_corr.index.values
+df_umap['cell'] =[x.split('@')[0] for x in df_corr.index.values]
 
 kmeans = KMeans(n_clusters=10, init='k-means++',random_state=0).fit(df_corr)
 df_umap['topic_bulk'] = kmeans.labels_
 df_umap['batch'] = batch_label
+
 
 ############### bc
 
@@ -85,7 +96,7 @@ from asap.util import batch_correction as bc
 
 ###############  bbknn 
 
-adata = bc.batch_correction_bbknn(mtx,batch_label,df_corr.index.values,dl.genes)
+adata = bc.batch_correction_bbknn(mtx,batch_label,df_corr.index.values,dl.genes,preprocess=False)
 df_umap['umap1'] = adata.obsm['X_umap'][:,0]
 df_umap['umap2'] = adata.obsm['X_umap'][:,1]
 
@@ -103,24 +114,42 @@ p = sns.scatterplot(data=df_umap, x='umap1', y='umap2', hue='batch',s=5,palette=
 plt.legend(title='batch',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))
 plt.savefig(dl.outpath+'theta_batch_bbknn.png', bbox_inches='tight');plt.close()
 
-df_umap['ct'] = ct
-cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap['ct'].unique()))
-p = sns.scatterplot(data=df_umap, x='umap1', y='umap2', hue='ct',s=5,palette=cp,legend=True)
-plt.legend(title='ct',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))
+df_umap = pd.merge(df_umap,df_ct,on='cell',how='left')
+df_umap = df_umap.drop_duplicates(subset='cell',keep=False)
+
+select_ct = list(df_umap.celltype.value_counts()[:10].index)
+select_ct = ['T', 'B', 'NK', 'Dendritic' 'macrophage', 'fibroblast' , 'epithelial' ]
+
+ct_map = {}
+for ct in select_ct:
+    for v in df_umap.celltype.values:
+        if ct in v:
+            ct_map[v]=ct
+
+df_umap['celltype2'] = [ ct_map[x]+'_'+y if  x  in ct_map.keys() else 'others' for x,y in zip(df_umap['celltype'],df_umap['batch'])]
+
+cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap['celltype2'].unique()))
+p = sns.scatterplot(data=df_umap, x='umap1', y='umap2', hue='celltype2',s=2,palette=cp,legend=True)
+plt.legend(title='celltype2',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))
 plt.savefig(dl.outpath+'theta_batch_ct_bbknn.png', bbox_inches='tight');plt.close()
+
 
 ############### scanorama 
 
-df_corr_sc = pd.DataFrame(bc.batch_correction_scanorama(mtx,batch_label,alpha=0.01,sigma=15))
-# df_corr_sc.index = model['predict_barcodes']
-df_corr_sc.index = dl.barcodes
+df_corr_sc = pd.DataFrame(bc.batch_correction_scanorama(mtx,batch_label,alpha=0.001,sigma=15))
+df_corr_sc.index = model['predict_barcodes']
+# df_corr_sc.index = dl.barcodes
 np.corrcoef(df_corr.iloc[:,0],df_corr_sc.iloc[:,0])
 
-df_umap_sc = df_umap[['cell','topic_bulk','batch','ct']]
 
 umap_2d = umap.UMAP(n_components=2, init='random', random_state=0,min_dist=0.4,metric='cosine')
 proj_2d = umap_2d.fit(df_corr_sc)
-df_umap_sc[['umap1','umap2']] = umap_2d.embedding_[:,[0,1]]
+# df_umap2[['umap1','umap2']] = umap_2d.embedding_[:,[0,1]]
+df_umap2 = pd.DataFrame(umap_2d.embedding_[:,[0,1]])
+df_umap2.columns =['umap1','umap2']
+df_umap2['cell'] =  [x.split('@')[0] for x in df_corr.index.values]
+
+df_umap_sc = pd.merge(df_umap_sc,df_umap2,on='cell',how='left')
 
 cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap_sc['topic_bulk'].unique()))
 p = sns.scatterplot(data=df_umap_sc, x='umap1', y='umap2', hue='topic_bulk',s=5,palette=cp,legend=True)
@@ -130,15 +159,14 @@ p.set_xlabel("UMAP1",fontsize=20)
 p.set_ylabel("UMAP2",fontsize=20)
 plt.savefig(dl.outpath+'theta_topic_sc.png', bbox_inches='tight');plt.close()
 
-df_umap_sc['batch'] = [x.split('-')[0]for x in df_umap_sc['cell']]
 cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap_sc['batch'].unique()))
 p = sns.scatterplot(data=df_umap_sc, x='umap1', y='umap2', hue='batch',s=5,palette=cp,legend=True)
 plt.legend(title='batch',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))
 plt.savefig(dl.outpath+'theta_batch_sc.png', bbox_inches='tight');plt.close()
 
-cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap_sc['ct'].unique()))
-p = sns.scatterplot(data=df_umap_sc, x='umap1', y='umap2', hue='ct',s=5,palette=cp,legend=True)
-plt.legend(title='ct',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))
+cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df_umap_sc['celltype2'].unique()))
+p = sns.scatterplot(data=df_umap_sc, x='umap1', y='umap2', hue='celltype2',s=5,palette=cp,legend=True)
+plt.legend(title='celltype2',title_fontsize=18, fontsize=14,loc='center left', bbox_to_anchor=(1, 0.5))
 plt.savefig(dl.outpath+'theta_batch_ct_sc.png', bbox_inches='tight');plt.close()
 
 #############

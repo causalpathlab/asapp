@@ -40,7 +40,7 @@ dl = DataSet(sample_in,sample_out)
 sample_list = dl.get_dataset_names()
 dl.initialize_data(sample_list,batch_size)
 
-asap = ASAPNMF(dl,tree_max_depth,num_factors,downsample_pseudobulk,downsample_size,'asap',num_batch=bn)
+asap = ASAPNMF(adata=dl,tree_max_depth=tree_max_depth,num_factors=num_factors,downsample_pbulk=downsample_pseudobulk,downsample_size=downsample_size,num_batch=bn)
 asap.generate_pseudobulk()
 asap.filter_pbulk(5) 
 asap.run_nmf()

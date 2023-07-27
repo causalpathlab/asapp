@@ -130,6 +130,8 @@ class ASAPNMF:
 			
 	def filter_pbulk(self,min_size=5):
 
+		logging.info('Pseudo-bulk sample filtering...')
+
 		if len(self.pbulk_result) == 1 and self.adata.run_full_data:
 			
 			pbulkd = self.pbulk_result['full']['pb_dict'] 
@@ -159,6 +161,7 @@ class ASAPNMF:
 					self.pbulk_ysum = np.hstack((self.pbulk_ysum,ysum))
 				
 				self.pbulk_indices[[k for k in result_batch.keys()][0]] = pbulkd
+
 		logging.info('Pseudo-bulk size :' +str(self.pbulk_ysum.shape))
 
 

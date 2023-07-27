@@ -19,7 +19,7 @@ def batch_correction_scanorama(mtx,batch_label,alpha,sigma):
     df.index = datasets_indices
     return df.sort_index().to_numpy()
 
-def batch_correction_bbknn(mtx,batch_label,barcodes,genes):
+def batch_correction_bbknn(mtx,batch_label,barcodes,genes,preprocess):
     
     from bbknn.matrix import bbknn
     import scanpy as sc
@@ -44,5 +44,7 @@ def batch_correction_bbknn(mtx,batch_label,barcodes,genes):
     adata.uns[key_added]['distances_key'] = dists_key
     adata.uns[key_added]['connectivities_key'] = conns_key
     adata.obsm['X_pca'] = mtx
+    if preprocess:
+        sc.pp.neighbors(adata)
     sc.tl.umap(adata)
     return adata
