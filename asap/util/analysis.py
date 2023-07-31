@@ -45,6 +45,52 @@ def get_topic_top_genes(df_beta,top_n):
 
 	return pd.DataFrame(top_genes,columns=['Topic','GeneType','Genes','Gene','Proportion'])
 
+def get2dprojection(mtx):
+
+	import umap
+
+	um = umap.UMAP(n_components=2, init='random', random_state=0,min_dist=0.4,metric='cosine')
+	um.fit(mtx)
+	return um.embedding_[:,[0,1]]
+
+
+
+def plot_umaps(df,outpath):
+
+	import matplotlib.pylab as plt
+	plt.rcParams['figure.figsize'] = [10, 15]
+	plt.rcParams['figure.autolayout'] = True
+	import seaborn as sns
+
+	import re
+
+
+	labels = [ x for x in df.columns if not re.search(x,r'umap_1|umap_2|cell')]
+
+	n_plots = len(labels)
+
+	fig, ax = plt.subplots(n_plots,1) 
+	ax = ax.ravel()
+
+	for i,label in enumerate(labels):
+		cp = sns.color_palette(cc.glasbey_hv, n_colors=len(df[label].unique()))
+		sns.scatterplot(data=df, x='umap_1', y='umap_2', hue=label,s=5,palette=cp,legend=True,ax=ax[i])
+		ax[i].legend(title=label,title_fontsize=12, fontsize=10,loc='center left', bbox_to_anchor=(1, 0.5))
+	fig.savefig(outpath,dpi=600);plt.close()
+
+
+def pmf2topic(beta, theta, eps=1e-8):
+    uu = np.maximum(np.sum(beta, axis=0), eps)
+    beta = beta / uu
+
+    prop = theta * uu 
+    zz = np.maximum(np.sum(prop, axis=1), eps)
+    prop = prop / zz[:, np.newaxis]
+
+    return {'beta': beta, 'prop': prop, 'depth': zz}
+
+
+
 def plot_marker_genes(fn,mtx,rows,cols,df_umap,marker_genes):
 
 	from anndata import AnnData

@@ -30,11 +30,11 @@ logging.basicConfig(filename=sample_out+'_model.log',
 						datefmt='%Y-%m-%d %H:%M:%S')
 
 tree_max_depth = 10
-num_factors = 10
+num_factors = 20
 batch_size = 25000
 downsample_pseudobulk = True
 downsample_size = 100
-bn = 2
+bn = 4
 
 dl = DataSet(sample_in,sample_out)
 sample_list = dl.get_dataset_names()

@@ -32,6 +32,13 @@ class ASAPNMF:
 		self.method = method
 		self.maxthreads = maxthreads
 		self.number_batches = num_batch
+
+		logging.info(
+			'\nASAP initialized.. \n'+
+			'tree depth.. '+str(self.tree_max_depth)+'\n'+
+			'number of factors.. '+str(self.num_factors)+'\n'+
+			'downsample pseudo-bulk.. '+str(self.downsample_pbulk)
+		)
 	
 	def generate_random_projection_mat(self,ndims):
 		rp_mat = []
@@ -42,7 +49,7 @@ class ASAPNMF:
 		return rp_mat
 	
 	def assign_batch_label(self,batch_label):
-		self.adata.batch_label = batch_label
+		self.adata.batch_label = np.array(batch_label)
 
 	def estimate_batch_effect(self,rp_mat):
 
@@ -164,11 +171,32 @@ class ASAPNMF:
 
 		logging.info('Pseudo-bulk size :' +str(self.pbulk_ysum.shape))
 
+	def pbulk_batchinfo(self,batch_label):
+
+		pb_batch_count = {}
+		batches = set(batch_label)
+		for pbid,pbindices in asap.pbulk_indices.items():
+			pb_batch_count[pbid] = [np.count_nonzero(asap.adata.batch_label[pbindices]==x) for x in batches]
+		 
+		df_pb_batch_count = pd.DataFrame(pb_batch_count).T
+		df_pb_batch_count = df_pb_batch_count.T
+		df_pb_batch_count.columns = batches
+		df_pb_batch_count.div(df_pb_batch_count.sum(axis=1), axis=0)
+
+	def get_model_params(self):
+		model_params = {}
+		model_params['tree_max_depth'] = self.tree_max_depth
+		model_params['num_factors'] = self.num_factors
+		model_params['batch_size'] = self.adata.batch_size
+		model_params['downsample_pseudobulk'] = self.downsample_pbulk
+		model_params['downsample_size'] = self.downsample_size
+		return model_params
+
 
 	def run_nmf(self):
 		
 		if self.method == 'asap':
-			self._run_asap_nmf_full()
+			self._run_asap_nmf()
 		elif self.method == 'cnmf' and self.adata.run_full_data :
 			self._run_cnmf_full()
 		
@@ -210,7 +238,7 @@ class ASAPNMF:
 			logging.info('NO Prediction for batch '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(self.number_batches))
 
 
-	def _run_asap_nmf_full(self):
+	def _run_asap_nmf(self):
 
 		logging.info('NMF running...')
 
@@ -233,6 +261,7 @@ class ASAPNMF:
 			logging.info('Saving model...')
 
 			np.savez(self.adata.outpath+'_dcnmf',
+	    			params = self.get_model_params(),
 					nmf_beta = nmf.beta,
 					predict_theta = reg.theta,
 					predict_corr = reg.corr)		
@@ -281,6 +310,7 @@ class ASAPNMF:
 
 			logging.info('Saving model...')
 			np.savez(self.adata.outpath+'_dcnmf',
+	    	    params = self.get_model_params(),
 				nmf_beta = nmf.beta,
 				predict_barcodes = self.predict_barcodes,
 				predict_theta = self.predict_theta,
