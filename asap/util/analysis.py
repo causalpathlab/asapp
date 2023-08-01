@@ -20,7 +20,32 @@ def pbulk_hist(asap):
 		sns.histplot(x=pblen)
 		plt.savefig(asap.adata.outpath+'_pbulk_hist_batch.png')
 		plt.close()
-		
+
+def plot_pbulk_batchratio(df,outfile):
+
+	from plotnine import (
+		ggplot,
+		aes,
+		geom_bar,
+		theme,
+		theme_set,
+		theme_void,
+		element_rect
+	)
+
+	# theme_set(theme_void())
+	df = df.reset_index().rename(columns={'index': 'pbindex'})
+	dfm = pd.melt(df,id_vars='pbindex')
+	dfm = dfm.sort_values(['variable','value'])
+
+	p = ggplot(dfm, aes(x='pbindex', y='value',fill='variable')) + geom_bar(position="stack",stat="identity",size=0)
+	p = p + theme(
+		plot_background=element_rect(fill='white'),
+		panel_background = element_rect(fill='white')
+	)
+	p.save(filename = outfile, height=3, width=8, units ='in', dpi=300)
+
+
 def generate_gene_vals(df,top_n,top_genes,label):
 
 	top_genes_collection = []

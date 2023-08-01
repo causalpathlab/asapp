@@ -63,11 +63,11 @@ df_corr.index = model['predict_barcodes']
 
 ######### minibatch for visualization
 
-# import random 
+import random 
 
-# N = 100000
-# minib_i = random.sample(range(0,df_corr.shape[0]),N)
-# df_corr = df_corr.iloc[minib_i,:]
+N = 1000
+minib_i = random.sample(range(0,df_corr.shape[0]),N)
+df_corr = df_corr.iloc[minib_i,:]
 
 
 ## assign ids
@@ -143,11 +143,11 @@ df_umap_sc.to_csv(dl.outpath+'_postbc_umap.csv.gz',compression='gzip')
 
 
 ### plots
-# df_umap = pd.read_csv(dl.outpath+'_prebc_umap.csv.gz')
-# df_umap_sc = pd.read_csv(dl.outpath+'_postbc_umap.csv.gz')
+df_umap = pd.read_csv(dl.outpath+'_prebc_umap.csv.gz')
+df_umap_sc = pd.read_csv(dl.outpath+'_postbc_umap.csv.gz')
 
-# df_umap = df_umap.drop(columns=['Unnamed: 0'])
-# df_umap_sc = df_umap_sc.drop(columns=['Unnamed: 0'])
+df_umap = df_umap.drop(columns=['Unnamed: 0'])
+df_umap_sc = df_umap_sc.drop(columns=['Unnamed: 0'])
 
 analysis.plot_umaps(df_umap,dl.outpath+'_pre_batchcorrection.png')
 analysis.plot_umaps(df_umap_sc,dl.outpath+'_post_batchcorrection.png')
