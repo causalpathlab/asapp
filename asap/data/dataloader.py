@@ -279,7 +279,13 @@ class DataSet:
 								logging.info(ds + ' batch : '+str(batch_index) + ' size :'+ str(ds_dat.shape))
 			return mtx
 			
-
+	def construct_batch_df(self,size):
+		mtx = self.load_data_batch(1,0,size)
+		barcodes = self.load_datainfo_batch(1,0,size)
+		df = pd.DataFrame(mtx)
+		df.index = barcodes
+		df.columns = self.genes
+		return df
 
 class DataMergerTS:
 	def __init__(self,inpath):

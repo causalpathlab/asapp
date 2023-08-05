@@ -147,7 +147,9 @@ class ASAPNMF:
 			keep_indices = np.where(sample_counts>min_size)[0].flatten() 
 
 			self.pbulk_ysum = self.pbulk_result['full']['pb_data'][:,keep_indices]
-			self.pbulk_indices = {key: value for i, (key, value) in enumerate(pbulkd.items()) if i in keep_indices}
+			pbulk_indices = {key: value for i, (key, value) in enumerate(pbulkd.items()) if i in keep_indices}
+			batch_index = str(1)+'_'+str(0)+'_'+str(self.adata.shape[0])
+			self.pbulk_indices = {batch_index:pbulk_indices}
 
 		else:
 			self.pbulk_indices = {}
@@ -171,16 +173,23 @@ class ASAPNMF:
 
 		logging.info('Pseudo-bulk size :' +str(self.pbulk_ysum.shape))
 
-	def get_psuedobulk_batchratio(self,batch_label_identifier):
+	def get_barcodes(self):
 
-		barcodes = []
-		for batch_ids in self.pbulk_result:
-			bi,si,ei = [x for x in batch_ids.keys()][0].split('_')
-			barcodes +=  self.adata.load_datainfo_batch(int(bi),int(si),int(ei))
-		batch_label = np.array([ x.split(batch_label_identifier)[1] for x in barcodes])
+		if self.adata.run_full_data:
+			return self.adata.barcodes
+		else:
+			barcodes = []
+			for batch_ids in self.pbulk_result:
+				bi,si,ei = [x for x in batch_ids.keys()][0].split('_')
+				barcodes +=  self.adata.load_datainfo_batch(int(bi),int(si),int(ei))
+			return barcodes
+
+		
+	def get_psuedobulk_batchratio(self,batch_label):
 
 		pb_batch_count = []
 		batches = set(batch_label)
+
 		for _,pb_map in self.pbulk_indices.items():
 			for _,val in pb_map.items():
 				pb_batch_count.append([np.count_nonzero(batch_label[val]==x) for x in batches])
@@ -249,7 +258,7 @@ class ASAPNMF:
 
 		logging.info('NMF running...')
 
-		nmf_model = asapc.ASAPdcNMF(np.log1p(self.pbulk_ysum),self.num_factors)
+		nmf_model = asapc.ASAPdcNMF(self.pbulk_ysum,self.num_factors)
 		nmf = nmf_model.nmf()
 
 		scaler = StandardScaler()

@@ -3,7 +3,7 @@ import pandas as pd
 import logging
 logger = logging.getLogger(__name__)
 from sklearn.utils.extmath import randomized_svd
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler,MinMaxScaler
 import annoy
 import random
 
@@ -103,8 +103,11 @@ def sample_pseudo_bulk(pbulkd,sample_size):
     return pbulkd_sample     
 
 
-def get_rpqr_psuedobulk(mtx,rp_mat,downsample_pbulk,downsample_size,mode,res=None):
+def get_rpqr_psuedobulk(mtx,rp_mat,downsample_pbulk,downsample_size,mode,depth= 1e6,eps =1e-6,res=None):
     
+    mtx = mtx/(mtx.sum(1)[:, np.newaxis] + eps)
+    mtx = mtx * depth
+
     Q,pbulkd = get_rp(mtx,rp_mat)
 
     if downsample_pbulk:
@@ -114,10 +117,15 @@ def get_rpqr_psuedobulk(mtx,rp_mat,downsample_pbulk,downsample_size,mode,res=Non
     for key, value in pbulkd.items():
         ysum_ds.append(mtx[:,value].mean(1))
 
+    ysum_ds = np.array(ysum_ds).T
+    scaler = StandardScaler()
+    ysum_ds = np.exp(scaler.fit_transform(np.log1p(ysum_ds)))
+
+
     if mode == 'full':
-        return {mode:{'pb_data':np.array(ysum_ds).T, 'pb_dict':pbulkd}}
+        return {mode:{'pb_data':ysum_ds, 'pb_dict':pbulkd}}
     else:
-         res.put({mode:{'pb_data':np.array(ysum_ds).T, 'pb_dict':pbulkd}})
+         res.put({mode:{'pb_data':ysum_ds, 'pb_dict':pbulkd}})
         
 def get_rpqr_psuedobulk_with_bc(mtx,rp_mat,batch_label,downsample_pbulk,downsample_size):
 

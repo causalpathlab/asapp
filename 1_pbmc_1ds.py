@@ -7,13 +7,13 @@ import pandas as pd
 import numpy as np
 from asap.data.dataloader import DataSet
 from asap.util import analysis
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler,MinMaxScaler
+import h5py as hf
+
 import matplotlib.pylab as plt
 import seaborn as sns
 import colorcet as cc
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
-import umap
-import h5py as hf
 
 plt.figure(figsize=(10,6))
 plt.tight_layout()
@@ -28,11 +28,13 @@ sample_in = args.home + args.experiment + args.input+ args.sample_id +'/'+args.s
 sample_out = args.home + args.experiment + args.output+ args.sample_id +'/'+args.sample_id
 
 
-tree_max_depth = 10
-num_factors = 10
-batch_size = 25000
-downsample_pseudobulk = True
-downsample_size = 100
+model = np.load(sample_out+'_dcnmf.npz',allow_pickle=True)
+
+tree_max_depth = model['params'][()]['tree_max_depth']
+num_factors = model['params'][()]['num_factors']
+batch_size = model['params'][()]['batch_size']
+downsample_pseudobulk = model['params'][()]['downsample_pseudobulk']
+downsample_size = model['params'][()]['downsample_size']
 
 dl = DataSet(sample_in,sample_out)
 sample_list = dl.get_dataset_names()
@@ -40,10 +42,6 @@ dl.initialize_data(sample_list,batch_size)
 
 print(dl.inpath)
 print(dl.outpath)
-
-
-# 
-model = np.load(sample_out+'_dcnmf.npz',allow_pickle=True)
 
 # 
 df_beta = pd.DataFrame(model['nmf_beta'].T)
@@ -55,12 +53,33 @@ sns.clustermap(df_top.T,cmap='viridis')
 plt.savefig(dl.outpath+'_beta.png');plt.close()
 
 
-scaler = StandardScaler()
-df_corr = pd.DataFrame(scaler.fit_transform(model['predict_corr']))
-# df_corr = pd.DataFrame(model['predict_corr'])
-# df_corr.index = model['predict_barcodes']
+
+df_corr = pd.DataFrame(model['predict_corr'])
 df_corr.index = dl.barcodes
 
+
+
+batch_label = ([x.split('-')[0] for x in df_corr.index.values])
+
+# batches = set(batch_label)
+
+
+# for i,b in enumerate(batches):
+#     indxs = [i for i,v in enumerate(batch_label) if v ==b]
+#     dfm = df_corr.iloc[indxs,:]
+#     scaler = StandardScaler()
+#     dfm = scaler.fit_transform(dfm.T).T
+
+#     if i ==0:
+#         upd_indxs = indxs
+#         upd_df = dfm
+#     else:
+#         upd_indxs += indxs
+#         upd_df = np.vstack((upd_df,dfm))
+
+# batch_label = np.array(batch_label)[upd_indxs]
+# df_corr = pd.DataFrame(upd_df)
+# df_corr.index = np.array(dl.barcodes)[upd_indxs]
 
 
 ## assign ids
@@ -68,18 +87,20 @@ df_umap= pd.DataFrame()
 df_umap['cell'] = df_corr.index.values
 
 ## assign batch
-batch_label = ([x.split('-')[0] for x in df_corr.index.values])
+# batch_label = ([x.split('-')[0] for x in df_corr.index.values])
 df_umap['batch'] = batch_label
 
 ## assign topic
 kmeans = KMeans(n_clusters=num_factors, init='k-means++',random_state=0).fit(df_corr)
 df_umap['asap_topic'] = kmeans.labels_
 
-## assign celltype
+# assign celltype
 f = hf.File(dl.inpath+'.h5','r')
 ct = ['ct'+str(x) for x in f['pbmc']['cell_type']]
 f.close()
-df_umap['celltype'] = ct
+df_umap['celltype'] = np.array(ct)
+# df_umap['celltype'] = np.array(ct)[upd_indxs]
+
 
 ########### pre bc
 
@@ -91,8 +112,8 @@ analysis.plot_umaps(df_umap,dl.outpath+'_pre_batchcorrection.png')
 
 from asap.util import batch_correction as bc 
 
-df_corr_sc = pd.DataFrame(bc.batch_correction_scanorama(df_corr.to_numpy(),batch_label,alpha=0.01,sigma=15))
-df_corr_sc.index = dl.barcodes
+df_corr_sc = pd.DataFrame(bc.batch_correction_scanorama(df_corr.to_numpy(),batch_label,alpha=0.001,sigma=15))
+df_corr_sc.index = df_corr.index
 
 np.corrcoef(df_corr.iloc[:,0],df_corr_sc.iloc[:,0])
 

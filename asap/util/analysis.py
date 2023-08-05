@@ -50,7 +50,7 @@ def generate_gene_vals(df,top_n,top_genes,label):
 
 	top_genes_collection = []
 	for x in range(df.shape[0]):
-		gtab = df.T.iloc[:,x].sort_values(0,ascending=False)[:top_n].reset_index()
+		gtab = df.T.iloc[:,x].sort_values(ascending=False)[:top_n].reset_index()
 		gtab.columns = ['gene','val']
 		genes = gtab['gene'].values
 		for g in genes:
