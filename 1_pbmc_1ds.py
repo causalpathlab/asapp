@@ -46,7 +46,7 @@ print(dl.outpath)
 # 
 df_beta = pd.DataFrame(model['nmf_beta'].T)
 df_beta.columns = dl.genes
-df_top = analysis.get_topic_top_genes(df_beta.iloc[:,:],top_n=10)
+df_top = analysis.get_topic_top_genes(df_beta.iloc[:,:],top_n=3)
 df_top = df_top.pivot(index='Topic',columns='Gene',values='Proportion')
 # df_top[df_top>20] = 20
 sns.clustermap(df_top.T,cmap='viridis')
@@ -61,25 +61,25 @@ df_corr.index = dl.barcodes
 
 batch_label = ([x.split('-')[0] for x in df_corr.index.values])
 
-# batches = set(batch_label)
+batches = set(batch_label)
 
 
-# for i,b in enumerate(batches):
-#     indxs = [i for i,v in enumerate(batch_label) if v ==b]
-#     dfm = df_corr.iloc[indxs,:]
-#     scaler = StandardScaler()
-#     dfm = scaler.fit_transform(dfm.T).T
+for i,b in enumerate(batches):
+    indxs = [i for i,v in enumerate(batch_label) if v ==b]
+    dfm = df_corr.iloc[indxs,:]
+    scaler = StandardScaler()
+    dfm = scaler.fit_transform(dfm)
 
-#     if i ==0:
-#         upd_indxs = indxs
-#         upd_df = dfm
-#     else:
-#         upd_indxs += indxs
-#         upd_df = np.vstack((upd_df,dfm))
+    if i ==0:
+        upd_indxs = indxs
+        upd_df = dfm
+    else:
+        upd_indxs += indxs
+        upd_df = np.vstack((upd_df,dfm))
 
-# batch_label = np.array(batch_label)[upd_indxs]
-# df_corr = pd.DataFrame(upd_df)
-# df_corr.index = np.array(dl.barcodes)[upd_indxs]
+batch_label = np.array(batch_label)[upd_indxs]
+df_corr = pd.DataFrame(upd_df)
+df_corr.index = np.array(dl.barcodes)[upd_indxs]
 
 
 ## assign ids
@@ -98,8 +98,8 @@ df_umap['asap_topic'] = kmeans.labels_
 f = hf.File(dl.inpath+'.h5','r')
 ct = ['ct'+str(x) for x in f['pbmc']['cell_type']]
 f.close()
-df_umap['celltype'] = np.array(ct)
-# df_umap['celltype'] = np.array(ct)[upd_indxs]
+# df_umap['celltype'] = np.array(ct)
+df_umap['celltype'] = np.array(ct)[upd_indxs]
 
 
 ########### pre bc

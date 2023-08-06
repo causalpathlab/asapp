@@ -31,10 +31,10 @@ logging.basicConfig(filename=sample_out+'_model.log',
 
 tree_max_depth = 10
 num_factors = 10
-batch_size = 25000
+batch_size = 16000
 downsample_pseudobulk = True
 downsample_size = 100
-bn = 4
+bn = 1
 
 dl = DataSet(sample_in,sample_out)
 sample_list = dl.get_dataset_names()
@@ -46,13 +46,24 @@ batch_label = np.array([x.split('-')[0] for x in dl.barcodes])
 batch_label = np.array([x.split('-')[0] for x in dfm.index.values])
 
 
-dfm = dfm.div(dfm.sum(axis=1), axis=0)
-dfm = dfm * 1e6
+import anndata as an
+import scanpy as sc
+mtx = dfm.to_numpy()
+adata = an.AnnData(mtx.T)
+sc.pp.normalize_total(adata) 
 
+mtx2 = adata.X.T
+dfm2 = pd.DataFrame(mtx2)
+dfm2.index = dfm.index
+dfm2.columns = dfm.columns
+
+dfm = dfm2
 import asap.util.plots as pl
 
-pl.plot_genes_meanvar_barchart(dfm,batch_label,dl.outpath+'_mean2.png','mean')
-
+pl.plot_genes_meanvar_barchart(dfm,batch_label,dl.outpath+'_mean.png','mean')
+pl.plot_genes_meanvar_barchart(dfm,batch_label,dl.outpath+'_var.png','var')
+pl.plot_gene_depthvar_barchart(dfm,batch_label,dl.outpath+'_dpvar.png','var')
+pl.plot_stats(dfm,batch_label,dl.outpath+'_stats.png')
 '''
 
 

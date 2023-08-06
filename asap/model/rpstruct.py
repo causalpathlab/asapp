@@ -103,10 +103,14 @@ def sample_pseudo_bulk(pbulkd,sample_size):
     return pbulkd_sample     
 
 
-def get_rpqr_psuedobulk(mtx,rp_mat,downsample_pbulk,downsample_size,mode,depth= 1e6,eps =1e-6,res=None):
-    
-    mtx = mtx/(mtx.sum(1)[:, np.newaxis] + eps)
-    mtx = mtx * depth
+def get_rpqr_psuedobulk(mtx,rp_mat,downsample_pbulk,downsample_size,mode,depth= 1e6,res=None):
+
+    import anndata as an
+    import scanpy as sc
+
+    adata = an.AnnData(mtx.T)
+    sc.pp.normalize_total(adata)
+    mtx = adata.X.T
 
     Q,pbulkd = get_rp(mtx,rp_mat)
 
@@ -114,7 +118,7 @@ def get_rpqr_psuedobulk(mtx,rp_mat,downsample_pbulk,downsample_size,mode,depth= 
         pbulkd = sample_pseudo_bulk(pbulkd,downsample_size)
 
     ysum_ds = []
-    for key, value in pbulkd.items():
+    for _, value in pbulkd.items():
         ysum_ds.append(mtx[:,value].mean(1))
 
     ysum_ds = np.array(ysum_ds).T
