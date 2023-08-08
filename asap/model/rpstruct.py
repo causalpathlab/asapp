@@ -103,15 +103,28 @@ def sample_pseudo_bulk(pbulkd,sample_size):
     return pbulkd_sample     
 
 
-def get_rpqr_psuedobulk(mtx,rp_mat,downsample_pbulk,downsample_size,mode,depth= 1e6,res=None):
+def get_rpqr_psuedobulk(mtx,rp_mat,downsample_pbulk,downsample_size,mode,res=None):
 
     import anndata as an
     import scanpy as sc
 
     adata = an.AnnData(mtx.T)
-    sc.pp.normalize_total(adata)
-    mtx = adata.X.T
+    sc.pp.normalize_total(adata,exclude_highly_expressed=True,target_sum=1e6)
+    dfm = pd.DataFrame(adata.X)
 
+    # # Q1 = dfm.quantile(0.25)
+    # Q3 = dfm.quantile(0.75)
+    # IQR = Q3
+
+    # threshold = 1.5
+    # upper_bound = Q3 + threshold * IQR
+
+    # for column in dfm.columns:
+    #     outliers_upper = dfm[column] > upper_bound[column]
+    #     dfm.loc[outliers_upper, column] = upper_bound[column]
+
+    mtx = dfm.to_numpy().T
+    
     Q,pbulkd = get_rp(mtx,rp_mat)
 
     if downsample_pbulk:

@@ -368,6 +368,30 @@ def is_csr_or_csc(data, indptr, indices):
 
     return "Not CSR or CSC"
 
+def convertMTXto10X(infile,outfile):
+
+	dataset_f = hf.File(infile, 'r')
+
+	print('processing...'+os.path.basename(infile))
+	
+	f = hf.File(outfile+'.h5ad','w')
+
+	grp = f.create_group('X')
+	grp.create_dataset('indptr',data=dataset_f['matrix']['indptr'],compression='gzip')
+	grp.create_dataset('indices',data=dataset_f['matrix']['indices'],compression='gzip')
+	grp.create_dataset('data',data=dataset_f['matrix']['data'],compression='gzip')
+
+	grp = f.create_group('obs')
+	barcodes = [x.decode('utf-8').replace('@','-') for x in list(dataset_f['matrix']['barcodes']) ]
+	grp.create_dataset('_index', data = barcodes,compression='gzip')
+
+	
+	grp = f.create_group('var')
+	g1 = grp.create_group('feature_name')
+	g1.create_dataset('categories',data=dataset_f['matrix']['features']['id'],compression='gzip')
+	
+	f.close()
+
 
 class DataMerger10X:
 	def __init__(self,inpath):

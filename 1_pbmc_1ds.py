@@ -15,9 +15,6 @@ import matplotlib.pylab as plt
 import seaborn as sns
 import colorcet as cc
 
-plt.figure(figsize=(10,6))
-plt.tight_layout()
-
 experiment = '/projects/experiments/asapp/'
 server = Path.home().as_posix()
 experiment_home = server+experiment
@@ -48,7 +45,7 @@ df_beta = pd.DataFrame(model['nmf_beta'].T)
 df_beta.columns = dl.genes
 df_top = analysis.get_topic_top_genes(df_beta.iloc[:,:],top_n=3)
 df_top = df_top.pivot(index='Topic',columns='Gene',values='Proportion')
-# df_top[df_top>20] = 20
+df_top[df_top>20] = 100
 sns.clustermap(df_top.T,cmap='viridis')
 plt.savefig(dl.outpath+'_beta.png');plt.close()
 
@@ -97,9 +94,12 @@ df_umap['asap_topic'] = kmeans.labels_
 # assign celltype
 f = hf.File(dl.inpath+'.h5','r')
 ct = ['ct'+str(x) for x in f['pbmc']['cell_type']]
+ctn = [x.decode('utf-8') for x in f['pbmc']['cell_type_name']]
+
+celltype = [ ctn[int(x.replace('ct',''))] for x in ct]
 f.close()
-# df_umap['celltype'] = np.array(ct)
-df_umap['celltype'] = np.array(ct)[upd_indxs]
+# df_umap['celltype'] = np.array(celltype)
+df_umap['celltype'] = np.array(celltype)[upd_indxs]
 
 
 ########### pre bc
@@ -122,3 +122,14 @@ df_umap_sc = df_umap[['cell','asap_topic','batch','celltype']]
 df_umap_sc[['umap_1','umap_2']] = analysis.get2dprojection(df_corr_sc.to_numpy())
 analysis.plot_umaps(df_umap_sc,dl.outpath+'_post_batchcorrection.png')
 
+
+
+# import anndata as an
+# import scanpy as sc
+
+# scdata = an.AnnData(df_corr.to_numpy())
+# scdata.obs['celltype'] = df_umap['celltype'].values
+# sc.pp.neighbors(scdata, n_neighbors=10, n_pcs=40)
+# sc.tl.umap(scdata)
+# sc.pl.umap(scdata,color=['celltype'])
+# plt.savefig('test.png');plt.close()
