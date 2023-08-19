@@ -3,7 +3,7 @@ import  numpy as np
 
 def batch_correction_scanorama(mtx,batch_label,alpha,sigma):
 
-    from asap.util._scanorama import assemble
+    from asappy.util._scanorama import assemble
 
     batches = list(set(batch_label))
     datasets = []

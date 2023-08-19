@@ -96,7 +96,7 @@ def sim_from_bulk(bulk_path,fp,size,phi,delta,rho,seedn,use_prop=None,ct_prop=No
 	from sklearn.preprocessing import QuantileTransformer
 	from sklearn.preprocessing import StandardScaler
 	# from sklearn.utils.extmath import randomized_svd as rsvd
-	from  asap.util.lina import rsvd
+	from  asappy.util.lina import rsvd
 	np.random.seed(seedn)
 
 	import glob, os

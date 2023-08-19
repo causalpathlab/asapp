@@ -2,7 +2,7 @@
 # Ignore all data files
 /data/
 /database/
-/result/
+/results/
 
 # Ignore external modules
 /asap/external/

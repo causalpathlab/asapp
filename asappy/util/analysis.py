@@ -70,39 +70,44 @@ def get_topic_top_genes(df_beta,top_n):
 
 	return pd.DataFrame(top_genes,columns=['Topic','GeneType','Genes','Gene','Proportion'])
 
-def get2dprojection(mtx):
+def get2dprojection(mtx,nneighbors=15,mindist=0.4):
 
 	import umap
 
-	um = umap.UMAP(n_components=2, init='random', random_state=0,min_dist=0.4,metric='cosine')
+	um = umap.UMAP(n_components=2, init='random', random_state=0,n_neighbors=nneighbors,min_dist=mindist,metric='cosine')
 	um.fit(mtx)
 	return um.embedding_[:,[0,1]]
 
 
 
-def plot_umaps(df,outpath):
+def plot_umaps(df,outpath,col=None):
 
 	import matplotlib.pylab as plt
-	plt.rcParams['figure.figsize'] = [10, 15]
+	plt.rcParams['figure.figsize'] = [15, 15]
 	plt.rcParams['figure.autolayout'] = True
 	import seaborn as sns
-
 	import re
 
+	if col ==None:
+		labels = [ x for x in df.columns if not re.search(x,r'umap_1|umap_2|cell')]
 
-	labels = [ x for x in df.columns if not re.search(x,r'umap_1|umap_2|cell')]
+		n_plots = len(labels)
 
-	n_plots = len(labels)
+		fig, ax = plt.subplots(n_plots,1) 
+		ax = ax.ravel()
 
-	fig, ax = plt.subplots(n_plots,1) 
-	ax = ax.ravel()
-
-	for i,label in enumerate(labels):
-		cp = sns.color_palette(cc.glasbey_hv, n_colors=len(df[label].unique()))
-		sns.scatterplot(data=df, x='umap_1', y='umap_2', hue=label,s=5,palette=cp,legend=True,ax=ax[i])
-		ax[i].legend(title=label,title_fontsize=12, fontsize=10,loc='center left', bbox_to_anchor=(1, 0.5))
-	fig.savefig(outpath,dpi=600);plt.close()
-
+		for i,label in enumerate(labels):
+			cp = sns.color_palette(cc.glasbey_hv, n_colors=len(df[label].unique()))
+			sns.scatterplot(data=df, x='umap_1', y='umap_2', hue=label,s=25,palette=cp,legend=True,ax=ax[i])
+			ax[i].legend(title=label,title_fontsize=12, fontsize=10,loc='center left', bbox_to_anchor=(1, 0.5))
+		fig.savefig(outpath,dpi=100);plt.close()
+	else:
+		cp = sns.color_palette(cc.glasbey_dark, n_colors=len(df[col].unique()))
+		others_index = np.where(df[col].unique()=='others')[0][0]
+		cp[others_index] =  (0.8, 0.8, 0.8)
+		sns.scatterplot(data=df, x='umap_1', y='umap_2', hue=col,s=25,palette=cp,legend=True)
+		plt.legend(title=col,title_fontsize=12, fontsize=10,loc='center left', bbox_to_anchor=(1, 0.5))
+		plt.savefig(outpath,dpi=100);plt.close()
 
 def pmf2topic(beta, theta, eps=1e-8):
     uu = np.maximum(np.sum(beta, axis=0), eps)
