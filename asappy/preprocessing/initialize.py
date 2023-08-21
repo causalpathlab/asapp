@@ -36,9 +36,9 @@ def create_asap(sample,data_size,number_batches=1):
 		ds.create_asapdata(sample) 
 
 	## create anndata like object for asap 
-	adata = DataSet(sample)
+	adata = DataSet(sample,number_batches)
 	dataset_list = adata.get_dataset_names()
 	adata.initialize_data(dataset_list=dataset_list,batch_size=data_size)
-	return asap(adata,number_batches)
+	return asap(adata)
 
 	

@@ -9,9 +9,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 class DataSet:
-	def __init__(self,sample):
+	def __init__(self,sample,number_batches):
 		self.uns = {}
 		self.uns['inpath'] = './results/'+sample
+		self.uns['number_batches'] = number_batches
 
 	def get_datainfo(self):
 		with tables.open_file(self.uns['inpath']+'.h5', 'r') as f:

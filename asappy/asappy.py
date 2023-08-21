@@ -1,9 +1,8 @@
 from .dutil import DataSet
 
 class asap(object):
-	def __init__(self,adata : DataSet,number_batches:int):
+	def __init__(self,adata : DataSet):
 		self.adata = adata
-		self.number_batches = number_batches
 	
 	def get_params(self):
 		model_params = {}

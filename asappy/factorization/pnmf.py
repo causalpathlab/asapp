@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def asap_nmf_predict_batch(asap_object,batch_i,start_index,end_index,beta,result_queue,lock,sema):
 
-	if batch_i <= asap_object.number_batches:
+	if batch_i <= asap_object.adata.uns['number_batches']:
 
 		logging.info('Prediction for batch '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index))
 		
@@ -32,15 +32,15 @@ def asap_nmf_predict_batch(asap_object,batch_i,start_index,end_index,beta,result
 		sema.release()
 	
 	else:
-		logging.info('NO Prediction for batch '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(asap_object.number_batches))
+		logging.info('NO Prediction for batch '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(asap_object.adata.uns['number_batches']))
 
 def asap_nmf(asap_object,num_factors,maxthreads=16):
 		
-		asap_object.num_factors = num_factors
+		asap_object.adata.uns['num_factors'] = num_factors
 
 		logging.info('NMF running...')
 
-		nmf_model = asapc.ASAPdcNMF(asap_object.pseudobulk['pb_data'],asap_object.num_factors)
+		nmf_model = asapc.ASAPdcNMF(asap_object.adata.uns['pseudobulk']['pb_data'],asap_object.adata.uns['num_factors'])
 		nmfres = nmf_model.nmf()
 
 		scaler = StandardScaler()
@@ -49,8 +49,9 @@ def asap_nmf(asap_object,num_factors,maxthreads=16):
 		total_cells = asap_object.adata.uns['shape'][0]
 		batch_size = asap_object.adata.uns['batch_size']
 		
-		asap_object.nmf = {}
-		asap_object.nmf['beta'] = nmfres.beta
+		asap_object.adata.varm = {}
+		asap_object.adata.obsm = {}
+		asap_object.adata.varm['beta'] = nmfres.beta
 
 		if total_cells<batch_size:
 
@@ -59,8 +60,8 @@ def asap_nmf(asap_object,num_factors,maxthreads=16):
 			pred_model = asapc.ASAPaltNMFPredict(asap_object.adata.X.T,beta_log_scaled)
 			pred = pred_model.predict()
 			
-			asap_object.nmf['corr'] = pred.corr
-			asap_object.nmf['theta'] = pred.theta
+			asap_object.adata.obsm['corr'] = pred.corr
+			asap_object.adata.obsm['theta'] = pred.theta
 		else:
 
 			logging.info('NMF prediction batch data mode...')
@@ -98,11 +99,11 @@ def asap_nmf(asap_object,num_factors,maxthreads=16):
 					predict_barcodes = predict_barcodes + asap_object.adata.load_datainfo_batch(batch_index,start_index,end_index)
 
 					if bi ==0 :
-						asap_object.nmf['theta'] = value['theta']
-						asap_object.nmf['corr'] = value['corr']
+						asap_object.adata.obsm['theta'] = value['theta']
+						asap_object.adata.obsm['corr'] = value['corr']
 					else:
-						asap_object.nmf['theta'] = np.vstack((asap_object.nmf['theta'],value['theta']))
-						asap_object.nmf['corr'] = np.vstack((asap_object.nmf['corr'],value['corr']))
+						asap_object.adata.obsm['theta'] = np.vstack((asap_object.adata.obsm['theta'],value['theta']))
+						asap_object.adata.obsm['corr'] = np.vstack((asap_object.adata.obsm['corr'],value['corr']))
 			
 			asap_object.adata.obs = pd.DataFrame()
 			asap_object.adata.obs['barcodes']= predict_barcodes

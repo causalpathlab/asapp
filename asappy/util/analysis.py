@@ -70,11 +70,11 @@ def get_topic_top_genes(df_beta,top_n):
 
 	return pd.DataFrame(top_genes,columns=['Topic','GeneType','Genes','Gene','Proportion'])
 
-def get2dprojection(mtx,nneighbors=15,mindist=0.4):
+def get2dprojection(mtx,nneighbors=10,mindist=0.1):
 
 	import umap
 
-	um = umap.UMAP(n_components=2, init='random', random_state=0,n_neighbors=nneighbors,min_dist=mindist,metric='cosine')
+	um = umap.UMAP(n_components=2, init='random', random_state=0,n_neighbors=nneighbors,min_dist=mindist,metric='euclidian')
 	um.fit(mtx)
 	return um.embedding_[:,[0,1]]
 

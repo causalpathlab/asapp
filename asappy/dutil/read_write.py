@@ -296,27 +296,19 @@ def convertMTXtoH5AD(infile,outfile):
 	f.close()
 
 def write_model(asap_object):
-
-	f = hf.File(asap_object.adata.uns['inpath']+'.h5','a')
+	import anndata as an
+	adata = an.AnnData(shape=(len(asap_object.adata.obs.barcodes),len(asap_object.adata.var.genes)))
+	adata.obs_names = [ x for x in asap_object.adata.obs.barcodes]
+	adata.var_names = [ x for x in asap_object.adata.var.genes]
 	
-	outer_grp = f.create_group('asap')
-	grp = outer_grp.create_group('pseudobulk')
-	grp.create_dataset('pseudobulk_data',data=asap_object.pseudobulk['pb_data'],compression='gzip')
-
-	grp = outer_grp.create_group('nmf')
-	grp.create_dataset('beta',data=asap_object.nmf['beta'],compression='gzip')
-	grp.create_dataset('theta',data=asap_object.nmf['theta'],compression='gzip')
-	grp.create_dataset('corr',data=asap_object.nmf['corr'],compression='gzip')
-
-	f.close()
-
-	## TODO write params in separate txt file 
+	for key,val in asap_object.adata.uns.items():
+		adata.uns[key] = val
 	
-	asap_object.uns = {}
-	asap_object.uns['params']= asap_object.get_params()
-	asap_object.uns['params']['adata']= asap_object.adata.uns
-	grp = f.create_group('uns')
+	adata.varm['beta'] = asap_object.adata.varm['beta']
+	adata.obsm['theta'] = asap_object.adata.obsm['theta']
+	adata.obsm['corr'] = asap_object.adata.obsm['corr']
 
+	adata.write_h5ad(asap_object.adata.uns['inpath']+'.h5asap')
 
 
 def read_config(config_file):
