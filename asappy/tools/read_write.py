@@ -3,6 +3,7 @@ import numpy as np
 from scipy.sparse import csc_matrix
 import h5py as hf
 import tables
+import json
 import glob
 import os
 import logging
@@ -17,7 +18,7 @@ class CreateDatasetFromH5:
 		self.datasets = glob.glob(inpath+'*.h5')
 
 
-	def get_datainfo(self):
+	def peek_datasets(self):
 		for ds in self.datasets:
 			f = hf.File(ds, 'r')
 			print('Dataset : '+ os.path.basename(ds).replace('.h5','') 
@@ -79,6 +80,11 @@ class CreateDatasetFromH5:
 
 			f.close()
 
+	def create_asapdata(self,fname):
+			print('Generating common genes...')
+			self.merge_genes()
+			print('Merging datasets...')
+			self.merge_data(fname)
 			print('completed.')
 
 class CreateDatasetFromMTX:
@@ -184,7 +190,7 @@ class CreateDatasetFromH5AD:
 					f['obs']['_index'] = f['obs']['index']
 			f.close()
 
-	def get_datainfo(self):
+	def peek_datasets(self):
 		for ds in self.datasets:
 			f = hf.File(ds, 'r')
 			print('Dataset : '+ os.path.basename(ds).replace('.h5ad','') 
@@ -245,6 +251,11 @@ class CreateDatasetFromH5AD:
 
 			f.close()
 
+	def create_asapdata(self,fname):
+			print('Generating common genes...')
+			self.merge_genes()
+			print('Merging datasets...')
+			self.merge_data(fname)
 			print('completed.')
 
 
@@ -286,16 +297,8 @@ def convertMTXtoH5AD(infile,outfile):
 	
 	f.close()
 
-def save_dict_to_h5(group, data_dict):
-    for key, value in data_dict.items():
-        if isinstance(value, dict):
-            nested_group = group.create_group(key)
-            save_dict_to_h5(nested_group, value)  
-        else:
-            group.create_dataset(key, data=value)
+def write_model(asap_object):
 
-
-def write_asap(asap_object):
 	f = hf.File(asap_object.adata.uns['inpath']+'.h5asap','a')
 	
 	grp = f.create_group('pseudobulk')
@@ -305,14 +308,17 @@ def write_asap(asap_object):
 	grp.create_dataset('nmf_beta',data=asap_object.nmf.beta,compression='gzip')
 
 	grp = f.create_group('prediction')
-	grp.create_dataset('barcodes',data=asap_object.predict_barcodes,compression='gzip')
+	if asap_object.adata.uns['run_full_data']:
+		grp.create_dataset('barcodes',data=asap_object.adata.obs['barcodes'].values,compression='gzip')
+	else:
+		grp.create_dataset('barcodes',data=asap_object.predict_barcodes,compression='gzip')
+
 	grp.create_dataset('correlation',data=asap_object.predict_corr,compression='gzip')
 	grp.create_dataset('theta',data=asap_object.predict_theta,compression='gzip')
 
 	asap_object.adata.uns['model_params']= asap_object.get_model_params()
 	grp = f.create_group('uns')
-	save_dict_to_h5(grp,asap_object.adata.uns)
-
+	# grp.create_dataset(name="uns",shape=(len([i.encode("ascii","ignore") for i in json.dumps(asap_object.adata.uns)]),1),dtype="S10",data=[i.encode("ascii","ignore") for i in json.dumps(asap_object.adata.uns)])
 	f.close()
 
 
@@ -322,28 +328,14 @@ def read_config(config_file):
 		params = yaml.safe_load(f)
 	return params
 
-def pickle_obj(f_name, data):
-	import pickle
-	pikd = open(f_name + '.pickle', 'wb')
-	pickle.dump(data, pikd)
-	pikd.close()
+def data_fileformat():
+	fpath = './data/*'
+	datasets = glob.glob(fpath)
+	ftypes = []
+	for f in datasets:
+		ftypes.append(f.split('.')[2])
+	if len(np.unique(ftypes)) == 1:
+		return ftypes[0]
+	else:
+		raise ValueError('Multiple file formats in the data directory.')
 
-def unpickle_obj(f_name):
-	import pickle
-	pikd = open(f_name, 'rb')
-	data = pickle.load(pikd)
-	pikd.close()
-	return data
-
-def compress_pickle_obj(f_name, data):
-	import pickle 
-	import bz2
-	with bz2.BZ2File(f_name + '.pbz2', 'w') as f:
-		pickle.dump(data, f)
-
-def decompress_pickle_obj(f_name):
-	import pickle 
-	import bz2
-	data = bz2.BZ2File(f_name, 'rb')
-	data = pickle.load(data)
-	return data
