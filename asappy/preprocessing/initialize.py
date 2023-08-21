@@ -6,7 +6,8 @@ import tables
 import glob
 import os
 
-from ..tools import DataSet, CreateDatasetFromH5, CreateDatasetFromMTX, CreateDatasetFromH5AD, data_fileformat
+from ..dutil import DataSet, CreateDatasetFromH5, CreateDatasetFromMTX, CreateDatasetFromH5AD, data_fileformat
+from ..asappy import asap
 
 import logging
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ def create_asap(sample,data_size,number_batches=1):
         data_size(int):
 			The total number of cells to analyze either from one data file or multiple files.
         number_batches(int):
-			The total number of batches to use for anlysis, each batch will have data_size cells.
+			The total number of batches to use for analysis, each batch will have data_size cells.
 	"""
 
 	filetype = data_fileformat()
@@ -40,9 +41,4 @@ def create_asap(sample,data_size,number_batches=1):
 	adata.initialize_data(dataset_list=dataset_list,batch_size=data_size)
 	return asap(adata,number_batches)
 
-
-class asap(object):
-	def __init__(self,adata : DataSet,number_batches:int):
-		self.adata = adata
-		self.number_batches = number_batches
 	

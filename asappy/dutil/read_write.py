@@ -56,9 +56,9 @@ class CreateDatasetFromH5:
 			print('processing...'+dataset)
 			
 			if ds_i ==0:
-				f = hf.File(self.outpath+fname+'.h5asap','w')
+				f = hf.File(self.outpath+fname+'.h5','w')
 			else:
-				f = hf.File(self.outpath+fname+'.h5asap','a')
+				f = hf.File(self.outpath+fname+'.h5','a')
 
 			grp = f.create_group(dataset)
 
@@ -116,9 +116,9 @@ class CreateDatasetFromMTX:
 			print('processing...'+sample)
 			
 			if si ==0:
-				f = hf.File(self.outpath+fname+'.h5asap','w')
+				f = hf.File(self.outpath+fname+'.h5','w')
 			else:
-				f = hf.File(self.outpath+fname+'.h5asap','a')
+				f = hf.File(self.outpath+fname+'.h5','a')
 
 			mm = mmread(self.inpath+sample+'/matrix.mtx.gz')
 			mtx = mm.todense()
@@ -164,7 +164,6 @@ class CreateDatasetFromMTX:
 			f.close()
 
 			print('completed.')
-
 
 class CreateDatasetFromH5AD:
 	def __init__(self,inpath):
@@ -228,9 +227,9 @@ class CreateDatasetFromH5AD:
 			print('processing...'+dataset)
 			
 			if ds_i ==0:
-				f = hf.File(self.outpath+fname+'.h5asap','w')
+				f = hf.File(self.outpath+fname+'.h5','w')
 			else:
-				f = hf.File(self.outpath+fname+'.h5asap','a')
+				f = hf.File(self.outpath+fname+'.h5','a')
 
 			grp = f.create_group(dataset)
 
@@ -257,7 +256,6 @@ class CreateDatasetFromH5AD:
 			print('Merging datasets...')
 			self.merge_data(fname)
 			print('completed.')
-
 
 def is_csr_or_csc(data, indptr, indices):
     num_rows = len(indptr) - 1
@@ -299,27 +297,26 @@ def convertMTXtoH5AD(infile,outfile):
 
 def write_model(asap_object):
 
-	f = hf.File(asap_object.adata.uns['inpath']+'.h5asap','a')
+	f = hf.File(asap_object.adata.uns['inpath']+'.h5','a')
 	
-	grp = f.create_group('pseudobulk')
+	outer_grp = f.create_group('asap')
+	grp = outer_grp.create_group('pseudobulk')
 	grp.create_dataset('pseudobulk_data',data=asap_object.pseudobulk['pb_data'],compression='gzip')
 
-	grp = f.create_group('nmf')
-	grp.create_dataset('nmf_beta',data=asap_object.nmf.beta,compression='gzip')
+	grp = outer_grp.create_group('nmf')
+	grp.create_dataset('beta',data=asap_object.nmf['beta'],compression='gzip')
+	grp.create_dataset('theta',data=asap_object.nmf['theta'],compression='gzip')
+	grp.create_dataset('corr',data=asap_object.nmf['corr'],compression='gzip')
 
-	grp = f.create_group('prediction')
-	if asap_object.adata.uns['run_full_data']:
-		grp.create_dataset('barcodes',data=asap_object.adata.obs['barcodes'].values,compression='gzip')
-	else:
-		grp.create_dataset('barcodes',data=asap_object.predict_barcodes,compression='gzip')
-
-	grp.create_dataset('correlation',data=asap_object.predict_corr,compression='gzip')
-	grp.create_dataset('theta',data=asap_object.predict_theta,compression='gzip')
-
-	asap_object.adata.uns['model_params']= asap_object.get_model_params()
-	grp = f.create_group('uns')
-	# grp.create_dataset(name="uns",shape=(len([i.encode("ascii","ignore") for i in json.dumps(asap_object.adata.uns)]),1),dtype="S10",data=[i.encode("ascii","ignore") for i in json.dumps(asap_object.adata.uns)])
 	f.close()
+
+	## TODO write params in separate txt file 
+	
+	asap_object.uns = {}
+	asap_object.uns['params']= asap_object.get_params()
+	asap_object.uns['params']['adata']= asap_object.adata.uns
+	grp = f.create_group('uns')
+
 
 
 def read_config(config_file):

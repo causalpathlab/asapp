@@ -14,7 +14,7 @@ class DataSet:
 		self.uns['inpath'] = './results/'+sample
 
 	def get_datainfo(self):
-		with tables.open_file(self.uns['inpath']+'.h5asap', 'r') as f:
+		with tables.open_file(self.uns['inpath']+'.h5', 'r') as f:
 			for group in f.walk_groups():
 				if '/' not in  group._v_name:
 					shape = getattr(group, 'shape').read()
@@ -22,7 +22,7 @@ class DataSet:
 
 	def get_dataset_names(self):
 		datasets = []
-		with tables.open_file(self.uns['inpath']+'.h5asap', 'r') as f:
+		with tables.open_file(self.uns['inpath']+'.h5', 'r') as f:
 			for group in f.walk_groups():
 				if '/' not in  group._v_name:
 					datasets.append(group._v_name)
@@ -34,7 +34,7 @@ class DataSet:
 		self.uns['dataset_list'] = dataset_list
 		self.uns['dataset_batch_size'] = {}
 
-		f = hf.File(self.uns['inpath']+'.h5asap', 'r')
+		f = hf.File(self.uns['inpath']+'.h5', 'r')
 
 		if len(self.uns['dataset_list']) == 1:
 			
@@ -67,7 +67,7 @@ class DataSet:
 
 		self._estimate_batch_mode(dataset_list, batch_size)
 
-		f = hf.File(self.uns['inpath']+'.h5asap', 'r')
+		f = hf.File(self.uns['inpath']+'.h5', 'r')
 
 		total_datasets = len(dataset_list)
 		genes = []
@@ -141,7 +141,7 @@ class DataSet:
 
 	def load_datainfo_batch(self,batch_index,start_index, end_index):
 
-		f = hf.File(self.uns['inpath']+'.h5asap', 'r')
+		f = hf.File(self.uns['inpath']+'.h5', 'r')
 		
 		if len(self.uns['dataset_list']) == 1:
 			ds = self.uns['dataset_list'][0]
@@ -176,7 +176,7 @@ class DataSet:
 			start_index = 0
 			end_index = self.uns['dataset_batch_size'][self.uns['dataset_list'][0]]
 
-			with tables.open_file(self.uns['inpath']+'.h5asap', 'r') as f:
+			with tables.open_file(self.uns['inpath']+'.h5', 'r') as f:
 				for group in f.walk_groups():
 					if self.uns['dataset_list'][0] == group._v_name:
 						data = getattr(group, 'data').read()
@@ -195,7 +195,7 @@ class DataSet:
 						return np.asarray(dat)
 		else:
 			mtx = []				
-			with tables.open_file(self.uns['inpath']+'.h5asap', 'r') as f:
+			with tables.open_file(self.uns['inpath']+'.h5', 'r') as f:
 
 				# need to loop sample to match initialize data barcode order
 				for ds_i,ds in enumerate(self.uns['dataset_list']):
@@ -232,7 +232,7 @@ class DataSet:
 		
 		if len(self.uns['dataset_list']) == 1:
 			
-			with tables.open_file(self.uns['inpath']+'.h5asap', 'r') as f:
+			with tables.open_file(self.uns['inpath']+'.h5', 'r') as f:
 				for group in f.walk_groups():
 					if self.uns['dataset_list'][0] == group._v_name:
 						data = getattr(group, 'data').read()
@@ -251,7 +251,7 @@ class DataSet:
 						return np.asarray(dat)
 		else:
 
-			with tables.open_file(self.uns['inpath']+'.h5asap', 'r') as f:
+			with tables.open_file(self.uns['inpath']+'.h5', 'r') as f:
 
 				# need to loop sample to match initialize data barcode order
 				for ds_i,ds in enumerate(self.uns['dataset_list']): 

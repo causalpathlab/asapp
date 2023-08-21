@@ -41,13 +41,13 @@ print(dl.inpath)
 print(dl.outpath)
 
 # 
-df_beta = pd.DataFrame(model['nmf_beta'].T)
+df_beta = pd.DataFrame(asap_object.nmf['beta'].T)
 df_beta.columns = dl.genes
 df_top = analysis.get_topic_top_genes(df_beta.iloc[:,:],top_n=3)
 df_top = df_top.pivot(index='Topic',columns='Gene',values='Proportion')
 df_top[df_top>50] = 50
 sns.clustermap(df_top.T,cmap='viridis')
-plt.savefig(dl.outpath+'_beta.png');plt.close()
+plt.savefig(outpath+'beta.png');plt.close()
 
 
 

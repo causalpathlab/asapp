@@ -72,7 +72,7 @@ def filter_pseudobulk(asap_object,pseudobulk_result,min_size=5):
     logging.info('Pseudo-bulk size :' +str(asap_object.pseudobulk['pb_data'].shape))
 
 def generate_pseudobulk(asap_object,tree_depth,downsample_pseudobulk=True,downsample_size=100,maxthreads=16,pseudobulk_filter_size=5):
-
+    asap_object.tree_depth = tree_depth
     asap_object.downsample_pseudobulk = downsample_pseudobulk
     asap_object.downsample_size = downsample_size
     
@@ -86,7 +86,7 @@ def generate_pseudobulk(asap_object,tree_depth,downsample_pseudobulk=True,downsa
     logging.info('Batch size... '+str(batch_size))
     logging.info('Data batch to process... '+str(asap_object.number_batches))
 
-    rp_mat = generate_random_projection_data(asap_object.adata.uns['shape'][1],tree_depth)
+    rp_mat = generate_random_projection_data(asap_object.adata.uns['shape'][1],asap_object.tree_depth)
     
     if total_cells<batch_size:
 
