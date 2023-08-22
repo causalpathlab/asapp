@@ -299,6 +299,6 @@ class DataSet:
 		barcodes = self.load_datainfo_batch(1,0,size)
 		df = pd.DataFrame(mtx)
 		df.index = barcodes
-		df.columns = self.genes
+		df.columns = self.var.genes.values
 		return df
 

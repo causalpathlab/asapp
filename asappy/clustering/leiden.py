@@ -6,8 +6,7 @@ import numpy as np
 from annoy import AnnoyIndex
 
 
-import louvain
-# import leidenalg
+import leidenalg
 import igraph as ig
 from scipy.sparse import csr_matrix
 import numpy as np
@@ -102,32 +101,30 @@ def compute_snn(knn, prune):
 
     return csr_matrix((data, (rows, columns)), shape=(num_cells, num_cells))
 
-
-
-def louvain_cluster(asap_adata,
+def leiden_cluster(asap_adata,
+                   mode = 'corr',
                    resolution=1.0,
-                   k=20,
+                   k=10,
                    prune=1 / 15,
                    random_seed=1,
                    n_iterations=-1,
                    n_starts=10):
-    ### 1. Compute snn
-    knn = run_ann(asap_adata.obsm['theta'], k)
+
+    knn = run_ann(asap_adata.obsm[mode], k)
     snn = compute_snn(knn, prune=prune)
 
-    ### 2. Get igraph from snn
     g = build_igraph(snn)
 
-    ### 3. Run 
     np.random.seed(random_seed)
     max_quality = -1
-    for i in range(n_starts):  # random starts to improve stability
+    for i in range(n_starts):  
         seed = np.random.randint(0, 1000)
-        kwargs = {'weights': g.es['weight'], 'resolution_parameter': resolution, 'seed': seed}  # parameters setting
-        part = louvain.find_partition(g, louvain.RBConfigurationVertexPartition, **kwargs)
+        kwargs = {'weights': g.es['weight'], 'resolution_parameter': resolution, 'seed': seed}  
+        part = leidenalg.find_partition(g, leidenalg.RBConfigurationVertexPartition, n_iterations=n_iterations, **kwargs)
 
         if part.quality() > max_quality:
             cluster = part.membership
             max_quality = part.quality()
 
     asap_adata.obs['cluster'] = cluster
+

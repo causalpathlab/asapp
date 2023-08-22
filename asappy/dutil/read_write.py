@@ -295,7 +295,7 @@ def convertMTXtoH5AD(infile,outfile):
 	
 	f.close()
 
-def write_model(asap_object):
+def save_model(asap_object):
 	import anndata as an
 	adata = an.AnnData(shape=(len(asap_object.adata.obs.barcodes),len(asap_object.adata.var.genes)))
 	adata.obs_names = [ x for x in asap_object.adata.obs.barcodes]

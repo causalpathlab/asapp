@@ -1,1 +1,1 @@
-from .louvain import louvain_cluster
+from .leiden import leiden_cluster
