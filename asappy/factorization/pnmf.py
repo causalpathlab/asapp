@@ -52,6 +52,7 @@ def asap_nmf(asap_object,num_factors,maxthreads=16):
 		asap_object.adata.varm = {}
 		asap_object.adata.obsm = {}
 		asap_object.adata.varm['beta'] = nmfres.beta
+		asap_object.adata.uns['pseudobulk']['pb_theta'] = nmfres.theta
 
 		if total_cells<batch_size:
 

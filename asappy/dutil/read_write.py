@@ -26,7 +26,7 @@ class CreateDatasetFromH5:
 			', genes : ' + str(f['matrix']['features']['id'].shape[0]))
 			f.close()
 
-	def merge_genes(self,filter_genes = None):
+	def merge_genes(self,select_genes = None):
 		final_genes = []
 		for ds_i, ds in enumerate(self.datasets):
 			f = hf.File(ds, 'r')
@@ -38,12 +38,16 @@ class CreateDatasetFromH5:
 			f.close()
 
 		self.genes = list(final_genes)
+
+		if isinstance(select_genes,list):
+			self.genes = [ x for x in self.genes if x in select_genes]
+
 		self.dataset_selected_gene_indices = {}
 
 		for ds_i, ds in enumerate(self.datasets):
 			f = hf.File(ds, 'r')
 			current_genes = set([x.decode('utf-8') for x in list(f['matrix']['features']['id']) ])
-			self.dataset_selected_gene_indices[os.path.basename(ds).replace('.h5','')] = [index for index, element in enumerate(current_genes) if element in final_genes]      
+			self.dataset_selected_gene_indices[os.path.basename(ds).replace('.h5','')] = [index for index, element in enumerate(current_genes) if element in self.genes]      
 			f.close()
 	
 	def merge_data(self,fname):
@@ -80,9 +84,9 @@ class CreateDatasetFromH5:
 
 			f.close()
 
-	def create_asapdata(self,fname):
+	def create_asapdata(self,fname,select_genes=None):
 			print('Generating common genes...')
-			self.merge_genes()
+			self.merge_genes(select_genes)
 			print('Merging datasets...')
 			self.merge_data(fname)
 			print('completed.')

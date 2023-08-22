@@ -1,8 +1,10 @@
 
 # Ignore all data files
 /data/
+/node_data/
 /database/
 /results/
+/node_results/
 
 # Ignore external modules
 /asap/external/

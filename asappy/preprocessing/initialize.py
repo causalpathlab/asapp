@@ -12,7 +12,7 @@ from ..asappy import asap
 import logging
 logger = logging.getLogger(__name__)
 
-def create_asap(sample,data_size,number_batches=1):
+def create_asap(sample,data_size,number_batches=1,select_genes=None):
 	
 	"""        
     Attributes:
@@ -29,7 +29,7 @@ def create_asap(sample,data_size,number_batches=1):
 	if filetype == 'h5':
 		ds = CreateDatasetFromH5('./data/') 
 		print(ds.peek_datasets())
-		ds.create_asapdata(sample) 
+		ds.create_asapdata(sample,select_genes) 
 	elif filetype == 'h5ad':
 		ds = CreateDatasetFromH5AD('./data/') 
 		print(ds.peek_datasets())

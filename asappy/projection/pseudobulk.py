@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 def generate_random_projection_data(var_dims,tree_depth):
     return projection_data(tree_depth,var_dims)
 
-def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat,result_queue,lock,sema):
+def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat,normalization,result_queue,lock,sema):
 
     if batch_i <= asap_object.adata.uns['number_batches']:
 
@@ -25,6 +25,7 @@ def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat,r
             rp_mat, 
             asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],
             str(batch_i) +'_' +str(start_index)+'_'+str(end_index),
+            normalization,
             result_queue
             )
         sema.release()			
@@ -71,7 +72,7 @@ def filter_pseudobulk(asap_object,pseudobulk_result,min_size=5):
 
     logging.info('Pseudo-bulk size :' +str(asap_object.adata.uns['pseudobulk']['pb_data'].shape))
 
-def generate_pseudobulk(asap_object,tree_depth,downsample_pseudobulk=True,downsample_size=100,maxthreads=16,pseudobulk_filter_size=5):
+def generate_pseudobulk(asap_object,tree_depth,normalization='totalcount',downsample_pseudobulk=True,downsample_size=100,maxthreads=16,pseudobulk_filter_size=5):
     asap_object.adata.uns['tree_depth'] = tree_depth
     asap_object.adata.uns['downsample_pseudobulk'] = downsample_pseudobulk
     asap_object.adata.uns['downsample_size'] = downsample_size
@@ -90,7 +91,7 @@ def generate_pseudobulk(asap_object,tree_depth,downsample_pseudobulk=True,downsa
     
     if total_cells<batch_size:
 
-        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full')
+        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full',normalization)
 
     else:
 
@@ -103,7 +104,7 @@ def generate_pseudobulk(asap_object,tree_depth,downsample_pseudobulk=True,downsa
 
             iend = min(istart + batch_size, total_cells)
                             
-            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat,result_queue,lock,sema))
+            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat,normalization,result_queue,lock,sema))
             
             threads.append(thread)
             thread.start()

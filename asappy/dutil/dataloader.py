@@ -79,8 +79,8 @@ class DataSet:
 		if total_datasets == 1 and self.uns['run_full_data'] :
 			
 			genes = [x.decode('utf-8') for x in f[self.uns['dataset_list'][0]]['genes'][()]]
-			shape = f[self.uns['dataset_list'][0]]['shape'][()]
 			barcodes = [x.decode('utf-8') for x in f[self.uns['dataset_list'][0]]['barcodes'][()]]
+			shape = [len(barcodes),len(genes)]
 			f.close()
 
 			mtx = self.load_full_data()
@@ -105,7 +105,8 @@ class DataSet:
 		elif total_datasets == 1 and not self.uns['run_full_data'] :
 		
 			genes = [x.decode('utf-8') for x in f[self.uns['dataset_list'][0]]['genes'][()]]
-			shape = f[self.uns['dataset_list'][0]]['shape'][()]
+			len_barcodes = f[self.uns['dataset_list'][0]]['shape'][()][0]
+			shape = [len_barcodes,len(genes)]
 			
 			barcodes = None
 			mtx = None
@@ -120,6 +121,7 @@ class DataSet:
 			len_barcodes = 0
 			for ds in self.uns['dataset_list']:
 				len_barcodes += f[ds]['shape'][()][0]
+
 			shape = [len_barcodes,len(genes)]
 			
 			barcodes = None
@@ -184,6 +186,7 @@ class DataSet:
 						indices = getattr(group, 'indices').read()
 						indptr = getattr(group, 'indptr').read()
 						shape = getattr(group, 'shape').read()
+						dataset_selected_gene_indices = getattr(group, 'dataset_selected_gene_indices').read()
 
 						dat = []
 						for ci in range(start_index,end_index,1):
@@ -193,7 +196,10 @@ class DataSet:
 							np.array([0,len(indices[indptr[ci]:indptr[ci+1]])])), 
 							shape=(1,shape[1])).todense()).flatten())
 						
-						return np.asarray(dat)
+						dat = np.asarray(dat)
+						dat = dat[:,dataset_selected_gene_indices]
+
+						return dat
 		else:
 			mtx = []				
 			with tables.open_file(self.uns['inpath']+'.h5', 'r') as f:
@@ -240,6 +246,7 @@ class DataSet:
 						indices = getattr(group, 'indices').read()
 						indptr = getattr(group, 'indptr').read()
 						shape = getattr(group, 'shape').read()
+						dataset_selected_gene_indices = getattr(group, 'dataset_selected_gene_indices').read()
 
 						dat = []
 						for ci in range(start_index,end_index,1):
@@ -249,7 +256,10 @@ class DataSet:
 							np.array([0,len(indices[indptr[ci]:indptr[ci+1]])])), 
 							shape=(1,shape[1])).todense()).flatten())
 						
-						return np.asarray(dat)
+						dat = np.asarray(dat)
+						dat = dat[:,dataset_selected_gene_indices]
+
+						return dat
 		else:
 
 			with tables.open_file(self.uns['inpath']+'.h5', 'r') as f:

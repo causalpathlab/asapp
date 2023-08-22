@@ -3,6 +3,7 @@ import pandas as pd
 import logging
 from sklearn.utils.extmath import randomized_svd
 from sklearn.preprocessing import StandardScaler
+from ..preprocessing.normalize import normalize_total_count
 import random
 logger = logging.getLogger(__name__)
 
@@ -37,14 +38,10 @@ def sample_pseudo_bulk(pseudobulk_map,sample_size):
             pseudobulk_map_sample[key] = value
     return pseudobulk_map_sample     
 
-def get_pseudobulk(omtx,rp_mat,downsample_pseudobulk,downsample_size,mode,res=None):
-    import anndata as an
-    import scanpy as sc
-
-    adata = an.AnnData(omtx.T)
-    sc.pp.filter_cells(adata,min_counts=1e3)
-    sc.pp.normalize_total(adata,exclude_highly_expressed=True,target_sum=1e6)
-    mtx = adata.X.T
+def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normalization,res=None):   
+    if normalization =='totalcount':
+        logging.info('Using total count normaliztion.')
+        mtx = normalize_total_count(mtx)
     
     pseudobulk_map = get_projection_map(mtx,rp_mat)
 
