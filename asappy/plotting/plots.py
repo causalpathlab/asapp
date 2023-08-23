@@ -21,6 +21,36 @@ def plot_umap(asap_adata,col='cluster'):
 		panel_background = element_rect(fill='white'))
 	p.save(filename = asap_adata.uns['inpath']+'_'+col+'_'+'umap.png', height=5, width=8, units ='in', dpi=300)
 
+def plot_structure(asap_adata,mode):
+
+	df = pd.DataFrame(asap_adata.obsm[mode])
+	df.columns = ['t'+str(x) for x in df.columns]
+	df.reset_index(inplace=True)
+	df['cluster'] = asap_adata.obs['cluster'].values
+	dfm = pd.melt(df,id_vars=['index','cluster'])
+	dfm.columns = ['id','cluster','topic','value']
+
+	dfm['id'] = pd.Categorical(dfm['id'])
+	dfm['cluster'] = pd.Categorical(dfm['cluster'])
+	dfm['topic'] = pd.Categorical(dfm['topic'])
+	
+	col_vector = [
+    '#a6cee3', '#1f78b4', '#b2df8a', '#33a02c',
+    '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00',
+    '#cab2d6', '#6a3d9a', '#ffff99', '#b15928'
+	]
+	
+	p = (ggplot(data=dfm, mapping=aes(x='id', y='value', fill='topic')) +
+	    geom_bar(position="stack", stat="identity", size=0) +
+	    scale_fill_manual(values=col_vector) +
+    	facet_grid('~ cluster', scales='free', space='free'))
+	
+	p = p + theme(
+		plot_background=element_rect(fill='white'),
+		panel_background = element_rect(fill='white'),
+		axis_text_x=element_blank())
+	p.save(filename = asap_adata.uns['inpath']+'_'+mode+'_'+'struct.png', height=5, width=15, units ='in', dpi=300)
+
 def plot_gene_loading(asap_adata,max_thresh=None):
 
 	import seaborn as sns
@@ -163,31 +193,31 @@ def plot_gene_loading(asap_adata,max_thresh=None):
 # 	) + labs(title='Gene depth var analysis', x='Cell groups ', y='variation')
 # 	p.save(filename = outfile, height=6, width=8, units ='in', dpi=300)
 
-# def plot_stats(df,batch_label,outfile):
+def plot_stats(df,batch_label,outfile):
 
-# 	from plotnine import (
-# 		ggplot,
-# 		ggtitle,
-# 		aes,
-# 		geom_density,
-# 		theme,
-# 		element_rect,
-# 		facet_wrap
-# 	)
+	from plotnine import (
+		ggplot,
+		ggtitle,
+		aes,
+		geom_density,
+		theme,
+		element_rect,
+		facet_wrap
+	)
 
-# 	dfp = pd.DataFrame(df.sum(1),columns=['depth'])
-# 	dfp['mean'] = df.mean(1)
-# 	dfp['var'] = df.var(1)
-# 	dfp['batch'] = batch_label
+	dfp = pd.DataFrame(df.sum(1),columns=['depth'])
+	dfp['mean'] = df.mean(1)
+	dfp['var'] = df.var(1)
+	dfp['batch'] = batch_label
 
-# 	dfpm = pd.melt(dfp,id_vars=['batch'])
+	dfpm = pd.melt(dfp,id_vars=['batch'])
 
-# 	p = ggplot(dfpm, aes(x='value',fill='batch')) + geom_density(alpha=0.8) + facet_wrap('~ variable', ncol=1,scales='free')
-# 	p = p + theme(
-# 		plot_background=element_rect(fill='white'),
-# 		panel_background = element_rect(fill='white')
-# 	) + ggtitle('stats')
-# 	p.save(filename = outfile, height=6, width=8, units ='in', dpi=300)
+	p = ggplot(dfpm, aes(x='value',fill='batch')) + geom_density(alpha=0.8) + facet_wrap('~ variable', ncol=1,scales='free')
+	p = p + theme(
+		plot_background=element_rect(fill='white'),
+		panel_background = element_rect(fill='white')
+	) + ggtitle('stats')
+	p.save(filename = outfile, height=6, width=8, units ='in', dpi=300)
 
 # def pbulk_hist(asap):
 # 	if len(asap.pbulkd) ==1 :

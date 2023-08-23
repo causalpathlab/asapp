@@ -1,1 +1,1 @@
-from .plots import plot_umap, plot_gene_loading
+from .plots import plot_umap, plot_gene_loading, plot_structure, plot_stats

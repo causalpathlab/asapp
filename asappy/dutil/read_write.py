@@ -91,6 +91,102 @@ class CreateDatasetFromH5:
 			self.merge_data(fname)
 			print('completed.')
 
+class CreateDatasetFromH5AD:
+	def __init__(self,inpath):
+		self.inpath = inpath
+		self.datasets = glob.glob(inpath+'*.h5ad')
+
+	def check_label(self):
+		for ds in self.datasets:
+			f = hf.File(ds, 'r')
+			if '_index' not in f['obs'].keys():
+				print(os.path.basename(ds))
+				print(f['obs'].keys())
+			f.close()
+
+	def update_label(self):
+		for ds in self.datasets:
+			f = hf.File(ds, 'r+')
+			if '_index' not in f['obs'].keys():
+				print(os.path.basename(ds))
+				if 'cell_id' in f['obs'].keys():
+					f['obs']['_index'] = f['obs']['cell_id']
+				elif 'index' in f['obs'].keys():
+					f['obs']['_index'] = f['obs']['index']
+			f.close()
+
+	def peek_datasets(self):
+		for ds in self.datasets:
+			f = hf.File(ds, 'r')
+			print('Dataset : '+ os.path.basename(ds).replace('.h5ad','') 
+	 		+' , cells : '+ str(len(f['obs']['_index'])) + 
+			', genes : ' + str(f['var']['feature_name']['categories'].shape[0]))
+			f.close()
+
+	def merge_genes(self,select_genes = None):
+		final_genes = []
+		for ds_i, ds in enumerate(self.datasets):
+			f = hf.File(ds, 'r')
+			if ds_i ==0:
+				final_genes = set([x.decode('utf-8') for x in list(f['var']['feature_name']['categories']) ])
+			else:
+				current_genes = set([x.decode('utf-8') for x in list(f['var']['feature_name']['categories']) ])
+				final_genes = final_genes.intersection(current_genes)
+			f.close()
+
+		self.genes = list(final_genes)
+		if isinstance(select_genes,list):
+			self.genes = [ x for x in self.genes if x in select_genes]
+
+		self.dataset_selected_gene_indices = {}
+
+		for ds_i, ds in enumerate(self.datasets):
+			f = hf.File(ds, 'r')
+			current_genes = set([x.decode('utf-8') for x in list(f['var']['feature_name']['categories']) ])
+			self.dataset_selected_gene_indices[os.path.basename(ds).replace('.h5ad','')] = [index for index, element in enumerate(current_genes) if element in self.genes]      
+			f.close()
+	
+	def merge_data(self,fname):
+	
+		for ds_i,ds in enumerate(self.datasets):
+
+			dataset = os.path.basename(ds).replace('.h5ad','')
+			dataset_f = hf.File(ds, 'r')
+
+			print('processing...'+dataset)
+			
+			if ds_i ==0:
+				f = hf.File(self.outpath+fname+'.h5','w')
+			else:
+				f = hf.File(self.outpath+fname+'.h5','a')
+
+			grp = f.create_group(dataset)
+
+			grp.create_dataset('barcodes', data = dataset_f['obs']['_index'] ,compression='gzip')
+			grp.create_dataset('genes',data=self.genes,compression='gzip')
+
+			grp.create_dataset('indptr',data=dataset_f['X']['indptr'],compression='gzip')
+			grp.create_dataset('indices',data=dataset_f['X']['indices'],compression='gzip')
+			grp.create_dataset('data',data=dataset_f['X']['data'],compression='gzip')
+
+			
+			data_shape = np.array([dataset_f['obs']['_index'].shape[0],
+			dataset_f['var']['feature_name']['categories'].shape[0]])
+
+			grp.create_dataset('shape',data=data_shape)
+			
+			grp.create_dataset('dataset_selected_gene_indices',data=self.dataset_selected_gene_indices[dataset],compression='gzip')
+
+			f.close()
+
+	def create_asapdata(self,fname,select_genes = None):
+			print('Generating common genes...')
+			self.merge_genes(select_genes)
+			print('Merging datasets...')
+			self.merge_data(fname)
+			print('completed.')
+
+
 class CreateDatasetFromMTX:
 	def __init__(self,inpath,sample_names):
 		self.inpath = inpath
@@ -167,98 +263,6 @@ class CreateDatasetFromMTX:
 			
 			f.close()
 
-			print('completed.')
-
-class CreateDatasetFromH5AD:
-	def __init__(self,inpath):
-		self.inpath = inpath
-		self.datasets = glob.glob(inpath+'*.h5ad')
-
-	def check_label(self):
-		for ds in self.datasets:
-			f = hf.File(ds, 'r')
-			if '_index' not in f['obs'].keys():
-				print(os.path.basename(ds))
-				print(f['obs'].keys())
-			f.close()
-
-	def update_label(self):
-		for ds in self.datasets:
-			f = hf.File(ds, 'r+')
-			if '_index' not in f['obs'].keys():
-				print(os.path.basename(ds))
-				if 'cell_id' in f['obs'].keys():
-					f['obs']['_index'] = f['obs']['cell_id']
-				elif 'index' in f['obs'].keys():
-					f['obs']['_index'] = f['obs']['index']
-			f.close()
-
-	def peek_datasets(self):
-		for ds in self.datasets:
-			f = hf.File(ds, 'r')
-			print('Dataset : '+ os.path.basename(ds).replace('.h5ad','') 
-	 		+' , cells : '+ str(len(f['obs']['_index'])) + 
-			', genes : ' + str(f['var']['feature_name']['categories'].shape[0]))
-			f.close()
-
-	def merge_genes(self,filter_genes = None):
-		final_genes = []
-		for ds_i, ds in enumerate(self.datasets):
-			f = hf.File(ds, 'r')
-			if ds_i ==0:
-				final_genes = set([x.decode('utf-8') for x in list(f['var']['feature_name']['categories']) ])
-			else:
-				current_genes = set([x.decode('utf-8') for x in list(f['var']['feature_name']['categories']) ])
-				final_genes = final_genes.intersection(current_genes)
-			f.close()
-
-		self.genes = list(final_genes)
-		self.dataset_selected_gene_indices = {}
-
-		for ds_i, ds in enumerate(self.datasets):
-			f = hf.File(ds, 'r')
-			current_genes = set([x.decode('utf-8') for x in list(f['var']['feature_name']['categories']) ])
-			self.dataset_selected_gene_indices[os.path.basename(ds).replace('.h5ad','')] = [index for index, element in enumerate(current_genes) if element in final_genes]      
-			f.close()
-	
-	def merge_data(self,fname):
-	
-		for ds_i,ds in enumerate(self.datasets):
-
-			dataset = os.path.basename(ds).replace('.h5ad','')
-			dataset_f = hf.File(ds, 'r')
-
-			print('processing...'+dataset)
-			
-			if ds_i ==0:
-				f = hf.File(self.outpath+fname+'.h5','w')
-			else:
-				f = hf.File(self.outpath+fname+'.h5','a')
-
-			grp = f.create_group(dataset)
-
-			grp.create_dataset('barcodes', data = dataset_f['obs']['_index'] ,compression='gzip')
-			grp.create_dataset('genes',data=self.genes,compression='gzip')
-
-			grp.create_dataset('indptr',data=dataset_f['X']['indptr'],compression='gzip')
-			grp.create_dataset('indices',data=dataset_f['X']['indices'],compression='gzip')
-			grp.create_dataset('data',data=dataset_f['X']['data'],compression='gzip')
-
-			
-			data_shape = np.array([dataset_f['obs']['_index'].shape[0],
-			dataset_f['var']['feature_name']['categories'].shape[0]])
-
-			grp.create_dataset('shape',data=data_shape)
-			
-			grp.create_dataset('dataset_selected_gene_indices',data=self.dataset_selected_gene_indices[dataset],compression='gzip')
-
-			f.close()
-
-	def create_asapdata(self,fname):
-			print('Generating common genes...')
-			self.merge_genes()
-			print('Merging datasets...')
-			self.merge_data(fname)
 			print('completed.')
 
 def is_csr_or_csc(data, indptr, indices):

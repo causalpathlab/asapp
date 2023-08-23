@@ -1,1 +1,1 @@
-from .analysis import run_umap
+from .analysis import run_umap, pmf2topic
