@@ -81,7 +81,11 @@ def build_igraph(snn):
     return g
 
 def compute_snn(knn, prune):
-    """helper function to compute the SNN graph"""
+    """helper function to compute the SNN graph
+    
+    https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6280782/
+    
+    """
     # int for indexing
     knn = knn.astype(np.int32)
 

@@ -39,7 +39,7 @@ def run_umap(asap_adata,
 						n_neighbors=n_neighbors, min_dist=min_dist,
 						random_state=rand_seed).fit_transform(asap_adata.obsm[mode])
 
-	asap_adata.obsm['umap_coords'] =  asap_adata.obsm['umap_coords'] = umap_coords	
+	asap_adata.obsm['umap_coords'] = umap_coords	
 
 
 def pmf2topic(beta, theta, eps=1e-8):

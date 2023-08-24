@@ -94,6 +94,7 @@ class CreateDatasetFromH5:
 class CreateDatasetFromH5AD:
 	def __init__(self,inpath):
 		self.inpath = inpath
+		self.outpath = './results/'
 		self.datasets = glob.glob(inpath+'*.h5ad')
 
 	def check_label(self):
@@ -137,7 +138,6 @@ class CreateDatasetFromH5AD:
 		self.genes = list(final_genes)
 		if isinstance(select_genes,list):
 			self.genes = [ x for x in self.genes if x in select_genes]
-
 		self.dataset_selected_gene_indices = {}
 
 		for ds_i, ds in enumerate(self.datasets):

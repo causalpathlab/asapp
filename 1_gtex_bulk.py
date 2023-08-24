@@ -2,14 +2,19 @@
 ##### whole blood nmf
 ######################################################
 
+sample = 'bloodbulk'
+outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/results/'+sample
+######################################################
+##### whole blood nmf
+######################################################
+
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 import h5py as hf
 
-outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/results/bulk_'
-
-df = pd.read_csv('node_data/gtex_bulk/gene_reads_2017-06-05_v8_whole_blood.gct.gz',sep='\t',skiprows=2)
+bf = 'gene_reads_2017-06-05_v8_breast_mammary_tissue.gct.gz'
+df = pd.read_csv('node_data/gtex_bulk/'+bf,sep='\t',skiprows=2)
 df = df[~df['Description'].str.contains('MT-')]
 df = df[~df['Description'].str.contains('_RNA')]
 df = df[~df['Description'].str.contains('_rRNA')]
@@ -20,9 +25,14 @@ df = df.iloc[1:,:]
 
 df.columns = [x.split('.')[0] for x in df.columns]
 
-f = hf.File('node_results/pbmc_results/pbmc.h5','r')  
-sc_genes = [x.decode('utf-8') for x in f['pbmc']['genes']]
+# f = hf.File('node_results/pbmc_results/pbmc.h5','r')  
+# sc_genes = [x.decode('utf-8') for x in f['pbmc']['genes']]
+# f.close()
+
+f = hf.File('data/gtex_scbreast.h5ad','r')  
+sc_genes = [x.decode('utf-8') for x in f['var']['feature_name']['categories']]
 f.close()
+
 common_genes = [x for x in sc_genes if x in df.columns]
 common_genes = list(set(common_genes))
 common_genes.sort()
@@ -55,7 +65,6 @@ np.savez(outpath+'_nmf',
 ##### bulk analysis
 ######################################################
 
-outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/results/bulk'
 import asappy
 import anndata as an
 import numpy as np
@@ -64,7 +73,7 @@ import pandas as pd
 model = np.load(outpath+'_nmf.npz',allow_pickle=True)
 asapadata = an.AnnData(shape=(model['theta'].shape[0],model['beta'].shape[0]))
 asapadata.obs_names = [ 'b'+str(x) for x in range(model['theta'].shape[0])]
-asapadata.var_names = pd.read_csv('./results/bulk_common_genes.csv').values.flatten()
+asapadata.var_names = pd.read_csv('./results/lungbulk_common_genes.csv').values.flatten()
 asapadata.varm['beta'] = model['beta']
 asapadata.obsm['theta'] = model['theta']
 asapadata.obsm['corr'] = model['corr']
@@ -87,8 +96,8 @@ asappy.plot_structure(asapadata,'theta_n')
 ######################################################
 import asappy
 import pandas as pd
-select_genes = list(pd.read_csv('./results/bulk_common_genes.csv').values.flatten())
-asap_object = asappy.create_asap('pbmc',data_size= 25000,select_genes=select_genes)
+select_genes = list(pd.read_csv('./results/'+sample+'common_genes.csv').values.flatten())
+asap_object = asappy.create_asap('gtex_scbreast',data_size= 35000,select_genes=select_genes)
 asappy.generate_pseudobulk(asap_object,tree_depth=10)
 asappy.asap_nmf(asap_object,num_factors=10)
 asappy.save_model(asap_object)
@@ -100,7 +109,7 @@ asappy.save_model(asap_object)
 ######################################################
 import anndata as an
 
-asapadata = an.read_h5ad('./results/pbmc.h5asap')
+asapadata = an.read_h5ad('./results/'+sample+'.h5asap')
 asappy.leiden_cluster(asapadata,k=10,mode='corr',resolution=0.1)
 asappy.run_umap(asapadata,min_dist=0.4)
 asappy.plot_umap(asapadata,col='cluster')
@@ -148,7 +157,7 @@ dfbulk = dfbulk.T
 dfbulk.columns = dfbulk.iloc[0,:]
 dfbulk = dfbulk.iloc[1:,:]
 dfbulk.columns = [x.split('.')[0] for x in dfbulk.columns]
-dfbulk = dfbulk[pd.read_csv('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/results/bulk_common_genes.csv').values.flatten()]
+dfbulk = dfbulk[pd.read_csv('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/results/'+sample+'common_genes.csv').values.flatten()]
 dfbulk = dfbulk.loc[:, ~dfbulk.columns.duplicated()]
 dfbulk = dfbulk.astype(float)
 dfbulk  = dfbulk.div(dfbulk.sum(1),axis=0) * 1e4
@@ -227,10 +236,10 @@ from sklearn.preprocessing import StandardScaler
 
 
 
-scadata = an.read_h5ad('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/results/pbmc.h5asap')
+scadata = an.read_h5ad('./results/gtex_scbreast.h5asap')
 
 ### bulk raw data
-dfbulk = pd.read_csv('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/node_data/gtex_bulk/gene_reads_2017-06-05_v8_whole_blood.gct.gz',sep='\t',skiprows=2)
+dfbulk = pd.read_csv('node_data/gtex_bulk/'+bf,sep='\t',skiprows=2)
 dfbulk = dfbulk[~dfbulk['Description'].str.contains('MT-')]
 dfbulk = dfbulk[~dfbulk['Description'].str.contains('_RNA')]
 dfbulk = dfbulk[~dfbulk['Description'].str.contains('_rRNA')]
@@ -239,7 +248,7 @@ dfbulk = dfbulk.T
 dfbulk.columns = dfbulk.iloc[0,:]
 dfbulk = dfbulk.iloc[1:,:]
 dfbulk.columns = [x.split('.')[0] for x in dfbulk.columns]
-dfbulk = dfbulk[pd.read_csv('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/results/bulk_common_genes.csv').values.flatten()]
+dfbulk = dfbulk[pd.read_csv('/home/BCCRC.CA/ssubedi/projects/experiments/asapp/results/bloodbulkcommon_genes.csv').values.flatten()]
 dfbulk = dfbulk.loc[:, ~dfbulk.columns.duplicated()]
 dfbulk = dfbulk.astype(float)
 dfbulk  = dfbulk.div(dfbulk.sum(1),axis=0) * 1e4
@@ -281,5 +290,7 @@ pyliger.run_umap(ifnb_liger, distance = 'cosine', n_neighbors = 30, min_dist = 0
 all_plots = pyliger.plot_by_dataset_and_cluster(ifnb_liger, axis_labels = ['UMAP 1', 'UMAP 2'], return_plots = True)
 
 import matplotlib.pylab as plt
-for i,plot in enumerate(all_plots):
-        plt.savefig('test'+str(i)+'_.png');plt.close()
+
+i = 1
+for plot in enumerate(all_plots):
+        plt.savefig(outpath+'liger'+str(i)+'_.png');plt.close();i+=1

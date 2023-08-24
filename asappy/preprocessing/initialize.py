@@ -8,6 +8,7 @@ import os
 
 from ..dutil import DataSet, CreateDatasetFromH5, CreateDatasetFromMTX, CreateDatasetFromH5AD, data_fileformat
 from ..asappy import asap
+from ..util.logging import setlogger
 
 import logging
 logger = logging.getLogger(__name__)
@@ -24,6 +25,8 @@ def create_asap(sample,data_size,number_batches=1,select_genes=None):
 			The total number of batches to use for analysis, each batch will have data_size cells.
 	"""
 
+	setlogger(sample)
+	logging.info('Creating asap data.')
 	filetype = data_fileformat()
 	## read source files and create dataset for asap
 	if filetype == 'h5':
@@ -33,7 +36,9 @@ def create_asap(sample,data_size,number_batches=1,select_genes=None):
 	elif filetype == 'h5ad':
 		ds = CreateDatasetFromH5AD('./data/') 
 		print(ds.peek_datasets())
-		ds.create_asapdata(sample) 
+		ds.create_asapdata(sample,select_genes) 
+	
+	logging.info('Completed asap data.')
 
 	## create anndata like object for asap 
 	adata = DataSet(sample,number_batches)
