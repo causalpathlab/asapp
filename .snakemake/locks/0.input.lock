@@ -1,0 +1,3 @@
+data/sim_p_0.8_d_0.1_r_0.1_s_200_sd_1.h5
+scripts/asap_step1.py
+/data/sishir/database/dice_immune_bulkrna/CD8_NAIVE_TPM.csv

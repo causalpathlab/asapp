@@ -14,7 +14,7 @@ import numpy as np
 import numpy as np
 
 
-def run_ann(theta, k, num_trees=None):
+def run_ann(theta,k, num_trees=None):
 
     num_observations = theta.shape[0]
     # decide number of trees
@@ -29,7 +29,7 @@ def run_ann(theta, k, num_trees=None):
             num_trees = 100
 
     # build knn graph
-    t = AnnoyIndex(k, 'angular')
+    t = AnnoyIndex(theta.shape[1], 'angular')
     for i in range(num_observations):
         t.add_item(i, theta[i])
     t.build(num_trees)
@@ -114,7 +114,7 @@ def leiden_cluster(asap_adata,
                    n_iterations=-1,
                    n_starts=10):
 
-    knn = run_ann(asap_adata.obsm[mode], k)
+    knn = run_ann(asap_adata.obsm[mode],k)
     snn = compute_snn(knn, prune=prune)
 
     g = build_igraph(snn)

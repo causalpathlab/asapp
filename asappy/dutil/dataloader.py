@@ -61,7 +61,7 @@ class DataSet:
 			else:
 				self.uns['run_full_data'] = False
 				for ds in self.uns['dataset_list']:
-					self.uns['dataset_batch_size'][ds] = int(((f[ds]['shape'][()][0])/n_cells ) * self.batch_size)
+					self.uns['dataset_batch_size'][ds] = int(((f[ds]['shape'][()][0])/n_cells ) * batch_size)
 		f.close()
 
 	def initialize_data(self,dataset_list,batch_size):

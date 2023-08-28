@@ -77,8 +77,13 @@ def generate_pseudobulk(asap_object,tree_depth,normalization='totalcount',downsa
     asap_object.adata.uns['downsample_pseudobulk'] = downsample_pseudobulk
     asap_object.adata.uns['downsample_size'] = downsample_size
     
-    logging.info('Pseudo-bulk generation...')
-    
+    logging.info('Pseudo-bulk generation... \n'+
+        'tree_depth : ' + str(tree_depth)+'\n'+
+        'downsample_pseudobulk :' + str(downsample_pseudobulk)+'\n'+
+        'downsample_size :' + str(downsample_size)+'\n'+
+        'pseudobulk_filter_size :' + str(pseudobulk_filter_size)+'\n'
+        )
+
     total_cells = asap_object.adata.uns['shape'][0]
     total_genes = asap_object.adata.uns['shape'][1]
     batch_size = asap_object.adata.uns['batch_size']

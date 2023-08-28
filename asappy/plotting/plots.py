@@ -3,7 +3,7 @@ import numpy as np
 from plotnine import *
 from ..util.analysis import get_topic_top_genes
 
-def plot_umap(asap_adata,col='cluster'):
+def plot_umap(asap_adata,col):
 	
 	df_umap = pd.DataFrame(asap_adata.obsm['umap_coords'],columns=['umap1','umap2'])
 	df_umap[col] = pd.Categorical(asap_adata.obs[col].values)
@@ -20,6 +20,21 @@ def plot_umap(asap_adata,col='cluster'):
 		plot_background=element_rect(fill='white'),
 		panel_background = element_rect(fill='white'))
 	p.save(filename = asap_adata.uns['inpath']+'_'+col+'_'+'umap.png', height=5, width=8, units ='in', dpi=300)
+
+def plot_umap_df(df_umap,col,fname):
+
+	pt_size=0.1
+	legend_size=7
+	
+	p = (ggplot(data=df_umap, mapping=aes(x='umap1', y='umap2', color=col)) +
+		geom_point(size=pt_size) +
+		scale_colour_brewer(type="qual", palette="Paired")+
+		guides(color=guide_legend(override_aes={'size': legend_size})))
+	
+	p = p + theme(
+		plot_background=element_rect(fill='white'),
+		panel_background = element_rect(fill='white'))
+	p.save(filename = fname+'_'+col+'_'+'umap.png', height=5, width=8, units ='in', dpi=300)
 
 def plot_structure(asap_adata,mode):
 

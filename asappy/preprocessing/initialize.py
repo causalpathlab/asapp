@@ -26,7 +26,17 @@ def create_asap(sample,data_size,number_batches=1,select_genes=None):
 	"""
 
 	setlogger(sample)
-	logging.info('Creating asap data.')
+	
+	number_of_selected_genes = 0
+	if isinstance(select_genes,list):
+		number_of_selected_genes = len(select_genes)
+
+	logging.info('Creating asap data... \n'+
+	      'data_size :' + str(data_size)+'\n'+
+	      'number_batches :' + str(number_batches)+'\n'+
+	      'number_of_selected_genes :' + str(number_of_selected_genes)+'\n'
+		  )
+	
 	filetype = data_fileformat()
 	## read source files and create dataset for asap
 	if filetype == 'h5':

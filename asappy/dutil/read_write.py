@@ -186,7 +186,6 @@ class CreateDatasetFromH5AD:
 			self.merge_data(fname)
 			print('completed.')
 
-
 class CreateDatasetFromMTX:
 	def __init__(self,inpath,sample_names):
 		self.inpath = inpath
@@ -318,6 +317,26 @@ def save_model(asap_object):
 
 	adata.write_h5ad(asap_object.adata.uns['inpath']+'.h5asap')
 
+def write_h5(fname,rows_names,col_names,smat):
+
+	f = hf.File('./data/'+fname+'.h5','w')
+
+	grp = f.create_group(fname)
+
+	grp.create_dataset('barcodes', data = rows_names ,compression='gzip')
+	grp.create_dataset('genes',data=col_names,compression='gzip')
+
+	grp.create_dataset('indptr',data=smat.indpter,compression='gzip')
+	grp.create_dataset('indices',data=smat.indices,compression='gzip')
+	grp.create_dataset('data',data=smat.data,compression='gzip')
+
+	data_shape = np.array([len(rows_names),len(col_names)])
+	grp.create_dataset('shape',data=data_shape)
+	
+	dataset_selected_gene_indices = [ x for x in range(len(col_names))]
+	grp.create_dataset('dataset_selected_gene_indices',data=dataset_selected_gene_indices,compression='gzip')
+
+	f.close()
 
 def read_config(config_file):
 	import yaml

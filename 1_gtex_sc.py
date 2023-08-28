@@ -43,23 +43,18 @@ catd ={}
 for ind,itm in enumerate(cat):catd[ind]=itm
 tissue = [catd[x] for x in codes]
 
-## get breast tissue index
-breast_index = [ x for x,y in enumerate(tissue) if y == 'Breast']
 
-
-## filter tissue data
-mtx = mtx[breast_index,:]
 smat = csr_matrix(mtx)
 
 genes = f['var']['gene_ids']
 
 mainf = f
-sample='data/gtex_scbreast'
+sample='data/gtex_sc'
 f = hf.File(sample+'.h5ad','w')
 
 
 grp = f.create_group('obs')
-grp.create_dataset('_index',data=mainf['obs']['_index'][breast_index])
+grp.create_dataset('_index',data=mainf['obs']['_index'])
 
 grp = f.create_group('X')
 grp.create_dataset('indptr',data=smat.indptr)
@@ -74,6 +69,10 @@ grp.create_dataset('shape',data=mtx.shape)
 f.close()
 
 
+grp = f['/var']
+g2 = grp.create_group('feature_name')
+cat = f['var']['gene_ids']
+g2.create_dataset('categories',data=cat)
 ##################
 ## generate ASAP input
 ##################

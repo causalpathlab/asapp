@@ -1,80 +1,15 @@
 import numpy as np
 import pandas as pd
 
-def sample_gamma(shape, rate, size):
-	return np.random.gamma(shape, 1./rate, size=size)
+import scipy.sparse
+from sklearn.preprocessing import QuantileTransformer
+from sklearn.preprocessing import StandardScaler
 
-def generate_H(N, K, alpha=1., eps=2.):
-	H = sample_gamma(alpha, 1., size=(N,K))
-	for k in range(K):
-		size = H[k:k+1, int(k*N/K):int((k+1)*N/K)].shape
-		H[k:k+1, int(k*N/K):int((k+1)*N/K)] =  sample_gamma(np.random.random(1)/10, 1./1000., size=size)
-		H[k:k+1, int(k*N/K):int((k+1)*N/K)] = sample_gamma(alpha + eps, 1./eps, size=size)
-	return H
-
-def generate_W(P, K, noise_prop=0., beta=2., eps=4.):
-
-	W = np.zeros((P, K))
-
-	## add noise
-	P_0 = int((1. - noise_prop) * P)
-	if noise_prop > 0.:
-		size = W[(P-P_0):, :].shape
-		W[(P-P_0):, :] = sample_gamma(0.7, 1., size=size)
-	W[:P_0, :] = sample_gamma(beta, 1, size=(P_0, K))
-
-	for k in range(K):
-		size = W[int(k*P_0/K):int((k+1)*P_0/K), k:k+1].shape
-		W[int(k*P_0/K):int((k+1)*P_0/K), k:k+1] = sample_gamma(np.random.random(1)/10, 1./1000., size=size)	
-		W[int(k*P_0/K):int((k+1)*P_0/K), k:k+1] = sample_gamma(beta +eps, 1./eps, size=size)	
-	
-	return W
+from ..util._lina import rsvd
+from ..dutil.read_write import write_h5
 
 
-def sim_from_bulk_gamma(df,fp,size,alpha,rho,depth,seedn):
-
-	import scipy.sparse
-	import scipy.stats as st
-
-	np.random.seed(seedn)
-
-	genes = df['gene'].values
-	dfbulk = df.iloc[:,1:] 
-
-
-	dfbulk = dfbulk.div(dfbulk.sum(axis=0), axis=1)
-
-	dfnoise = dfbulk.copy(deep=True)
-	dfnoise = dfnoise.replace(to_replace=dfnoise.values, value=1/dfnoise.shape[0])
-	
-	all_sc = pd.DataFrame()
-	all_indx = []
-	for cell_type in dfbulk.columns:
-		sc = pd.DataFrame(np.random.multinomial(depth,dfbulk.loc[:,cell_type],size))
-
-		noise = pd.DataFrame(np.random.multinomial(depth,dfnoise.loc[:,cell_type],size))
-
-		sc = (sc * rho) + (1-rho)*noise
-		sc = sc.astype(int)
-
-		all_sc = pd.concat([all_sc,sc],axis=0,ignore_index=True)
-		all_indx.append([ str(i) + '_' + cell_type.replace(' ','') for i in range(size)])
-	
-	smat = scipy.sparse.csr_matrix(all_sc.values)
-
-	np.savez(fp,
-		indptr = smat.indptr,
-		indices = smat.indices,
-		data = smat.data)
-
-	dfcols = pd.DataFrame(genes)
-	dfcols.columns = ['cols']
-	dfcols.to_csv(fp+'.cols.csv.gz',index=False)
-
-	dfrows = pd.DataFrame(np.array(all_indx).flatten())
-	dfrows.columns = ['rows']
-	dfrows.to_csv(fp+'.rows.csv.gz',index=False)
-
+import glob, os
 
 def get_sc(L_total,mu_total,dfct,L_ct,mu_ct,rho):
 	depth = 10000
@@ -90,16 +25,10 @@ def get_sc(L_total,mu_total,dfct,L_ct,mu_ct,rho):
 
 
 
-def sim_from_bulk(bulk_path,fp,size,phi,delta,rho,seedn,use_prop=None,ct_prop=None):
+def simdata_from_bulk(bulk_path,sim_pattern,size,phi,delta,rho,seedn,use_prop=None,ct_prop=None):
 	
-	import scipy.sparse
-	from sklearn.preprocessing import QuantileTransformer
-	from sklearn.preprocessing import StandardScaler
-	# from sklearn.utils.extmath import randomized_svd as rsvd
-	from  asappy.util.lina import rsvd
 	np.random.seed(seedn)
 
-	import glob, os
 	files = []
 	for file in glob.glob(bulk_path):
 		files.append(file)
@@ -108,7 +37,7 @@ def sim_from_bulk(bulk_path,fp,size,phi,delta,rho,seedn,use_prop=None,ct_prop=No
 	dfall = pd.DataFrame()
 	cts = []
 	for i,f in enumerate(files):
-
+		print('processing...'+str(f))
 		df = pd.read_csv(f)
 		df = df[df['Additional_annotations'].str.contains('protein_coding')].reset_index(drop=True)
 		df = df.drop(columns=['Additional_annotations'])
@@ -166,6 +95,8 @@ def sim_from_bulk(bulk_path,fp,size,phi,delta,rho,seedn,use_prop=None,ct_prop=No
 	dfsc = pd.DataFrame()
 	all_indx = []
 	for ct in cts:
+		print('generating single cell data for...'+str(ct))
+		
 		dfct = dfall[[x for x in dfall.columns if ct in x]]
 		dfct_q = dfall_q[[x for x in dfall_q.columns if ct in x]]
 
@@ -194,16 +125,4 @@ def sim_from_bulk(bulk_path,fp,size,phi,delta,rho,seedn,use_prop=None,ct_prop=No
 
 	## multiply by genelengths
 	smat = scipy.sparse.csr_matrix(dfsc.multiply(glens, axis=1).values)
-
-	np.savez(fp,
-		indptr = smat.indptr,
-		indices = smat.indices,
-		data = smat.data)
-
-	dfcols = pd.DataFrame(genes)
-	dfcols.columns = ['cols']
-	dfcols.to_csv(fp+'.cols.csv.gz',index=False)
-
-	dfrows = pd.DataFrame(np.array(all_indx))
-	dfrows.columns = ['rows']
-	dfrows.to_csv(fp+'.rows.csv.gz',index=False)
+	write_h5('sim'+sim_pattern,all_indx,genes,smat)
