@@ -11,24 +11,9 @@ from ..dutil.read_write import write_h5
 
 import glob, os
 
-def get_sc(L_total,mu_total,dfct,L_ct,mu_ct,rho):
-	depth = 10000
-	z_total = np.dot(L_total,np.random.normal(size=L_total.shape[1])) + mu_total
-	z_ct = np.dot(L_ct,np.random.normal(size=L_ct.shape[1])) + mu_ct
-	x_sample = np.sort(dfct.apply(lambda x: np.random.choice(x), axis=1))
-	xz_sample = np.array([np.nan] * len(x_sample))
-	z = z_ct * np.sqrt(rho) + z_total * np.sqrt(1 - rho)
-	xz_sample[np.argsort(z)] = x_sample
 
-	xz_prop = np.divide(xz_sample, np.sum(xz_sample))
-	return list(np.random.multinomial(depth,xz_prop,1)[0])
-
-
-
-def simdata_from_bulk(bulk_path,sim_pattern,size,phi,delta,rho,seedn,use_prop=None,ct_prop=None):
-	
-	np.random.seed(seedn)
-
+def get_bulkdata(bulk_path):
+		
 	files = []
 	for file in glob.glob(bulk_path):
 		files.append(file)
@@ -51,8 +36,65 @@ def simdata_from_bulk(bulk_path,sim_pattern,size,phi,delta,rho,seedn,use_prop=No
 		else:
 			dfall = pd.merge(dfall,df,on=['gene','length'],how='outer')
 		cts.append(ct)
+	return dfall,cts
 
-	## remove zero genes
+def sim_from_bulk_gamma(bulk_path,sim_data_path,size,alpha,rho,depth,seedn):
+	import h5py 
+
+	np.random.seed(seedn)
+
+	df,_ = get_bulkdata(bulk_path)
+
+	nz_cutoff = 10
+	df = df[df.iloc[:,2:].sum(1)>nz_cutoff].reset_index(drop=True)
+	genes = df['gene'].values
+	glens = df['length'].values
+	dfbulk = df.drop(columns=['gene','length'])
+	
+	beta = np.array(dfbulk.mean(1)).reshape(dfbulk.shape[0],1) 
+	noise = np.array([np.random.gamma(alpha,b/alpha,dfbulk.shape[1]) for b in beta ])
+	
+	dfbulk = (dfbulk * rho) + (1-rho)*noise
+	dfbulk = dfbulk.astype(int)
+
+	## convert to probabilities
+	dfbulk = dfbulk.div(dfbulk.sum(axis=0), axis=1)
+
+	all_sc = pd.DataFrame()
+	all_indx = []
+	ct = {}
+	for cell_type in dfbulk.columns:
+		sc = pd.DataFrame(np.random.multinomial(depth,dfbulk.loc[:,cell_type],size))
+		all_sc = pd.concat([all_sc,sc],axis=0,ignore_index=True)
+		all_indx.append([ str(i) + '_' + cell_type.replace(' ','') for i in range(size)])
+		if cell_type.split('_')[1] not in ct:
+			print(cell_type.split('_')[1])
+			ct[cell_type.split('_')[1]] = 1
+	
+	dt = h5py.special_dtype(vlen=str) 
+	all_indx = np.array(np.array(all_indx).flatten(), dtype=dt) 
+	smat = scipy.sparse.csr_matrix(all_sc.values)
+	write_h5(sim_data_path,all_indx,genes,smat)
+
+def get_sc(L_total,mu_total,dfct,L_ct,mu_ct,rho):
+	depth = 10000
+	z_total = np.dot(L_total,np.random.normal(size=L_total.shape[1])) + mu_total
+	z_ct = np.dot(L_ct,np.random.normal(size=L_ct.shape[1])) + mu_ct
+	x_sample = np.sort(dfct.apply(lambda x: np.random.choice(x), axis=1))
+	xz_sample = np.array([np.nan] * len(x_sample))
+	z = z_ct * np.sqrt(rho) + z_total * np.sqrt(1 - rho)
+	xz_sample[np.argsort(z)] = x_sample
+
+	xz_prop = np.divide(xz_sample, np.sum(xz_sample))
+	return list(np.random.multinomial(depth,xz_prop,1)[0])
+
+
+def simdata_from_bulk_copula(bulk_path,sim_data_path,size,phi,delta,rho,seedn,use_prop=None,ct_prop=None):
+	
+	np.random.seed(seedn)
+
+	dfall,cts = get_bulkdata(bulk_path)
+
 	nz_cutoff = 10
 	dfall = dfall[dfall.iloc[:,2:].sum(1)>nz_cutoff].reset_index(drop=True)
 	genes = dfall['gene'].values
@@ -96,7 +138,7 @@ def simdata_from_bulk(bulk_path,sim_pattern,size,phi,delta,rho,seedn,use_prop=No
 	all_indx = []
 	for ct in cts:
 		print('generating single cell data for...'+str(ct))
-		
+
 		dfct = dfall[[x for x in dfall.columns if ct in x]]
 		dfct_q = dfall_q[[x for x in dfall_q.columns if ct in x]]
 
@@ -125,4 +167,4 @@ def simdata_from_bulk(bulk_path,sim_pattern,size,phi,delta,rho,seedn,use_prop=No
 
 	## multiply by genelengths
 	smat = scipy.sparse.csr_matrix(dfsc.multiply(glens, axis=1).values)
-	write_h5('sim'+sim_pattern,all_indx,genes,smat)
+	write_h5(sim_data_path,all_indx,genes,smat)

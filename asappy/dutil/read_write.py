@@ -1,6 +1,6 @@
 import pandas as  pd
 import numpy as np
-from scipy.sparse import csc_matrix
+from scipy.sparse import csr_matrix
 import h5py as hf
 import tables
 import json
@@ -73,8 +73,8 @@ class CreateDatasetFromH5:
 			grp.create_dataset('indices',data=dataset_f['matrix']['indices'],compression='gzip')
 			grp.create_dataset('data',data=dataset_f['matrix']['data'],compression='gzip')
 
-			nc = tuple(dataset_f['matrix']['shape'])[0]
-			nr = tuple(dataset_f['matrix']['shape'])[1]
+			nr = len(dataset_f['matrix']['barcodes'])
+			nc = len(self.genes)
 			
 			data_shape = np.array([nr,nc])
 
@@ -169,9 +169,11 @@ class CreateDatasetFromH5AD:
 			grp.create_dataset('indices',data=dataset_f['X']['indices'],compression='gzip')
 			grp.create_dataset('data',data=dataset_f['X']['data'],compression='gzip')
 
+		
+			nr = len(dataset_f['obs']['_index']) 
+			nc = len(self.genes)
 			
-			data_shape = np.array([dataset_f['obs']['_index'].shape[0],
-			dataset_f['var']['feature_name']['categories'].shape[0]])
+			data_shape = np.array([nr,nc])
 
 			grp.create_dataset('shape',data=data_shape)
 			
@@ -237,7 +239,7 @@ class CreateDatasetFromMTX:
 			df = df[self.genes].T
 			print('post-selection size..'+str(df.shape))
 
-			smat = csc_matrix(df.to_numpy())
+			smat = csr_matrix(df.to_numpy())
 			
 			grp = f.create_group(sample)
 
@@ -265,18 +267,18 @@ class CreateDatasetFromMTX:
 			print('completed.')
 
 def is_csr_or_csc(data, indptr, indices):
-    num_rows = len(indptr) - 1
-    num_cols = max(indices) + 1
+	num_rows = len(indptr) - 1
+	num_cols = max(indices) + 1
 
-    # Check for CSR format
-    if len(data) == len(indices) and len(indptr) == num_rows + 1 and max(indices) < num_cols:
-        return "CSR"
+	# Check for CSR format
+	if len(data) == len(indices) and len(indptr) == num_rows + 1 and max(indices) < num_cols:
+		return "CSR"
 
-    # Check for CSC format
-    if len(data) == len(indices) and len(indptr) == num_cols + 1 and max(indices) < num_rows:
-        return "CSC"
+	# Check for CSC format
+	if len(data) == len(indices) and len(indptr) == num_cols + 1 and max(indices) < num_rows:
+		return "CSC"
 
-    return "Not CSR or CSC"
+	return "Not CSR or CSC"
 
 def convertMTXtoH5AD(infile,outfile):
 
@@ -319,22 +321,21 @@ def save_model(asap_object):
 
 def write_h5(fname,rows_names,col_names,smat):
 
-	f = hf.File('./data/'+fname+'.h5','w')
+	f = hf.File(fname+'.h5','w')
 
-	grp = f.create_group(fname)
+	grp = f.create_group('matrix')
 
 	grp.create_dataset('barcodes', data = rows_names ,compression='gzip')
-	grp.create_dataset('genes',data=col_names,compression='gzip')
 
-	grp.create_dataset('indptr',data=smat.indpter,compression='gzip')
+	grp.create_dataset('indptr',data=smat.indptr,compression='gzip')
 	grp.create_dataset('indices',data=smat.indices,compression='gzip')
 	grp.create_dataset('data',data=smat.data,compression='gzip')
 
 	data_shape = np.array([len(rows_names),len(col_names)])
 	grp.create_dataset('shape',data=data_shape)
 	
-	dataset_selected_gene_indices = [ x for x in range(len(col_names))]
-	grp.create_dataset('dataset_selected_gene_indices',data=dataset_selected_gene_indices,compression='gzip')
+	f['matrix'].create_group('features')
+	f['matrix']['features'].create_dataset('id',data=col_names,compression='gzip')
 
 	f.close()
 

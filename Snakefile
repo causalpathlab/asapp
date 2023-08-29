@@ -4,14 +4,19 @@ onsuccess:
 
 configfile: 'config.yaml'
 
-sample_in = 'data/sim'
-result_dir = 'results/sim'
-scripts_dir = 'scripts/'
+
+configfile: 'config.yaml'
+
+sample = 'sim'
+sample_in = config['home'] + config['experiment'] + config['input'] + sample
+result_dir = config['home'] + config['experiment'] + config['output']+ sample
+
+scripts_dir = config['home'] + config['experiment']
 
 PHI = [0.8] # data
 DELTA = [0.1] # batch
-RHO = [0.1] # total data effect on cell type
-SIZE = [200]
+RHO = [0.9] # total cell type effect 
+SIZE = [10]
 SEED = [1]
 
 sim_data_pattern = sample_in+'_p_{phi}_d_{delta}_r_{rho}_s_{size}_sd_{seed}'
@@ -23,7 +28,7 @@ rule all:
 
 rule sc_simulated_data:
     input:
-        script = scripts_dir + 'asap_step1.py',
+        script = scripts_dir + 'sim_step1.py',
         bulk_data = '/data/sishir/database/dice_immune_bulkrna/CD8_NAIVE_TPM.csv'
     output:
         sim_data = sim_data_pattern+'.h5'
