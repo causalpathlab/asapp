@@ -14,6 +14,16 @@ def projection_data(depth,ndims):
     return np.asarray(rp)
 	
 
+def get_random_projection_data(mtx,rp_mat):
+
+    Z = np.dot(rp_mat,mtx)
+    _, _, Q = randomized_svd(Z, n_components= Z.shape[0], random_state=0)
+    
+    scaler = StandardScaler()
+    Q = scaler.fit_transform(Q.T)
+    
+    return Q
+
 def get_projection_map(mtx,rp_mat):
 
     Z = np.dot(rp_mat,mtx)
@@ -61,3 +71,15 @@ def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normali
         return {mode:{'pb_data':pseudobulk, 'pb_map':pseudobulk_map}}
     else:
          res.put({mode:{'pb_data':pseudobulk, 'pb_map':pseudobulk_map}})
+
+def get_randomprojection(mtx,rp_mat,mode,normalization,res=None):   
+    if normalization =='totalcount':
+        logging.info('Using total count normaliztion.')
+        mtx = normalize_total_count(mtx)
+    
+    rp_mat = get_random_projection_data(mtx,rp_mat)
+
+    if mode == 'full':
+        return {mode:rp_mat}
+    else:
+         res.put({mode:{'rp_data':rp_mat}})

@@ -2,17 +2,41 @@
 ##### asap pipeline
 ######################################################
 
-sample = 'bcancerl'
-data_size = 25000
+sample = 'pbmc'
+data_size = 1000
 number_batches = 13
 
 ######################################################
-##### pbmc single cell nmf
+#####  single cell nmf - rp step
 ######################################################
-# import asappy
+import asappy
 
 
-# asap_object = asappy.create_asap(sample,data_size,number_batches=number_batches)
+asap_object = asappy.create_asap(sample,data_size,number_batches=number_batches)
+rp_data = asappy.generate_randomprojection(asap_object,tree_depth=10)
+
+import umap
+
+umap_coords = umap.UMAP(n_components=2, metric='cosine',
+                    n_neighbors=25, min_dist=0.5,
+                    random_state=1).fit_transform(rp_data['full'])
+
+import pandas as pd
+df=pd.DataFrame(umap_coords)
+df.index = asap_object.adata.obs.values.flatten()
+df.columns = ['umap1','umap2']
+df['celltype'] = [ x.split('_')[2] for x in df.index.values]
+asappy.plot_umap_df(df,'celltype',asap_object.adata.uns['inpath'])
+
+
+
+######################################################
+##### single cell nmf
+######################################################
+import asappy
+
+
+asap_object = asappy.create_asap(sample,data_size,number_batches=number_batches)
 
 # for ds in asap_object.adata.uns['dataset_list']:
 #     asap_object.adata.uns['dataset_batch_size'][ds] = 2500
@@ -44,7 +68,8 @@ import anndata as an
 asap_adata = an.read_h5ad('./results/'+sample+'.h5asap')
 asappy.plot_gene_loading(asap_adata,max_thresh=100)
 asappy.leiden_cluster(asap_adata,k=10,mode='corr',resolution=0.1)
-asappy.run_umap(asap_adata,distance='cosine',min_dist=0.1)
+asappy.run_umap_withsnn(asap_adata,distance='cosine',min_dist=0.5)
+asappy.run_umap(asap_adata,distance='cosine',min_dist=0.01)
 
 asappy.plot_umap(asap_adata,col='cluster')
 

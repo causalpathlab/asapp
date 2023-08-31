@@ -131,4 +131,7 @@ def leiden_cluster(asap_adata,
             max_quality = part.quality()
 
     asap_adata.obs['cluster'] = cluster
+    asap_adata.obsp['snn'] = snn
+
+
 

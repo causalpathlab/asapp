@@ -55,6 +55,7 @@ adata_list = [pbadata, blkadata]
 
 cd /home/BCCRC.CA/ssubedi/projects/experiments/liger/src
 import pyliger
+
 ifnb_liger = pyliger.create_liger(adata_list)
 
 pyliger.normalize(ifnb_liger)
@@ -64,36 +65,55 @@ pyliger.optimize_ALS(ifnb_liger, k = 10)
 pyliger.quantile_norm(ifnb_liger)
 pyliger.leiden_cluster(ifnb_liger, resolution=0.01,k=10)
 
-pyliger.run_umap(ifnb_liger, distance = 'correlation', n_neighbors = 100, min_dist = 0.1)
+df1 = pd.DataFrame(ifnb_liger.adata_list[0].obsm['H_norm'])
+df1.index = [str(x)+'pb' for x in df1.index.values]
+df2 = pd.DataFrame(ifnb_liger.adata_list[1].obsm['H_norm'])
+df2.index = [str(x)+'bulk' for x in df2.index.values]
 
-all_plots = pyliger.plot_by_dataset_and_cluster(ifnb_liger, axis_labels = ['UMAP 1', 'UMAP 2'], return_plots = True)
+df3 = pd.concat([df1,df2])
+df3.to_csv(outpath+'liger_h_norm.csv.gz',compression='gzip')
 
-# List of file names to save the plots
-file_names = [outpath+'plot1.png', outpath+'plot2.png']
+# pyliger.run_umap(ifnb_liger, distance = 'euclidean', n_neighbors = 25, min_dist = 0.01)
 
-# You can also use different formats like 'pdf', 'svg', etc.
-file_formats = ['png', 'png']
-for i, plot in enumerate(all_plots):
-    # Construct the full file path including the format
-    file_path = file_names[i]
+# all_plots = pyliger.plot_by_dataset_and_cluster(ifnb_liger, axis_labels = ['UMAP 1', 'UMAP 2'], return_plots = True)
+
+# # List of file names to save the plots
+# file_names = [outpath+'plot12.png', outpath+'plot22.png']
+
+# # You can also use different formats like 'pdf', 'svg', etc.
+# file_formats = ['png', 'png']
+# for i, plot in enumerate(all_plots):
+#     # Construct the full file path including the format
+#     file_path = file_names[i]
     
-    # Save the plot to the specified file path and format
-    plot.save(filename=file_path, format=file_formats[i])
+#     # Save the plot to the specified file path and format
+#     plot.save(filename=file_path, format=file_formats[i])
 
 
 
 
 
-ifnb_liger.adata_list[0].write(outpath+'pb_liger.h5')
-ifnb_liger.adata_list[1].write(outpath+'bulk_liger.h5')
+# ifnb_liger.adata_list[0].write(outpath+'pb_liger.h5')
+# ifnb_liger.adata_list[1].write(outpath+'bulk_liger.h5')
 
-dfliger0 = pd.DataFrame(ifnb_liger.adata_list[0].obsm['umap_coords'])
-dfliger0['celltype'] = 'asap_pb'
+# dfliger0 = pd.DataFrame(ifnb_liger.adata_list[0].obsm['umap_coords'])
+# dfliger0['celltype'] = 'asap_pb'
 
-dfliger1 = pd.DataFrame(ifnb_liger.adata_list[1].obsm['umap_coords'])
-dfliger1['celltype'] = [x.split('@')[1] for x in ifnb_liger.adata_list[1].obs.index.values] 
+# dfliger1 = pd.DataFrame(ifnb_liger.adata_list[1].obsm['umap_coords'])
+# dfliger1['celltype'] = [x.split('@')[1] for x in ifnb_liger.adata_list[1].obs.index.values] 
 
-dfliger = pd.concat([dfliger0,dfliger1])
-dfliger.columns = ['umap1','umap2','cell-type']
-import assapy
-asappy.plot_umap_df(dfliger,'cell-type',outpath)
+# dfliger = pd.concat([dfliger0,dfliger1])
+# dfliger.columns = ['umap1','umap2','cell-type']
+
+import asappy
+df=pd.read_csv(outpath+'liger_h_norm_umap.csv')
+df.columns = ['cell','umap1','umap2']
+df['batch'] = ['pb' if 'pb' in x else 'bulk' for x in df['cell']]
+
+
+df['cluster'] = list(ifnb_liger.adata_list[0].obs['cluster'].values) + list(ifnb_liger.adata_list[1].obs['cluster'].values)
+
+df['cluster'] = pd.Categorical(df['cluster'])
+
+asappy.plot_umap_df(df,'batch',outpath)
+asappy.plot_umap_df(df,'cluster',outpath)

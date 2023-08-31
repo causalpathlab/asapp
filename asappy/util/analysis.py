@@ -42,6 +42,47 @@ def run_umap(asap_adata,
 	asap_adata.obsm['umap_coords'] = umap_coords	
 
 
+def run_umap_withsnn(asap_adata,
+	         mode = 'corr',
+             distance="euclidean",
+             min_dist=0.1,
+             rand_seed=42):
+
+	from umap.umap_ import find_ab_params, simplicial_set_embedding
+	
+	spread: float = 1.0
+	n_components = 2
+	alpha: float = 1.0
+	gamma: float = 1.0
+	negative_sample_rate: int = 5
+	maxiter = None
+	default_epochs = 500 if asap_adata.obsp['snn'].shape[0] <= 10000 else 200
+	n_epochs = default_epochs if maxiter is None else maxiter
+	a, b = find_ab_params(spread, min_dist)
+	random_state = np.random.RandomState(rand_seed)
+
+	umap_coords = simplicial_set_embedding(
+		data = asap_adata.obsm[mode],
+		graph = asap_adata.obsp['snn'],
+		n_components=n_components,
+		initial_alpha = alpha,
+		a = a,
+		b = b,
+		gamma = gamma,
+		negative_sample_rate = negative_sample_rate,
+		n_epochs = n_epochs,
+		init='spectral',
+		random_state = random_state,
+		metric = distance,
+		metric_kwds = {},
+		densmap=False,
+		densmap_kwds={},
+		output_dens=False
+		)
+	asap_adata.obsm['umap_coords'] = umap_coords[0]
+
+
+
 def pmf2topic(beta, theta, eps=1e-8):
     uu = np.maximum(np.sum(beta, axis=0), eps)
     beta = beta / uu
