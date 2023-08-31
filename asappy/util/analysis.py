@@ -31,55 +31,53 @@ def run_umap(asap_adata,
              distance="euclidean",
              n_neighbors=10,
              min_dist=0.1,
-             rand_seed=42):
-	
-	import umap
-	
-	umap_coords = umap.UMAP(n_components=k, metric=distance,
-						n_neighbors=n_neighbors, min_dist=min_dist,
-						random_state=rand_seed).fit_transform(asap_adata.obsm[mode])
-
-	asap_adata.obsm['umap_coords'] = umap_coords	
-
-
-def run_umap_withsnn(asap_adata,
-	         mode = 'corr',
-             distance="euclidean",
-             min_dist=0.1,
+	     	 use_snn = True,
              rand_seed=42):
 
-	from umap.umap_ import find_ab_params, simplicial_set_embedding
-	
-	spread: float = 1.0
-	n_components = 2
-	alpha: float = 1.0
-	gamma: float = 1.0
-	negative_sample_rate: int = 5
-	maxiter = None
-	default_epochs = 500 if asap_adata.obsp['snn'].shape[0] <= 10000 else 200
-	n_epochs = default_epochs if maxiter is None else maxiter
-	a, b = find_ab_params(spread, min_dist)
-	random_state = np.random.RandomState(rand_seed)
+	if use_snn:
 
-	umap_coords = simplicial_set_embedding(
-		data = asap_adata.obsm[mode],
-		graph = asap_adata.obsp['snn'],
-		n_components=n_components,
-		initial_alpha = alpha,
-		a = a,
-		b = b,
-		gamma = gamma,
-		negative_sample_rate = negative_sample_rate,
-		n_epochs = n_epochs,
-		init='spectral',
-		random_state = random_state,
-		metric = distance,
-		metric_kwds = {},
-		densmap=False,
-		densmap_kwds={},
-		output_dens=False
-		)
-	asap_adata.obsm['umap_coords'] = umap_coords[0]
+		from umap.umap_ import find_ab_params, simplicial_set_embedding
+		
+		n_components = k
+		spread: float = 1.0
+		alpha: float = 1.0
+		gamma: float = 1.0
+		negative_sample_rate: int = 5
+		maxiter = None
+		default_epochs = 500 if asap_adata.obsp['snn'].shape[0] <= 10000 else 200
+		n_epochs = default_epochs if maxiter is None else maxiter
+		random_state = np.random.RandomState(rand_seed)
+
+		a, b = find_ab_params(spread, min_dist)
+
+		umap_coords = simplicial_set_embedding(
+			data = asap_adata.obsm[mode],
+			graph = asap_adata.obsp['snn'],
+			n_components=n_components,
+			initial_alpha = alpha,
+			a = a,
+			b = b,
+			gamma = gamma,
+			negative_sample_rate = negative_sample_rate,
+			n_epochs = n_epochs,
+			init='spectral',
+			random_state = random_state,
+			metric = distance,
+			metric_kwds = {},
+			densmap=False,
+			densmap_kwds={},
+			output_dens=False
+			)
+		asap_adata.obsm['umap_coords'] = umap_coords[0]
+
+	else:
+		import umap
+		
+		umap_coords = umap.UMAP(n_components=k, metric=distance,
+							n_neighbors=n_neighbors, min_dist=min_dist,
+							random_state=rand_seed).fit_transform(asap_adata.obsm[mode])
+
+		asap_adata.obsm['umap_coords'] = umap_coords	
 
 
 
