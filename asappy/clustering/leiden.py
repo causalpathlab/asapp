@@ -3,15 +3,13 @@ modifiled from welch-lab/pyliger
 """
 
 import numpy as np
+import pandas as pd
 from annoy import AnnoyIndex
 
 
 import leidenalg
 import igraph as ig
 from scipy.sparse import csr_matrix
-import numpy as np
-
-import numpy as np
 
 
 def run_ann(theta,k, num_trees=None):
@@ -114,7 +112,11 @@ def leiden_cluster(asap_adata,
                    n_iterations=-1,
                    n_starts=10):
 
-    knn = run_ann(asap_adata.obsm[mode],k)
+    if isinstance(asap_adata,pd.DataFrame):
+        knn = run_ann(asap_adata.to_numpy(),k)
+    else:
+        knn = run_ann(asap_adata.obsm[mode],k)
+
     snn = compute_snn(knn, prune=prune)
 
     g = build_igraph(snn)
@@ -130,8 +132,8 @@ def leiden_cluster(asap_adata,
             cluster = part.membership
             max_quality = part.quality()
 
-    asap_adata.obs['cluster'] = cluster
-    asap_adata.obsp['snn'] = snn
-
-
-
+    if isinstance(asap_adata,pd.DataFrame):
+        return snn, cluster
+    else:
+        asap_adata.obs['cluster'] = cluster
+        asap_adata.obsp['snn'] = snn

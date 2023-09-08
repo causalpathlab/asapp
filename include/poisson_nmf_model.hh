@@ -10,7 +10,6 @@ struct poisson_nmf_t {
 
     using Scalar = typename T::Scalar;
     using Index = typename T::Index;
-    using ColVec = typename Eigen::internal::plain_col_type<T>::type;
 
     explicit poisson_nmf_t(const Index d,
                            const Index n,
@@ -23,226 +22,122 @@ struct poisson_nmf_t {
         , K(k)
         , onesD(d, 1)
         , onesN(n, 1)
-        , tempK(K)
         , rng(rseed)
-        , row_degree(d, 1, a0, b0, rng)
-        , column_degree(n, 1, a0, b0, rng)
         , row_topic(d, k, a0, b0, rng)
         , column_topic(n, k, a0, b0, rng)
-        , topic_loading(k, 1, a0, b0, rng)
+        , x_aux(d,n)
     {
         onesD.setOnes();
         onesN.setOnes();
+        x_aux.setOnes();
     }
 
-    void randomize_topics()
+    void initialize()
     {
-        Mat row_a = T::Ones(D, K);
-        Mat row_b = row_topic.sample();
-        row_topic.update(row_a, row_b);
-
-        Mat column_a = T::Ones(N, K);
-        Mat column_b = column_topic.sample();
-        column_topic.update(column_a, column_b);
+        column_topic.initialize();
+        row_topic.initialize();
     }
 
     template <typename Derived>
-    void initialize_by_svd(const Eigen::MatrixBase<Derived> &Y)
+    const Scalar log_likelihood(const Eigen::MatrixBase<Derived> &Y)
     {
-        const std::size_t lu_iter = 5; // this should be good
 
-        RandomizedSVD<T> svd(K, lu_iter); //
-        const Mat yy = standardize(Y.unaryExpr(log1p_op));
-        svd.compute(Y);
+        Mat exp_logc = column_topic.log_mean().unaryExpr(exp_op).transpose();
+        Mat exp_logr = row_topic.log_mean().unaryExpr(exp_op);
+        Mat exp_log = (exp_logr * exp_logc).unaryExpr(log_op);       
 
-        Mat row_a = standardize(svd.matrixU()).unaryExpr(exp_op) /
-            static_cast<Scalar>(D);
-        Mat row_b = T::Ones(D, K);
-        row_topic.update(row_a, row_b);
+        Mat m1 = Y.array() * exp_log.array();
+        Mat m2 =  row_topic.mean() * column_topic.mean().transpose();
 
-        Mat column_a = standardize(svd.matrixV()).unaryExpr(exp_op) /
-            static_cast<Scalar>(N);
-        Mat column_b = T::Ones(N, K);
-        column_topic.update(column_a, column_b);
+        return (m1-m2).sum();
+
     }
 
     template <typename Derived>
-    void initialize_degree(const Eigen::MatrixBase<Derived> &Y)
-    {
-        column_degree.update(Y.transpose() * onesD, onesN);
-        column_degree.calibrate();
-        row_degree.update(Y * onesN, onesD * column_degree.mean().sum());
-        row_degree.calibrate();
+    void update_xaux(const Eigen::MatrixBase<Derived> &Y){
+
+        Mat exp_logc = column_topic.log_mean().unaryExpr(exp_op).transpose();
+        Mat exp_logr = row_topic.log_mean().unaryExpr(exp_op);
+        Mat exp_log = exp_logr * exp_logc;
+        x_aux = Y.array() / exp_log.array() ;
+
     }
 
     template <typename Derived>
-    void update_degree(const Eigen::MatrixBase<Derived> &Y)
+    void update_column_topic(const Eigen::MatrixBase<Derived> &Y)
     {
 
-        // const Scalar row_sum = row_degree.mean().sum();
-        column_degree.update(Y.transpose() * onesD,
-                             column_topic.mean() *
-                                 (row_topic.mean().transpose() *
-                                  row_degree.mean()));
-        column_degree.calibrate();
+        Mat exp_logc = column_topic.log_mean().unaryExpr(exp_op);
+        Mat exp_logr = row_topic.log_mean().unaryExpr(exp_op);
 
-        // const Scalar col_sum = column_degree.mean().sum();
-        row_degree.update(Y * onesN,
-                          row_topic.mean() *
-                              (column_topic.mean().transpose() *
-                               column_degree.mean()));
-        row_degree.calibrate();
-    }
+        //a
+        Mat aux_r_c =  (x_aux.transpose() * exp_logr).array() * exp_logc.array();
 
-    template <typename Derived, typename Latent>
-    const Scalar log_likelihood(const Eigen::MatrixBase<Derived> &Y,
-                                const Latent &latent)
-    {
-        double term0 = 0., term1 = 0., term2 = 0.;
 
-        term0 += (Y.array().colwise() * take_row_log_degree().array()).sum();
+        //b
+        Mat row_sum = row_topic.mean().colwise().sum().transpose();
 
-        term0 +=
-            (Y.array().rowwise() * take_column_log_degree().transpose().array())
-                .sum();
 
-        for (Index k = 0; k < K; ++k) {
+        // std::cout << row_sum << std::endl;
+        // std::cout << "---" << std::endl;
+        // std::cout << "---" << std::endl;
+        // std::cout << "---" << std::endl;
 
-            term1 += latent.slice_k(Y, k).sum() * take_topic_log_loading(k);
 
-            term1 += (latent.slice_k(Y, k).array().colwise() *
-                      row_topic.log_mean().col(k).array())
-                         .sum();
-            term1 += (latent.slice_k(Y, k).array().rowwise() *
-                      column_topic.log_mean().col(k).transpose().array())
-                         .sum();
-        }
+        Mat row_sum_tcol = (row_sum * onesN.transpose()).transpose();
 
-        term2 =
-            (((row_topic.mean().array().colwise() * take_row_degree().array())
-                  .rowwise() *
-              take_topic_loading().transpose().array())
-                 .matrix() *
-             (column_topic.mean().transpose().array().rowwise() *
-              take_column_degree().transpose().array())
-                 .matrix())
-                .sum();
+        // std::cout << row_sum_tcol << std::endl;
+        // std::cout << "---" << std::endl;
 
-        return term0 + term1 - term2;
-    }
+        column_topic.update( aux_r_c,row_sum_tcol);
 
-    inline const auto take_row_degree() const
-    {
-        return row_degree.mean().col(0);
-    }
-
-    inline const auto take_topic_loading() const
-    {
-        return topic_loading.mean().col(0);
-    }
-
-    inline const auto take_topic_log_loading() const
-    {
-        return topic_loading.log_mean().col(0);
-    }
-
-    inline Scalar take_topic_loading(const Index k) const
-    {
-        return topic_loading.mean().coeff(k, 0);
-    }
-
-    inline Scalar take_topic_log_loading(const Index k) const
-    {
-        return topic_loading.log_mean().coeff(k, 0);
-    }
-
-    inline const auto take_row_log_degree() const
-    {
-        return row_degree.log_mean().col(0);
-    }
-
-    inline const auto take_column_degree() const
-    {
-        return column_degree.mean().col(0);
-    }
-
-    inline const auto take_column_log_degree() const
-    {
-        return column_degree.log_mean().col(0);
-    }
-
-    template <typename Derived, typename Latent>
-    void update_topic_loading(const Eigen::MatrixBase<Derived> &Y,
-                              const Latent &latent)
-    {
-        for (Index k = 0; k < K; ++k) {
-            tempK(k) = latent.slice_k(Y, k).sum();
-        }
-        tempK2 = (row_topic.mean().transpose() * take_row_degree())
-                     .cwiseProduct(column_topic.mean().transpose() *
-                                   take_column_degree());
-
-        topic_loading.update(tempK, tempK2);
-        topic_loading.calibrate();
-    }
-
-    template <typename Derived, typename Latent>
-    void update_column_topic(const Eigen::MatrixBase<Derived> &Y,
-                             const Latent &latent)
-    {
-        // a[j, k] = sum_i Y[i,j] * (Z[i,j] == k)
-        // b[j, k] = d_j * sum_i row[i, k] * topic[k]
-        tempK = (row_topic.mean().transpose() * take_row_degree())
-                    .cwiseProduct(take_topic_loading());
-
-        for (Index k = 0; k < K; ++k) {
-            column_topic.update_col(latent.slice_k(Y, k).transpose() * onesD,
-                                    column_degree.mean() * tempK(k),
-                                    k);
-        }
         column_topic.calibrate();
     }
 
-    template <typename Derived, typename Latent>
-    void update_row_topic(const Eigen::MatrixBase<Derived> &Y,
-                          const Latent &latent)
+    template <typename Derived>
+    void update_row_topic(const Eigen::MatrixBase<Derived> &Y)
     {
-        tempK = (column_topic.mean().transpose() * take_column_degree())
-                    .cwiseProduct(take_topic_loading());
+        Mat exp_logc = column_topic.log_mean().unaryExpr(exp_op);
+        Mat exp_logr = row_topic.log_mean().unaryExpr(exp_op);
 
-        for (Index k = 0; k < K; ++k) {
-            row_topic.update_col(latent.slice_k(Y, k) * onesN,
-                                 row_degree.mean() * tempK(k),
-                                 k);
-        }
+        //a
+        Mat aux_c_r =(x_aux * exp_logc).array() * exp_logr.array();
+
+        //b
+        Mat col_sum = column_topic.mean().colwise().sum().transpose();
+
+        // std::cout << col_sum << std::endl;
+        // std::cout << "---" << std::endl;
+        // std::cout << "---" << std::endl;
+        // std::cout << "---" << std::endl;
+
+
+
+        Mat col_sum_trow = (col_sum * onesD.transpose()).transpose();
+
+        // std::cout << col_sum_trow << std::endl;
+        // std::cout << "---" << std::endl;
+
+        row_topic.update( aux_c_r, col_sum_trow);
+
         row_topic.calibrate();
+
     }
 
     const Index D, N, K;
 
     T onesD;
     T onesN;
-    ColVec tempK;
-    ColVec tempK2;
-    RNG rng;
 
-    PARAM row_degree;
-    PARAM column_degree;
+    RNG rng;
 
     PARAM row_topic;
     PARAM column_topic;
-    PARAM topic_loading;
+    T x_aux;
 
     struct log_op_t {
         const Scalar operator()(const Scalar &x) const { return fasterlog(x); }
     } log_op;
-
-    struct log1p_op_t {
-        const Scalar operator()(const Scalar &x) const
-        {
-            return fasterlog(1. + x);
-        }
-    } log1p_op;
 
     struct exp_op_t {
         const Scalar operator()(const Scalar &x) const { return fasterexp(x); }

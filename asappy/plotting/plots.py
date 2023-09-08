@@ -1,40 +1,111 @@
 import pandas as pd
 import numpy as np
 from plotnine import *
+import seaborn as sns
+import matplotlib.pylab as plt
+
 from ..util.analysis import get_topic_top_genes
+
+custom_palette = [
+"#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+"#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+"#aec7e8", "#ffbb78", "#98df8a", "#ff9896", "#c5b0d5",
+"#c49c94", "#f7b6d2", "#c7c7c7", "#dbdb8d", "#9edae5",
+'#6b6ecf', '#8ca252',  '#8c6d31', '#bd9e39', '#d6616b'
+]
+
+custom_palette50 = [
+"#556b2f","#a0522d","#228b22","#7f0000","#191970",
+"#808000","#3cb371","#008080","#b8860b","#4682b4",
+"#d2691e","#9acd32","#00008b","#32cd32","#7f007f",
+"#8fbc8f","#b03060","#d2b48c","#9932cc","#ff4500",
+"#ff8c00","#ffd700","#6a5acd","#ffff00","#0000cd",
+"#00ff00","#00fa9a","#dc143c","#00ffff","#00bfff",
+"#f4a460","#a020f0","#f08080","#adff2f","#ff6347",
+"#da70d6","#ff00ff","#1e90ff","#f0e68c","#dda0dd",
+"#90ee90","#87ceeb","#ff1493","#7fffd4","#ff69b4",
+"#ffc0cb","#000000","#808080","#dcdcdc","#2f4f4f"
+]
 
 def plot_umap(asap_adata,col):
 	
 	df_umap = pd.DataFrame(asap_adata.obsm['umap_coords'],columns=['umap1','umap2'])
 	df_umap[col] = pd.Categorical(asap_adata.obs[col].values)
+	nlabel = asap_adata.obs[col].nunique() 
+	fname = asap_adata.uns['inpath']+'_'+col+'_'+'umap.png'
 
-	pt_size=0.1
+	pt_size=1.0
 	legend_size=7
-	
-	p = (ggplot(data=df_umap, mapping=aes(x='umap1', y='umap2', color=col)) +
-		geom_point(size=pt_size) +
-		scale_colour_brewer(type="qual", palette="Paired")+
-		guides(color=guide_legend(override_aes={'size': legend_size})))
-	
-	p = p + theme(
-		plot_background=element_rect(fill='white'),
-		panel_background = element_rect(fill='white'))
-	p.save(filename = asap_adata.uns['inpath']+'_'+col+'_'+'umap.png', height=5, width=8, units ='in', dpi=300)
 
-def plot_umap_df(df_umap,col,fname):
+	
+	if nlabel <= 25 :
 
-	pt_size=0.1
+		cp = custom_palette[:nlabel]
+		
+		
+		p = (ggplot(data=df_umap, mapping=aes(x='umap1', y='umap2', color=col)) +
+			geom_point(size=pt_size) +
+			scale_color_manual(values=custom_palette)  +
+			guides(color=guide_legend(override_aes={'size': legend_size})))
+		
+		p = p + theme(
+			plot_background=element_rect(fill='white'),
+			panel_background = element_rect(fill='white'))
+		
+
+	else :
+		p = (ggplot(data=df_umap, mapping=aes(x='umap1', y='umap2', color=col)) +
+			geom_point(size=pt_size) +
+			scale_color_manual(values=custom_palette50) +
+			guides(color=guide_legend(override_aes={'size': legend_size})))
+		
+		p = p + theme(
+			plot_background=element_rect(fill='white'),
+			panel_background = element_rect(fill='white'))
+		
+	p.save(filename = fname, height=8, width=15, units ='in', dpi=300)
+
+
+def plot_umap_df(df_umap,col,fpath):
+	
+	nlabel = df_umap[col].nunique() 
+	fname = fpath+'_'+col+'_'+'umap.png'
+
+	pt_size=1.0
 	legend_size=7
+
 	
-	p = (ggplot(data=df_umap, mapping=aes(x='umap1', y='umap2', color=col)) +
-		geom_point(size=pt_size) +
-		scale_colour_brewer(type="qual", palette="Paired")+
-		guides(color=guide_legend(override_aes={'size': legend_size})))
-	
-	p = p + theme(
-		plot_background=element_rect(fill='white'),
-		panel_background = element_rect(fill='white'))
-	p.save(filename = fname+'_'+col+'_'+'umap.png', height=5, width=8, units ='in', dpi=300)
+	if nlabel <= 25 :
+
+		cp = custom_palette[:nlabel]
+		
+		
+		p = (ggplot(data=df_umap, mapping=aes(x='umap1', y='umap2', color=col)) +
+			geom_point(size=pt_size) +
+			scale_color_manual(values=custom_palette)  +
+			guides(color=guide_legend(override_aes={'size': legend_size})))
+		
+		p = p + theme(
+			plot_background=element_rect(fill='white'),
+			panel_background = element_rect(fill='white'))
+		
+
+	else :
+		p = (ggplot(data=df_umap, mapping=aes(x='umap1', y='umap2', color=col)) +
+			geom_point(size=pt_size) +
+			scale_color_manual(values=custom_palette50)+
+			guides(color=guide_legend(override_aes={'size': legend_size})))
+		
+		p = p + theme(
+			plot_background=element_rect(fill='white'),
+			panel_background = element_rect(fill='white'))
+		
+	p.save(filename = fname, height=10, width=15, units ='in', dpi=300)
+
+def plot_randomproj(dfrp,col,fname):
+	sns.set(style="ticks")
+	sns.pairplot(dfrp, kind='scatter',hue=col,palette=sns.color_palette("Paired"),plot_kws = {"s":5})
+	plt.savefig(fname+'_rproj.png');plt.close()
 
 def plot_structure(asap_adata,mode):
 
@@ -49,16 +120,11 @@ def plot_structure(asap_adata,mode):
 	dfm['cluster'] = pd.Categorical(dfm['cluster'])
 	dfm['topic'] = pd.Categorical(dfm['topic'])
 	
-	col_vector = [
-    '#a6cee3', '#1f78b4', '#b2df8a', '#33a02c',
-    '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00',
-    '#cab2d6', '#6a3d9a', '#ffff99', '#b15928'
-	]
 	
 	p = (ggplot(data=dfm, mapping=aes(x='id', y='value', fill='topic')) +
-	    geom_bar(position="stack", stat="identity", size=0) +
-	    scale_fill_manual(values=col_vector) +
-    	facet_grid('~ cluster', scales='free', space='free'))
+		geom_bar(position="stack", stat="identity", size=0) +
+		scale_color_manual(values=custom_palette) +
+		facet_grid('~ cluster', scales='free', space='free'))
 	
 	p = p + theme(
 		plot_background=element_rect(fill='white'),
@@ -66,14 +132,12 @@ def plot_structure(asap_adata,mode):
 		axis_text_x=element_blank())
 	p.save(filename = asap_adata.uns['inpath']+'_'+mode+'_'+'struct.png', height=5, width=15, units ='in', dpi=300)
 
-def plot_gene_loading(asap_adata,max_thresh=None):
-
-	import seaborn as sns
-	import matplotlib.pylab as plt
-
+def plot_gene_loading(asap_adata,top_n=3,max_thresh=None):
 	df_beta = pd.DataFrame(asap_adata.varm['beta'].T)
 	df_beta.columns = asap_adata.var.index.values
-	df_top = get_topic_top_genes(df_beta.iloc[:,:],top_n=3)
+	df_beta = df_beta.loc[:, ~df_beta.columns.duplicated(keep='first')]
+	df_top = get_topic_top_genes(df_beta.iloc[:,:],top_n)
+	df_top['Proportion'] = df_top['Proportion'].astype(float)
 	df_top = df_top.pivot(index='Topic',columns='Gene',values='Proportion')
 	if max_thresh:
 		df_top[df_top>max_thresh] = max_thresh
@@ -210,16 +274,6 @@ def plot_gene_loading(asap_adata,max_thresh=None):
 
 def plot_stats(df,batch_label,outfile):
 
-	from plotnine import (
-		ggplot,
-		ggtitle,
-		aes,
-		geom_density,
-		theme,
-		element_rect,
-		facet_wrap
-	)
-
 	dfp = pd.DataFrame(df.sum(1),columns=['depth'])
 	dfp['mean'] = df.mean(1)
 	dfp['var'] = df.var(1)
@@ -234,20 +288,34 @@ def plot_stats(df,batch_label,outfile):
 	) + ggtitle('stats')
 	p.save(filename = outfile, height=6, width=8, units ='in', dpi=300)
 
-# def pbulk_hist(asap):
-# 	if len(asap.pbulkd) ==1 :
-# 		sns.histplot(x=[len(asap.pbulkd[x])for x in asap.pbulkd.keys()])
-# 		plt.savefig(asap.adata.outpath+'_pbulk_hist_full.png')
-# 		plt.close()
-# 	else:
-# 		pblen = []
-# 		for k,v in enumerate(asap.pbulkd):
-# 			for in_v in asap.pbulkd[v].values():
-# 				pblen.append(len(in_v))
-# 		sns.histplot(x=pblen)
-# 		plt.savefig(asap.adata.outpath+'_pbulk_hist_batch.png')
-# 		plt.close()
+def pbulk_cellcounthist(asap_object):
+	
+	pblen = []
+	for k,v in enumerate(asap_object.adata.uns['pseudobulk']['pb_map']):
+		for in_v in asap_object.adata.uns['pseudobulk']['pb_map'][v].values():
+			pblen.append(len(in_v))
+	sns.histplot(x=pblen)
+	plt.xlabel('Number of cells in pseudo-bulk samples')
+	plt.ylabel('Number of pseudo-bulk samples')
+	plt.savefig(asap_object.adata.uns['inpath']+'_pbulk_hist.png')
+	plt.close()
 
+def plot_pbulk_celltyperatio(df,outfile):
+
+	# theme_set(theme_void())
+	df = df.reset_index().rename(columns={'index': 'pbindex'})
+	dfm = pd.melt(df,id_vars='pbindex')
+	dfm = dfm.sort_values(['variable','value'])
+
+	p = (ggplot(dfm, aes(x='pbindex', y='value',fill='variable')) + 
+		geom_bar(position="stack",stat="identity",size=0) +
+		scale_fill_manual(values=custom_palette) 		)
+	p = p + theme(
+		plot_background=element_rect(fill='white'),
+		panel_background = element_rect(fill='white')
+	)
+	p.save(filename = outfile+'_pbulk_ratio.png', height=4, width=8, units ='in', dpi=300)
+	
 # def plot_pbulk_batchratio(df,outfile):
 
 # 	from plotnine import (
@@ -272,43 +340,44 @@ def plot_stats(df,batch_label,outfile):
 # 	)
 # 	p.save(filename = outfile, height=3, width=8, units ='in', dpi=300)
 
-# def plot_marker_genes(fn,mtx,rows,cols,df_umap,marker_genes):
+def plot_marker_genes(fn,df,umap_coords,marker_genes,nr,nc):
 
-# 	from anndata import AnnData
-# 	import scanpy as sc
-# 	import numpy as np
+	from anndata import AnnData
+	import scanpy as sc
+	import numpy as np
 
-# 	import matplotlib.pylab as plt
-# 	plt.rcParams['figure.figsize'] = [10, 5]
-# 	plt.rcParams['figure.autolayout'] = True
-# 	import seaborn as sns
+	import matplotlib.pylab as plt
+	plt.rcParams['figure.figsize'] = [15, 10]
+	plt.rcParams['figure.autolayout'] = True
+	import seaborn as sns
 
-# 	adata = AnnData(mtx)
-# 	sc.pp.normalize_total(adata, target_sum=1e4)
-# 	sc.pp.log1p(adata)
-# 	dfn = adata.to_df()
-# 	dfn.columns = cols
-# 	dfn['cell'] = rows
+	adata = AnnData(df.to_numpy())
+	sc.pp.normalize_total(adata, target_sum=1e4)
+	sc.pp.log1p(adata)
+	dfn = adata.to_df()
+	dfn.columns = df.columns
+	dfn['cell'] = df.index.values
 
-# 	dfn = pd.merge(dfn,df_umap,on='cell',how='left')
+	dfn['umap1']= umap_coords[:,0]
+	dfn['umap2']= umap_coords[:,1]
 
-# 	fig, ax = plt.subplots(2,3) 
-# 	ax = ax.ravel()
+	fig, ax = plt.subplots(nr,nc) 
+	ax = ax.ravel()
 
-# 	for i,g in enumerate(marker_genes):
-# 		if g in dfn.columns:
-# 			print(g)
-# 			val = np.array([x if x<3 else 3.0 for x in dfn[g]])
-# 			sns.scatterplot(data=dfn, x='umap1', y='umap2', hue=val,s=.1,palette="viridis",ax=ax[i],legend=False)
+	for i,g in enumerate(marker_genes):
+		if g in dfn.columns:
+			print(g)
+			val = np.array([x if x<3 else 3.0 for x in dfn[g]])
+			sns.scatterplot(data=dfn, x='umap1', y='umap2', hue=val,s=.1,palette="viridis",ax=ax[i],legend=False)
 
-# 			norm = plt.Normalize(val.min(), val.max())
-# 			sm = plt.cm.ScalarMappable(cmap="viridis",norm=norm)
-# 			sm.set_array([])
+			# norm = plt.Normalize(val.min(), val.max())
+			# sm = plt.cm.ScalarMappable(cmap="viridis",norm=norm)
+			# sm.set_array([])
 
-# 			# cax = fig.add_axes([ax[i].get_position().x1, ax[i].get_position().y0, 0.01, ax[i].get_position().height])
-# 			fig.colorbar(sm,ax=ax[i])
-# 			ax[i].axis('off')
+			# cax = fig.add_axes([ax[i].get_position().x1, ax[i].get_position().y0, 0.01, ax[i].get_position().height])
+			# fig.colorbar(sm,ax=ax[i])
+			# ax[i].axis('off')
 
-# 			ax[i].set_title(g)
-# 	fig.savefig(fn+'_umap_marker_genes_legend.png',dpi=600);plt.close()
+			ax[i].set_title(g)
+	fig.savefig(fn+'_umap_marker_genes_legend.png',dpi=600);plt.close()
 

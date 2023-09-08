@@ -79,6 +79,22 @@ def run_umap(asap_adata,
 
 		asap_adata.obsm['umap_coords'] = umap_coords	
 
+def get_psuedobulk_batchratio(asap_object,batch_label):
+
+	pb_batch_count = []
+	batch_label = np.array(batch_label)
+	batches = set(batch_label)
+
+	for _,pb_map in asap_object.adata.uns['pseudobulk']['pb_map'].items():
+		for _,val in pb_map.items():
+			pb_batch_count.append([np.count_nonzero(batch_label[val]==x) for x in batches])
+		
+	df_pb_batch_count = pd.DataFrame(pb_batch_count).T
+	df_pb_batch_count = df_pb_batch_count.T
+	df_pb_batch_count.columns = batches
+	pbulk_batchratio = df_pb_batch_count.div(df_pb_batch_count.sum(axis=1), axis=0)
+	
+	return pbulk_batchratio
 
 
 def pmf2topic(beta, theta, eps=1e-8):

@@ -43,7 +43,7 @@ def asap_nmf(asap_object,num_factors,maxthreads=16):
         )
 
 
-		nmf_model = asapc.ASAPdcNMF(asap_object.adata.uns['pseudobulk']['pb_data'],asap_object.adata.uns['num_factors'])
+		nmf_model = asapc.ASAPNMF(asap_object.adata.uns['pseudobulk']['pb_data'],asap_object.adata.uns['num_factors'])
 		nmfres = nmf_model.nmf()
 
 		scaler = StandardScaler()

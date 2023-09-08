@@ -1,1 +1,1 @@
-from .analysis import run_umap, pmf2topic
+from .analysis import run_umap, pmf2topic,get_psuedobulk_batchratio,get_topic_top_genes

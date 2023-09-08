@@ -34,6 +34,22 @@ PYBIND11_MODULE(asapc, m) {
     .def_readwrite("batch_effect", &ASAPpbResult::batch_effect)
     .def_readwrite("log_batch_effect", &ASAPpbResult::log_batch_effect);
 
+    py::class_<ASAPNMFResult>(m, "ASAPNMFResult")
+    .def(py::init< Mat, Mat, Mat, Mat, Mat, Mat, std::vector<Scalar> >())
+    .def_readwrite("beta_a", &ASAPNMFResult::beta_a)
+    .def_readwrite("beta_b", &ASAPNMFResult::beta_b)
+    .def_readwrite("beta", &ASAPNMFResult::beta)
+    .def_readwrite("beta_log", &ASAPNMFResult::beta_log)
+    .def_readwrite("theta", &ASAPNMFResult::theta)
+    .def_readwrite("theta_log", &ASAPNMFResult::theta_log)
+    .def_readwrite("llik_trace", &ASAPNMFResult::llik_trace);
+
+    py::class_<ASAPNMF>(m, "ASAPNMF")
+    .def(py::init< Eigen::MatrixXf&, int>(),
+            py::arg("in_Y"),
+            py::arg("in_maxK"))
+    .def("nmf", &ASAPNMF::nmf,py::return_value_policy::reference_internal);
+
     py::class_<ASAPdcNMFResult>(m, "ASAPdcNMFResult")
     .def(py::init< Mat, Mat, Mat, Mat, Mat, Mat, Mat, Mat, std::vector<Scalar> >())
     .def_readwrite("beta_a", &ASAPdcNMFResult::beta_a)

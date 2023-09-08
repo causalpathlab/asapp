@@ -99,8 +99,36 @@ struct dcpoisson_nmf_t {
 
         //b
         Mat r_topic_degree = row_topic.mean().transpose() * row_degree.mean();
-        Mat r_topic_degree_ns = (r_topic_degree * onesN.transpose()).transpose();
+        std::cout << "---" << std::endl;        
+        std::cout << "---" << std::endl;        
+        std::cout << row_topic.mean().transpose() << std::endl;
+        std::cout << "---" << std::endl;
         
+        std::cout << row_degree.mean() << std::endl;
+        
+        std::cout << "---" << std::endl;
+        std::cout << r_topic_degree << std::endl;
+
+        Mat r_topic_degree_ns = (r_topic_degree * onesN.transpose()).transpose();
+
+        std::cout << "---" << std::endl;
+        std::cout << r_topic_degree_ns << std::endl;
+
+        std::cout << "---" << std::endl;
+        
+        Mat a = column_degree.mean().asDiagonal();
+        std::cout << a << std::endl;
+
+        std::cout << "---" << std::endl;
+        Mat b = column_degree.mean().asDiagonal() * r_topic_degree_ns;
+        std::cout << b << std::endl;
+
+
+        std::cout << "---" << std::endl;
+        std::cout << "---" << std::endl;
+
+
+        Mat t = column_degree.mean().asDiagonal() * r_topic_degree_ns;
         column_topic.update( aux_r_c,column_degree.mean().asDiagonal() * r_topic_degree_ns);
 
         column_topic.calibrate();

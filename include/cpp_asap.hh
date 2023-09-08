@@ -75,8 +75,39 @@ class ASAPpb {
 
 };
 
+//
+// ASAP NMF
+//
+struct ASAPNMFResult {
+
+    ASAPNMFResult(Mat beta_dk_a, Mat beta_dk_b, 
+        Mat beta_dk_mean, Mat beta_dk_log_mean,
+        Mat theta_nk_mean,Mat theta_nk_log_mean,
+        std::vector<Scalar>  in_llik_trace)
+        : beta_a{beta_dk_a},beta_b{beta_dk_b}, 
+          beta{beta_dk_mean},beta_log{beta_dk_log_mean}, 
+          theta{theta_nk_mean},theta_log{theta_nk_log_mean}, 
+          llik_trace{in_llik_trace} {}
+
+    Mat beta_a, beta_b;
+    Mat beta, beta_log;
+    Mat theta, theta_log;
+    std::vector<Scalar> llik_trace;
+
+};
+
+class ASAPNMF {
+    public:
+    ASAPNMF(const Eigen::MatrixXf in_Y,int in_maxK):Y(in_Y),maxK(in_maxK){}
+
+    ASAPNMFResult nmf();    
+    protected:
+        int maxK;
+        Eigen::MatrixXf Y;
+};
+
 // 
-//  Degree correction PNMF model 
+//  Degree correction NMF model 
 // 
 
 struct ASAPdcNMFResult {

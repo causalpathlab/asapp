@@ -32,7 +32,7 @@ import anndata as an
 
 
 asap_adata = an.read_h5ad('./results/'+sc_sample+'.h5asap')
-asappy.plot_gene_loading(asap_adata)
+asappy.plot_gene_loading(asap_adata,top_n=5,max_thresh=50)
 asappy.leiden_cluster(asap_adata,k=9,mode='corr',resolution=0.1)
 asappy.run_umap(asap_adata,min_dist=0.1)
 asap_adata.write('./results/'+sc_sample+'.h5asapad')

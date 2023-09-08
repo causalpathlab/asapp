@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 def generate_random_projection_data(var_dims,tree_depth):
     return projection_data(tree_depth,var_dims)
 
-def generate_randomprojection_batch(asap_object,batch_i,start_index,end_index,rp_mat,normalization,result_queue,lock,sema):
+def generate_randomprojection_batch(asap_object,batch_i,start_index,end_index,rp_mat,normalization,result_queue,result_indxes_queue,lock,sema):
 
     if batch_i <= asap_object.adata.uns['number_batches']:
 
@@ -19,6 +19,8 @@ def generate_randomprojection_batch(asap_object,batch_i,start_index,end_index,rp
 
         lock.acquire()
         local_mtx = asap_object.adata.load_data_batch(batch_i,start_index,end_index)	
+        local_mtx_indxes = asap_object.adata.load_datainfo_batch(batch_i,start_index,end_index)
+        result_indxes_queue.put(local_mtx_indxes)	
         lock.release()
 
         get_randomprojection(local_mtx.T, 
@@ -114,11 +116,13 @@ def generate_randomprojection(asap_object,tree_depth,normalization='totalcount',
     if total_cells<batch_size:
 
         rp_data = get_randomprojection(asap_object.adata.X.T, rp_mat,'full',normalization)
+        return rp_data
 
     else:
 
         threads = []
         result_queue = queue.Queue()
+        result_indxes_queue = queue.Queue()
         lock = threading.Lock()
         sema = threading.Semaphore(value=maxthreads)
 
@@ -126,7 +130,7 @@ def generate_randomprojection(asap_object,tree_depth,normalization='totalcount',
 
             iend = min(istart + batch_size, total_cells)
                             
-            thread = threading.Thread(target=generate_randomprojection_batch, args=(asap_object,i,istart,iend, rp_mat,normalization,result_queue,lock,sema))
+            thread = threading.Thread(target=generate_randomprojection_batch, args=(asap_object,i,istart,iend, rp_mat,normalization,result_queue,result_indxes_queue,lock,sema))
             
             threads.append(thread)
             thread.start()
@@ -135,10 +139,12 @@ def generate_randomprojection(asap_object,tree_depth,normalization='totalcount',
             t.join()
 
         rp_data = []
+        rp_data_indxes = []
         while not result_queue.empty():
             rp_data.append(result_queue.get())
+            rp_data_indxes.append(result_indxes_queue.get())
     
-    return rp_data
+        return rp_data,rp_data_indxes
     
     
 def generate_pseudobulk(asap_object,tree_depth,normalization='totalcount',downsample_pseudobulk=True,downsample_size=100,maxthreads=16,pseudobulk_filter_size=5):

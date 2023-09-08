@@ -6,9 +6,12 @@
 int main()
 {
 
-// Eigen::MatrixXf mat = Eigen::MatrixXf::Random(4, 3);
+Eigen::MatrixXf mat = Eigen::MatrixXf::Random(4, 3);
 
-// int maxk = 2;
+int maxk = 2;
+
+ASAPNMF model(mat,maxk);
+model.nmf();
 
 // ASAPdcNMF dcmodel(mat,maxk);
 // dcmodel.nmf();
@@ -16,16 +19,16 @@ int main()
 // ASAPaltNMF altmodel(mat,maxk);
 // altmodel.nmf();
 
-Eigen::MatrixXf ysum_ds = Eigen::MatrixXf::Random(100, 25);
-Eigen::MatrixXf zsum_ds = Eigen::MatrixXf::Random(100, 25);
-Eigen::MatrixXf deltasum_db = Eigen::MatrixXf::Random(100, 2);
-Eigen::MatrixXf n_bs = Eigen::MatrixXf::Random(2,25);
-Eigen::MatrixXf p_bs = Eigen::MatrixXf::Random(2,25);
-RowVec size_s = RowVec::Ones(25);
+// Eigen::MatrixXf ysum_ds = Eigen::MatrixXf::Random(100, 25);
+// Eigen::MatrixXf zsum_ds = Eigen::MatrixXf::Random(100, 25);
+// Eigen::MatrixXf deltasum_db = Eigen::MatrixXf::Random(100, 2);
+// Eigen::MatrixXf n_bs = Eigen::MatrixXf::Random(2,25);
+// Eigen::MatrixXf p_bs = Eigen::MatrixXf::Random(2,25);
+// RowVec size_s = RowVec::Ones(25);
 
 
-ASAPpb model(ysum_ds,zsum_ds,deltasum_db,n_bs,p_bs,size_s);
-model.generate_pb();
+// ASAPpb model(ysum_ds,zsum_ds,deltasum_db,n_bs,p_bs,size_s);
+// model.generate_pb();
 
     // const std::size_t seed = 42;
 
