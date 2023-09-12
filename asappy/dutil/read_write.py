@@ -306,14 +306,15 @@ def convertMTXtoH5AD(infile,outfile):
 
 def save_model(asap_object):
 	import anndata as an
-	adata = an.AnnData(shape=(len(asap_object.adata.obs.barcodes),len(asap_object.adata.var.genes)))
+	hgvs = asap_object.adata.var.genes[asap_object.adata.uns['pseudobulk']['pb_hvgs']]
+	adata = an.AnnData(shape=(len(asap_object.adata.obs.barcodes),len(hgvs)))
 	adata.obs_names = [ x for x in asap_object.adata.obs.barcodes]
-	adata.var_names = [ x for x in asap_object.adata.var.genes]
+	adata.var_names = [ x for x in hgvs]
 	
 	for key,val in asap_object.adata.uns.items():
 		adata.uns[key] = val
 	
-	adata.varm['beta'] = asap_object.adata.varm['beta']
+	adata.varm['beta'] = asap_object.adata.uns['pseudobulk']['pb_beta'] 
 	adata.obsm['theta'] = asap_object.adata.obsm['theta']
 	adata.obsm['corr'] = asap_object.adata.obsm['corr']
 

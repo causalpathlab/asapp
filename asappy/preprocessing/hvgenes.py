@@ -2,45 +2,6 @@ import logging
 import numpy as np
 logger = logging.getLogger(__name__)
 
-def normalize_raw(mtx,method,sf=None):
-
-    from sklearn.preprocessing import normalize
-
-    if method == 'unitnorm':
-        # Sample(row)-wise normalization
-        norm_data = normalize(mtx.T, norm='l1')
-        return norm_data.T 
-    
-    elif method =='lognorm':
-        row_sums = mtx.T.sum(axis=1)
-        if sf == None:
-            target_sum = np.median(row_sums)
-        else :
-            target_sum = sf
-        row_sums = row_sums/target_sum
-        mtx_norm = np.divide(mtx,row_sums)
-        return np.log1p(mtx_norm)
-
-def normalize_pb(mtx,method):
-
-    if method=='lognorm':
-        scaling_factor = 10e4
-        row_sums = mtx.T.sum(axis=1)
-        mtx_norm = (mtx / row_sums).T * scaling_factor
-        return np.log1p(mtx_norm).T
-    
-    elif method =='robust':
-        from sklearn.preprocessing import RobustScaler
-        scaler = RobustScaler(with_centering=False,unit_variance=True)
-        mtx_norm = scaler.fit_transform(mtx.T)
-        return mtx_norm.T
-
-    elif method =='scaler':
-        from sklearn.preprocessing import StandardScaler
-        scaler = StandardScaler()
-        mtx_norm = np.exp(scaler.fit_transform(np.log1p(mtx.T)))
-        return mtx_norm.T
-
 def select_hvgenes(mtx,method):
     
     if method =='seurat':
@@ -48,7 +9,8 @@ def select_hvgenes(mtx,method):
         adapted from scanpy seurat flavor high variable gene selection
         '''
         from skmisc.loess import loess
-        mtx = mtx.T
+        
+        
         gene_sum = np.sum(mtx, axis=0)
         gene_mean = gene_sum / mtx.shape[0]
 
@@ -74,9 +36,12 @@ def select_hvgenes(mtx,method):
         
         stdev * sqrt(N) + mean
         '''
+        #####
         N = mtx.shape[0]
         vmax = np.sqrt(N)
         clip_val = reg_std * vmax + gene_mean
+        std_cuttoff = 1
+        #######
         
         clip_val_broad = np.broadcast_to(clip_val, mtx.shape)
 
@@ -96,7 +61,7 @@ def select_hvgenes(mtx,method):
             + squared_mtx_sum
             - 2 * gene_sum * gene_mean
         )
-        select_genes = norm_gene_var>3 
+        select_genes = norm_gene_var>std_cuttoff
         return mtx[:,select_genes].T, select_genes
     
     elif method =='liger':

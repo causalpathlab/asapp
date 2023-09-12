@@ -8,10 +8,13 @@ sample = 'sim'
 data_size = 12000
 number_batches = 1
 
-
+asappy.create_asap_data(sample)
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
-asappy.generate_pseudobulk(asap_object,tree_depth=10)
 
+normalization_raw='unitnorm'
+normalization_pb='scaler'
+
+asappy.generate_pseudobulk(asap_object,tree_depth=10,normalization_raw=normalization_raw,normalization_pb=normalization_pb)
 
 asappy.pbulk_cellcounthist(asap_object)
 

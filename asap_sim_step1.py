@@ -8,7 +8,7 @@
 ######################################################
 sample = 'sim'
 import asappy
-asappy.create_asap_data(sample)
+# asappy.create_asap_data(sample)
 
 ######################################################
 #####  random projection analysis

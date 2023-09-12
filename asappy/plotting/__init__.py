@@ -1,1 +1,1 @@
-from .plots import plot_umap,plot_umap_df, plot_gene_loading, plot_structure, plot_stats,plot_randomproj,plot_pbulk_celltyperatio,pbulk_cellcounthist
+from .plots import plot_umap,plot_umap_df, plot_gene_loading, plot_structure, plot_dmv_distribution,plot_blockwise_totalgene_bp,plot_blockwise_totalgene_depth_sp,plot_randomproj,plot_pbulk_celltyperatio,pbulk_cellcounthist

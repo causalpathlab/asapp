@@ -132,7 +132,7 @@ def plot_structure(asap_adata,mode):
 		axis_text_x=element_blank())
 	p.save(filename = asap_adata.uns['inpath']+'_'+mode+'_'+'struct.png', height=5, width=15, units ='in', dpi=300)
 
-def plot_gene_loading(asap_adata,top_n=3,max_thresh=None):
+def plot_gene_loading(asap_adata,top_n=3,max_thresh=100):
 	df_beta = pd.DataFrame(asap_adata.varm['beta'].T)
 	df_beta.columns = asap_adata.var.index.values
 	df_beta = df_beta.loc[:, ~df_beta.columns.duplicated(keep='first')]
@@ -142,151 +142,113 @@ def plot_gene_loading(asap_adata,top_n=3,max_thresh=None):
 	if max_thresh:
 		df_top[df_top>max_thresh] = max_thresh
 	sns.clustermap(df_top.T,cmap='viridis')
-	plt.savefig(asap_adata.uns['inpath']+'_beta.png');plt.close()
+	plt.savefig(asap_adata.uns['inpath']+'_beta'+'_th_'+str(max_thresh)+'.png');plt.close()
 
-# def plot_genes_meanvar_barchart(dfm,batch_label,outfile,mode):
+def plot_blockwise_totalgene_bp(mtx,outfile,mode,ngroups=5):
 
-# 	df = dfm.copy()
-# 	if mode == 'var':
-# 		size = df.var(0).max()
-# 		df['batch'] = batch_label
-# 		df = df.groupby('batch').var(0)
-# 	elif mode == 'mean':
-# 		size = df.mean(0).max()
-# 		df['batch'] = batch_label
-# 		df = df.groupby('batch').mean(0)
+	if mode == 'var':
+		data = mtx.var(0)
+	elif mode == 'mean':
+		data = mtx.mean(0)
+	maxv = data.max()
+	minv = data.min()
+	widthv = (maxv - minv)/ngroups
 
-# 	x = [size/y for y in [10000,1000,100,10,1]]
-# 	y = []
-# 	n = len(x)
-# 	for indx,b in enumerate(df.index.values):
+	x = []
+	for i in range(5):
+		if i ==0:
+			start = minv
+			end = minv+widthv
+		else:
+			start = x[i-1][1]
+			end = start+widthv
+		x.append([start,end])
 
-# 		data = df.loc[df.index==b,:].values[0]
-# 		# data = np.sort(data) # optional in this case
+	block_counts = []
 
-# 		block_counts = []
+	for i in x:
+		
+		block_start = i[0]
+		block_end = i[1]
 
-# 		for i in range(n):
-			
-# 			if i ==0 :block_start = 0
-# 			else: block_start = x[i-1]
-			
-# 			block_end = x[i]
-# 			block = data[(data > block_start) & (data <= block_end)]
-# 			block_counts.append(len(block))
-# 		y.append(block_counts)
-# 	dfp = pd.DataFrame(y).T
-# 	dfp.columns = df.index.values
-# 	dfp.index = x
+		block = data[(data > block_start) & (data <= block_end)]
+		block_counts.append(len(block))
 
-# 	dfp = dfp.reset_index()
-# 	dfpm = pd.melt(dfp,id_vars='index')
-# 	print(dfp)
-# 	print(dfpm)
+	dfp = pd.DataFrame(block_counts)
+	dfp.index = [v[1] for v in x]
 
-# 	from plotnine import (
-# 		ggplot,
-# 		labs,
-# 		aes,
-# 		geom_bar,
-# 		theme,
-# 		element_rect
-# 	)
-# 	dfpm['index'] = [x[:6] for x in dfpm['index'].astype(str) ]
-# 	p = ggplot(dfpm, aes(x='index', y='value', fill='variable')) + geom_bar(stat = "identity", position = "dodge")
-# 	p = p + theme(
-# 		plot_background=element_rect(fill='white'),
-# 		panel_background = element_rect(fill='white')
-# 	) + labs(title='Gene mean var analysis', x='Gene '+mode, y='Number of genes')
-# 	p.save(filename = outfile, height=6, width=8, units ='in', dpi=300)
+	dfp = dfp.reset_index()
+	dfp.columns = ['index','value']
 
-# def plot_gene_depthvar_barchart(dfm,batch_label,outfile,size=10):
+	dfp['index'] = [x[:6] for x in dfp['index'].astype(str) ]
+	p = ggplot(dfp, aes(x='index', y='value')) + geom_bar(stat = "identity", position = "dodge")
+	p = p + theme(
+		plot_background=element_rect(fill='white'),
+		panel_background = element_rect(fill='white')
+	) + labs(title='Gene mean var analysis', x='Gene '+mode, y='Number of genes')
+	p.save(filename = outfile+'_blockwise_totalgene_bp.png', height=6, width=8, units ='in', dpi=300)
 
-# 	dfb = dfm.copy()
-# 	dfb['batch'] = batch_label
-# 	dfb = dfb.groupby('batch')
+def plot_blockwise_totalgene_depth_sp(mtx,outfile,mode,ngroups=5):
 
-# 	df = dfm.copy()
-# 	df['batch'] = batch_label
-# 	df = df.groupby('batch').var(0)
+	if mode == 'var':
+		data = mtx.var(0)
+	elif mode == 'mean':
+		data = mtx.mean(0)
+	maxv = data.max()
+	minv = data.min()
+	widthv = (maxv - minv)/ngroups
 
-# 	# x = [dfm.var(0).max()/y for y in [10000,1000,100,10,1]]
-# 	x = [5/y for y in [10000,1000,100,10,1]]
-# 	y = {}
-# 	n = len(x)
-# 	for indx,b in enumerate(df.index.values):
+	x = []
+	for i in range(5):
+		if i ==0:
+			start = minv
+			end = minv+widthv
+		else:
+			start = x[i-1][1]
+			end = start+widthv
+		x.append([start,end])
 
-# 		data = df.loc[df.index==b,:].values[0]
+	block_index_list = []
 
-# 		for i in range(n):
-			
-# 			if i ==0 : block_start = 0
-# 			else: block_start = x[i-1]
-			
-# 			block_end = x[i]
-# 			block = [(data > block_start) & (data <= block_end)]
-	
-# 			vn=5
-# 			df_current = dfm.loc[dfb.groups[b],block[0]]
-# 			total_var = df_current.var().sum() * (df_current.shape[0]-1)
-# 			depth = df_current.sum(1).values
-# 			sorted_depth = np.sort(depth)
+	for i in x:
+		
+		block_start = i[0]
+		block_end = i[1]
+		block_index = np.where((data > block_start) & (data <= block_end))
+		block_index_list.append(block_index)
 
-# 			dblock_size = int(len(depth) / n)
+	bmap = {}
+	depth = mtx.sum(1)
+	for bi,b in enumerate(block_index_list):
+		bmap[bi]={}
+		bmap[bi]['mean'] = mtx[:,b[0]].mean(1)
+		bmap[bi]['depth'] = depth
 
-# 			# Generate blocks and count occurrences
-# 			dblocks = []
+	df = pd.DataFrame.from_dict(bmap, orient='index')
+	df = df.reset_index()
 
-# 			for j in range(vn):
-# 				dblock_start = j * dblock_size
-# 				dblock_end = dblock_start + dblock_size
-# 				dblock = [(depth >= sorted_depth[dblock_start]) & (depth < sorted_depth[dblock_end])]
-# 				var_ratio =(df_current.loc[dblock[0]].var().sum() * (df_current.loc[dblock[0]].shape[0]-1)) / total_var
-# 				dblocks.append(var_ratio)
-# 			y[b+'_'+str(x[i])] = dblocks
+	fig, ax = plt.subplots(df.shape[0],1,figsize=(8,15))
+	for i in range(df.shape[0]):
+		dfp = df.iloc[i,:]
+		sns.scatterplot(data=dfp, x='depth', y='mean',ax=ax[i],label=f'mean group {i}')
+		ax[i].set_xticks([])
+		ax[i].set_yticks([])	
+	plt.savefig(outfile+'_totalgene_depth_sp.png');plt.close()
 
-# 	dfp = pd.DataFrame(y)
-# 	dfp.index = ['group_'+str(x) for x in dfp.index.values]
-# 	dfp = dfp.reset_index()
-	
-# 	dfpm = pd.melt(dfp,id_vars='index')
-# 	print(dfp)
+def plot_dmv_distribution(mtx,outfile):
 
-# 	dfpm['batch'] = [x.split('_')[0] for x in dfpm['variable']]
+	dfp = pd.DataFrame(mtx.sum(1),columns=['depth'])
+	dfp['mean'] = mtx.mean(1)
+	dfp['var'] = mtx.var(1)
 
-# 	dfpm['variable'] = [x.split('_')[1][:6] for x in dfpm['variable']]
+	dfpm = pd.melt(dfp)
 
-# 	from plotnine import (
-# 	ggplot,
-# 	labs,
-# 	aes,
-# 	geom_bar,
-# 	theme,
-# 	element_rect,
-# 	facet_wrap
-# 	)
-# 	p = ggplot(dfpm, aes(x='variable', y='value', fill='index')) + geom_bar(stat = "identity", position = "stack") + facet_wrap('~ batch', ncol=1,scales='free')
-# 	p = p + theme(
-# 		plot_background=element_rect(fill='white'),
-# 		panel_background = element_rect(fill='white')
-# 	) + labs(title='Gene depth var analysis', x='Cell groups ', y='variation')
-# 	p.save(filename = outfile, height=6, width=8, units ='in', dpi=300)
-
-def plot_stats(df,batch_label,outfile):
-
-	dfp = pd.DataFrame(df.sum(1),columns=['depth'])
-	dfp['mean'] = df.mean(1)
-	dfp['var'] = df.var(1)
-	dfp['batch'] = batch_label
-
-	dfpm = pd.melt(dfp,id_vars=['batch'])
-
-	p = ggplot(dfpm, aes(x='value',fill='batch')) + geom_density(alpha=0.8) + facet_wrap('~ variable', ncol=1,scales='free')
+	p = ggplot(dfpm, aes(x='value')) + geom_density(alpha=0.8) + facet_wrap('~ variable', ncol=1,scales='free')
 	p = p + theme(
 		plot_background=element_rect(fill='white'),
 		panel_background = element_rect(fill='white')
 	) + ggtitle('stats')
-	p.save(filename = outfile, height=6, width=8, units ='in', dpi=300)
+	p.save(filename = outfile+'_dmv_dist.png', height=6, width=8, units ='in', dpi=300)
 
 def pbulk_cellcounthist(asap_object):
 	
@@ -316,68 +278,45 @@ def plot_pbulk_celltyperatio(df,outfile):
 	)
 	p.save(filename = outfile+'_pbulk_ratio.png', height=4, width=8, units ='in', dpi=300)
 	
-# def plot_pbulk_batchratio(df,outfile):
 
-# 	from plotnine import (
-# 		ggplot,
-# 		aes,
-# 		geom_bar,
-# 		theme,
-# 		theme_set,
-# 		theme_void,
-# 		element_rect
-# 	)
+# def plot_marker_genes(fn,df,umap_coords,marker_genes,nr,nc):
 
-# 	# theme_set(theme_void())
-# 	df = df.reset_index().rename(columns={'index': 'pbindex'})
-# 	dfm = pd.melt(df,id_vars='pbindex')
-# 	dfm = dfm.sort_values(['variable','value'])
+# 	from anndata import AnnData
+# 	import scanpy as sc
+# 	import numpy as np
 
-# 	p = ggplot(dfm, aes(x='pbindex', y='value',fill='variable')) + geom_bar(position="stack",stat="identity",size=0)
-# 	p = p + theme(
-# 		plot_background=element_rect(fill='white'),
-# 		panel_background = element_rect(fill='white')
-# 	)
-# 	p.save(filename = outfile, height=3, width=8, units ='in', dpi=300)
+# 	import matplotlib.pylab as plt
+# 	plt.rcParams['figure.figsize'] = [15, 10]
+# 	plt.rcParams['figure.autolayout'] = True
+# 	import seaborn as sns
 
-def plot_marker_genes(fn,df,umap_coords,marker_genes,nr,nc):
+# 	adata = AnnData(df.to_numpy())
+# 	sc.pp.normalize_total(adata, target_sum=1e4)
+# 	sc.pp.log1p(adata)
+# 	dfn = adata.to_df()
+# 	dfn.columns = df.columns
+# 	dfn['cell'] = df.index.values
 
-	from anndata import AnnData
-	import scanpy as sc
-	import numpy as np
+# 	dfn['umap1']= umap_coords[:,0]
+# 	dfn['umap2']= umap_coords[:,1]
 
-	import matplotlib.pylab as plt
-	plt.rcParams['figure.figsize'] = [15, 10]
-	plt.rcParams['figure.autolayout'] = True
-	import seaborn as sns
+# 	fig, ax = plt.subplots(nr,nc) 
+# 	ax = ax.ravel()
 
-	adata = AnnData(df.to_numpy())
-	sc.pp.normalize_total(adata, target_sum=1e4)
-	sc.pp.log1p(adata)
-	dfn = adata.to_df()
-	dfn.columns = df.columns
-	dfn['cell'] = df.index.values
+# 	for i,g in enumerate(marker_genes):
+# 		if g in dfn.columns:
+# 			print(g)
+# 			val = np.array([x if x<3 else 3.0 for x in dfn[g]])
+# 			sns.scatterplot(data=dfn, x='umap1', y='umap2', hue=val,s=.1,palette="viridis",ax=ax[i],legend=False)
 
-	dfn['umap1']= umap_coords[:,0]
-	dfn['umap2']= umap_coords[:,1]
+# 			# norm = plt.Normalize(val.min(), val.max())
+# 			# sm = plt.cm.ScalarMappable(cmap="viridis",norm=norm)
+# 			# sm.set_array([])
 
-	fig, ax = plt.subplots(nr,nc) 
-	ax = ax.ravel()
+# 			# cax = fig.add_axes([ax[i].get_position().x1, ax[i].get_position().y0, 0.01, ax[i].get_position().height])
+# 			# fig.colorbar(sm,ax=ax[i])
+# 			# ax[i].axis('off')
 
-	for i,g in enumerate(marker_genes):
-		if g in dfn.columns:
-			print(g)
-			val = np.array([x if x<3 else 3.0 for x in dfn[g]])
-			sns.scatterplot(data=dfn, x='umap1', y='umap2', hue=val,s=.1,palette="viridis",ax=ax[i],legend=False)
-
-			# norm = plt.Normalize(val.min(), val.max())
-			# sm = plt.cm.ScalarMappable(cmap="viridis",norm=norm)
-			# sm.set_array([])
-
-			# cax = fig.add_axes([ax[i].get_position().x1, ax[i].get_position().y0, 0.01, ax[i].get_position().height])
-			# fig.colorbar(sm,ax=ax[i])
-			# ax[i].axis('off')
-
-			ax[i].set_title(g)
-	fig.savefig(fn+'_umap_marker_genes_legend.png',dpi=600);plt.close()
+# 			ax[i].set_title(g)
+# 	fig.savefig(fn+'_umap_marker_genes_legend.png',dpi=600);plt.close()
 

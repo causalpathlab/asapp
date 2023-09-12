@@ -2,8 +2,10 @@ import numpy as np
 import pandas as pd
 import logging
 from sklearn.utils.extmath import randomized_svd
-from sklearn.preprocessing import StandardScaler
-from ..preprocessing.normalize import normalize_total_count
+from sklearn.preprocessing import StandardScaler,QuantileTransformer
+from ..preprocessing.normalize import normalize_pb,normalize_raw
+from ..preprocessing.hvgenes import select_hvgenes
+from scipy.stats import poisson
 import random
 logger = logging.getLogger(__name__)
 
@@ -48,35 +50,47 @@ def sample_pseudo_bulk(pseudobulk_map,sample_size):
             pseudobulk_map_sample[key] = value
     return pseudobulk_map_sample     
 
-def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normalization,res=None):   
-    if normalization =='totalcount':
-        logging.info('Using total count normaliztion.')
-        mtx = normalize_total_count(mtx)
+def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normalization_raw, normalization_pb,res=None):   
+
+    logging.info('normalize raw data -'+normalization_raw)    
+    mtx = normalize_raw(mtx,normalization_raw)
     
     pseudobulk_map = get_projection_map(mtx,rp_mat)
 
     if downsample_pseudobulk:
         pseudobulk_map = sample_pseudo_bulk(pseudobulk_map,downsample_size)
 
+    logging.info('normalize raw data for aggregation -'+'lognorm')    
+    mtx_norm = normalize_raw(mtx,method='lognorm')
     pseudobulk = []
     for _, value in pseudobulk_map.items():
-        pseudobulk.append(mtx[:,value].mean(1))
+        # m = mtx_norm[:,value]    
+        # lambda_estimates = np.mean(m, axis=1)
+        # s = poisson.rvs(mu=lambda_estimates, size=m.shape[0])
+        # pseudobulk.append(s)
 
+        pseudobulk.append(mtx_norm[:,value].sum(1))
+        
     pseudobulk = np.array(pseudobulk).T
-    scaler = StandardScaler()
-    pseudobulk = np.exp(scaler.fit_transform(np.log1p(pseudobulk)))
 
+    print(pseudobulk.shape)
+    logging.info('select highly variable genes pb data -seurat')    
+    pseudobulk,hvgenes = select_hvgenes(pseudobulk.T,method='seurat')
+    print(pseudobulk.shape)
+    logging.info('normalize pb data -'+normalization_pb)    
+    pseudobulk = normalize_pb(pseudobulk,normalization_pb)
+    print(pseudobulk.shape)
 
+    print('pbsum...')
+    print(pseudobulk.sum())
+    
     if mode == 'full':
-        return {mode:{'pb_data':pseudobulk, 'pb_map':pseudobulk_map}}
+        return {mode:{'pb_data':pseudobulk, 'pb_map':pseudobulk_map,'pb_hvgs':hvgenes}}
     else:
-         res.put({mode:{'pb_data':pseudobulk, 'pb_map':pseudobulk_map}})
+         res.put({mode:{'pb_data':pseudobulk, 'pb_map':pseudobulk_map, 'pb_hvgs':hvgenes}})
 
 def get_randomprojection(mtx,rp_mat,mode,normalization,res=None):   
-    if normalization =='totalcount':
-        logging.info('Using total count normaliztion.')
-        mtx = normalize_total_count(mtx)
-    
+
     rp_mat = get_random_projection_data(mtx,rp_mat)
 
     if mode == 'full':

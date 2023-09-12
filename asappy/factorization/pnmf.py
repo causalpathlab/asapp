@@ -11,7 +11,7 @@ import asapc
 import logging
 logger = logging.getLogger(__name__)
 
-def asap_nmf_predict_batch(asap_object,batch_i,start_index,end_index,beta,result_queue,lock,sema):
+def asap_nmf_predict_batch(asap_object,batch_i,start_index,end_index,hgvs,beta,result_queue,lock,sema):
 
 	if batch_i <= asap_object.adata.uns['number_batches']:
 
@@ -22,7 +22,8 @@ def asap_nmf_predict_batch(asap_object,batch_i,start_index,end_index,beta,result
 		local_mtx = asap_object.adata.load_data_batch(batch_i,start_index,end_index)	
 		lock.release()
 
-		reg_model = asapc.ASAPaltNMFPredict(local_mtx.T,beta)
+		local_pred_x = local_mtx[:,hgvs].T
+		reg_model = asapc.ASAPaltNMFPredict(local_pred_x,beta)
 		reg = reg_model.predict()
 
 		result_queue.put({
@@ -54,14 +55,18 @@ def asap_nmf(asap_object,num_factors,maxthreads=16):
 		
 		asap_object.adata.varm = {}
 		asap_object.adata.obsm = {}
-		asap_object.adata.varm['beta'] = nmfres.beta
+		asap_object.adata.uns['pseudobulk']['pb_beta'] = nmfres.beta
 		asap_object.adata.uns['pseudobulk']['pb_theta'] = nmfres.theta
 
+		hvgs = asap_object.adata.uns['pseudobulk']['pb_hvgs']
+  
 		if total_cells<batch_size:
 
 			logging.info('NMF prediction full data mode...')
 
-			pred_model = asapc.ASAPaltNMFPredict(asap_object.adata.X.T,beta_log_scaled)
+			pred_x = asap_object.adata.X[:,hvgs].T
+   
+			pred_model = asapc.ASAPaltNMFPredict(pred_x,beta_log_scaled)
 			pred = pred_model.predict()
 			
 			asap_object.adata.obsm['corr'] = pred.corr
@@ -79,7 +84,7 @@ def asap_nmf(asap_object,num_factors,maxthreads=16):
 
 				iend = min(istart + batch_size, total_cells)
 								
-				thread = threading.Thread(target=asap_nmf_predict_batch, args=(asap_object,i,istart,iend, beta_log_scaled,result_queue,lock,sema))
+				thread = threading.Thread(target=asap_nmf_predict_batch, args=(asap_object,i,istart,iend, hvgs,beta_log_scaled,result_queue,lock,sema))
 				
 				threads.append(thread)
 				thread.start()
