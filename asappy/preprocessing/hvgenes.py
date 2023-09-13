@@ -1,15 +1,66 @@
 import logging
 import numpy as np
+import numba as nb
+from math import sqrt
 logger = logging.getLogger(__name__)
 
-def select_hvgenes(mtx,method):
+
+@nb.njit(parallel=True)
+def calc_res(mtx,sum_gene,sum_cell,sum_total,theta,clip,n_gene,n_cell):
     
-    if method =='seurat':
-        '''
-        adapted from scanpy seurat flavor high variable gene selection
-        '''
-        from skmisc.loess import loess
+    def clac_clipped_res_dense(gene: int, cell: int) -> np.float64:
+        mu = sum_gene[gene] * sum_cell[cell] / sum_total
+        value = mtx[cell, gene]
+
+        mu_sum = value - mu
+        pre_res = mu_sum / sqrt(mu + mu * mu / theta)
+        res = np.float64(min(max(pre_res, -clip), clip))
+        return res
+
+    norm_gene_var = np.zeros(n_gene, dtype=np.float64)
+
+    for gene in nb.prange(n_gene):
+        sum_clipped_res = np.float64(0.0)
+        for cell in range(n_cell):
+            sum_clipped_res += clac_clipped_res_dense(gene, cell)
+        mean_clipped_res = sum_clipped_res / n_cell
+
+        var_sum = np.float64(0.0)
+        for cell in range(n_cell):
+            clipped_res = clac_clipped_res_dense(gene, cell)
+            diff = clipped_res - mean_clipped_res
+            var_sum += diff * diff
+
+        norm_gene_var[gene] = var_sum / n_cell
+
+    return norm_gene_var
+
+def select_hvgenes(mtx,method):
+    '''
+    adapted from pyliger plus scanpy's seurat high variable gene selection
+
+    '''
+    if method == 'apearson':
+
+        sum_gene = np.array(mtx.sum(axis=0)).ravel()
+        sum_cell = np.array(mtx.sum(axis=1)).ravel()
+        sum_total = np.float64(np.sum(sum_gene).ravel())
+        n_gene = mtx.shape[1]
+        n_cell = mtx.shape[0]
         
+        theta = np.float64(100)
+        clip = np.float64(np.sqrt(n_cell))
+        z_cuttoff = 1e-3
+        
+        norm_gene_var = calc_res(mtx,sum_gene,sum_cell,sum_total,theta,clip,n_gene,n_cell)
+        
+        select_genes = norm_gene_var>z_cuttoff
+        
+        print(select_genes.sum())
+        return mtx[:,select_genes], select_genes
+
+    elif method =='seurat':
+        from skmisc.loess import loess
         
         gene_sum = np.sum(mtx, axis=0)
         gene_mean = gene_sum / mtx.shape[0]
@@ -40,7 +91,7 @@ def select_hvgenes(mtx,method):
         N = mtx.shape[0]
         vmax = np.sqrt(N)
         clip_val = reg_std * vmax + gene_mean
-        std_cuttoff = 1
+        z_cuttoff = 2
         #######
         
         clip_val_broad = np.broadcast_to(clip_val, mtx.shape)
@@ -48,7 +99,7 @@ def select_hvgenes(mtx,method):
         np.putmask(
         mtx,
         mtx > clip_val_broad,
-        clip_val_broad,
+        clip_val_broad
         )
     
         '''
@@ -61,8 +112,8 @@ def select_hvgenes(mtx,method):
             + squared_mtx_sum
             - 2 * gene_sum * gene_mean
         )
-        select_genes = norm_gene_var>std_cuttoff
-        return mtx[:,select_genes].T, select_genes
+        select_genes = norm_gene_var>z_cuttoff
+        return mtx[:,select_genes], select_genes
     
     elif method =='liger':
         from sklearn.preprocessing import normalize,StandardScaler
@@ -88,7 +139,7 @@ def select_hvgenes(mtx,method):
         var_thresh = 0.99
 
         ## total raw count per cell
-        trc_per_cell = mtx_dn.T.sum(1)
+        trc_per_cell = mtx.T.sum(1)
 
         #### get lower and upper gene expr threshold
         nolan_constant = np.mean(ne.evaluate("1 / trc_per_cell"))

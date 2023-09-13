@@ -62,6 +62,8 @@ def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normali
 
     logging.info('normalize raw data for aggregation -'+'lognorm')    
     mtx_norm = normalize_raw(mtx,method='lognorm')
+
+    mtx_norm = mtx
     pseudobulk = []
     for _, value in pseudobulk_map.items():
         # m = mtx_norm[:,value]    
@@ -71,11 +73,12 @@ def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normali
 
         pseudobulk.append(mtx_norm[:,value].sum(1))
         
-    pseudobulk = np.array(pseudobulk).T
+    pseudobulk = np.array(pseudobulk)
 
     print(pseudobulk.shape)
-    logging.info('select highly variable genes pb data -seurat')    
-    pseudobulk,hvgenes = select_hvgenes(pseudobulk.T,method='seurat')
+    hvg = 'seurat'
+    logging.info('select highly variable genes pb data -'+hvg)    
+    pseudobulk,hvgenes = select_hvgenes(pseudobulk,method=hvg)
     print(pseudobulk.shape)
     logging.info('normalize pb data -'+normalization_pb)    
     pseudobulk = normalize_pb(pseudobulk,normalization_pb)
@@ -84,6 +87,8 @@ def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normali
     print('pbsum...')
     print(pseudobulk.sum())
     
+    pseudobulk = pseudobulk.T 
+        
     if mode == 'full':
         return {mode:{'pb_data':pseudobulk, 'pb_map':pseudobulk_map,'pb_hvgs':hvgenes}}
     else:
