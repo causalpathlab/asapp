@@ -50,44 +50,34 @@ def sample_pseudo_bulk(pseudobulk_map,sample_size):
             pseudobulk_map_sample[key] = value
     return pseudobulk_map_sample     
 
-def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normalization_raw, normalization_pb,res=None):   
+def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normalization_raw, normalization_pb,z_high_gene_expression,z_high_gene_var,res=None):   
 
     logging.info('normalize raw data -'+normalization_raw)    
-    mtx = normalize_raw(mtx,normalization_raw)
-    
     pseudobulk_map = get_projection_map(mtx,rp_mat)
 
     if downsample_pseudobulk:
         pseudobulk_map = sample_pseudo_bulk(pseudobulk_map,downsample_size)
 
-    logging.info('normalize raw data for aggregation -'+'lognorm')    
-    mtx_norm = normalize_raw(mtx,method='lognorm')
-
-    mtx_norm = mtx
+    logging.info('normalize raw data for aggregation -'+'lognorm')
+        
     pseudobulk = []
     for _, value in pseudobulk_map.items():
-        # m = mtx_norm[:,value]    
-        # lambda_estimates = np.mean(m, axis=1)
-        # s = poisson.rvs(mu=lambda_estimates, size=m.shape[0])
-        # pseudobulk.append(s)
-
-        pseudobulk.append(mtx_norm[:,value].sum(1))
+        m = mtx[:,value]    
+        lambda_estimates = np.mean(m, axis=1)
+        s = poisson.rvs(mu=lambda_estimates, size=m.shape[0])
+        pseudobulk.append(s)
         
-    pseudobulk = np.array(pseudobulk)
-
-    print(pseudobulk.shape)
-    hvg = 'seurat'
-    logging.info('select highly variable genes pb data -'+hvg)    
-    pseudobulk,hvgenes = select_hvgenes(pseudobulk,method=hvg)
-    print(pseudobulk.shape)
+    pseudobulk = np.array(pseudobulk).astype(np.float64)
+    
+    hvg = 'apearson'
+    logging.info('select highly variable genes pb data...'+hvg)    
+    pseudobulk,hvgenes = select_hvgenes(pseudobulk,hvg,z_high_gene_expression,z_high_gene_var)
+    logging.info('after high variance genes filtering...'+str(pseudobulk.shape))
+    
     logging.info('normalize pb data -'+normalization_pb)    
     pseudobulk = normalize_pb(pseudobulk,normalization_pb)
-    print(pseudobulk.shape)
-
-    print('pbsum...')
-    print(pseudobulk.sum())
     
-    pseudobulk = pseudobulk.T 
+    pseudobulk = pseudobulk.T.astype(int)
         
     if mode == 'full':
         return {mode:{'pb_data':pseudobulk, 'pb_map':pseudobulk_map,'pb_hvgs':hvgenes}}

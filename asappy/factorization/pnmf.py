@@ -43,7 +43,6 @@ def asap_nmf(asap_object,num_factors,maxthreads=16):
         'num_factors : ' + str(num_factors)+'\n'
         )
 
-
 		nmf_model = asapc.ASAPNMF(asap_object.adata.uns['pseudobulk']['pb_data'],asap_object.adata.uns['num_factors'])
 		nmfres = nmf_model.nmf()
 

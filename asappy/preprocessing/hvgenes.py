@@ -1,5 +1,6 @@
 import logging
 import numpy as np
+import pandas as pd
 import numba as nb
 from math import sqrt
 logger = logging.getLogger(__name__)
@@ -35,13 +36,32 @@ def calc_res(mtx,sum_gene,sum_cell,sum_total,theta,clip,n_gene,n_cell):
 
     return norm_gene_var
 
-def select_hvgenes(mtx,method):
+def select_hvgenes(mtx,method,z_high_gene_expression,z_high_gene_var):
     '''
     adapted from pyliger plus scanpy's seurat high variable gene selection
 
     '''
     if method == 'apearson':
+        
+        ### remove high expression genes with std > 10
+        from scipy.stats import zscore
+        data = np.array(mtx.mean(axis=0))
+        z_scores = zscore(data)
+        mean_genef_index = z_scores > z_high_gene_expression
+        logging.info('removed high expression genes...'+str(mean_genef_index.sum()))
 
+        ## remove genes with total sum over all cells as zero
+        sum_gene = np.array(mtx.sum(axis=0))
+        sum_genef_index = sum_gene!=0
+        logging.info('kept non zero sum expression genes...'+str(sum_genef_index.sum()))
+        
+        ### combine two filters
+        genef_index = np.array([a or b for a, b in zip(mean_genef_index, sum_genef_index)])
+        mtx = mtx[:,genef_index]
+                
+        df = pd.DataFrame()
+        df['gzero']=genef_index
+        
         sum_gene = np.array(mtx.sum(axis=0)).ravel()
         sum_cell = np.array(mtx.sum(axis=1)).ravel()
         sum_total = np.float64(np.sum(sum_gene).ravel())
@@ -50,18 +70,40 @@ def select_hvgenes(mtx,method):
         
         theta = np.float64(100)
         clip = np.float64(np.sqrt(n_cell))
-        z_cuttoff = 1e-3
-        
         norm_gene_var = calc_res(mtx,sum_gene,sum_cell,sum_total,theta,clip,n_gene,n_cell)
+        select_genes = norm_gene_var>z_high_gene_var 
         
-        select_genes = norm_gene_var>z_cuttoff
+        logging.info('kept high variance genes...'+str(select_genes.sum()))
+
+        prev_indx = df.loc[df['gzero']==True].index.values
+        sgenemap = {x:y for x,y in zip(prev_indx,select_genes)}
         
-        print(select_genes.sum())
-        return mtx[:,select_genes], select_genes
+        df['select'] = [sgenemap[x]  if x in sgenemap.keys() else False for x in df.index.values]
+        
+        return mtx[:,select_genes], df['select'].values
 
     elif method =='seurat':
         from skmisc.loess import loess
         
+                
+        ### remove high expression genes with std > 10
+        from scipy.stats import zscore
+        data = np.array(mtx.mean(axis=0))
+        z_scores = zscore(data)
+        mean_genef_index = z_scores > z_high_gene_expression
+
+
+        ## remove genes with total sum over all cells as zero
+        sum_gene = np.array(mtx.sum(axis=0))
+        sum_genef_index = sum_gene!=0
+        
+        ### combine two filters
+        genef_index = np.array([a or b for a, b in zip(mean_genef_index, sum_genef_index)])
+        mtx = mtx[:,genef_index]
+                
+        df = pd.DataFrame()
+        df['gzero']=genef_index
+
         gene_sum = np.sum(mtx, axis=0)
         gene_mean = gene_sum / mtx.shape[0]
 
@@ -91,7 +133,6 @@ def select_hvgenes(mtx,method):
         N = mtx.shape[0]
         vmax = np.sqrt(N)
         clip_val = reg_std * vmax + gene_mean
-        z_cuttoff = 2
         #######
         
         clip_val_broad = np.broadcast_to(clip_val, mtx.shape)
@@ -112,8 +153,14 @@ def select_hvgenes(mtx,method):
             + squared_mtx_sum
             - 2 * gene_sum * gene_mean
         )
-        select_genes = norm_gene_var>z_cuttoff
-        return mtx[:,select_genes], select_genes
+        
+        select_genes = norm_gene_var> z_high_gene_var
+        prev_indx = df.loc[df['gzero']==True].index.values
+        sgenemap = {x:y for x,y in zip(prev_indx,select_genes)}
+        
+        df['select'] = [sgenemap[x]  if x in sgenemap.keys() else False for x in df.index.values]
+        
+        return mtx[:,select_genes], df['select'].values
     
     elif method =='liger':
         from sklearn.preprocessing import normalize,StandardScaler

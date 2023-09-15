@@ -152,7 +152,7 @@ def generate_randomprojection(asap_object,tree_depth,normalization='totalcount',
         return rp_data,rp_data_indxes
     
     
-def generate_pseudobulk(asap_object,tree_depth,normalization_raw,normalization_pb,downsample_pseudobulk=True,downsample_size=100,maxthreads=16,pseudobulk_filter_size=5):
+def generate_pseudobulk(asap_object,tree_depth,normalization_raw,normalization_pb,z_high_gene_expression,z_high_gene_var,downsample_pseudobulk=True,downsample_size=100,maxthreads=16,pseudobulk_filter_size=5):
     asap_object.adata.uns['tree_depth'] = tree_depth
     asap_object.adata.uns['downsample_pseudobulk'] = downsample_pseudobulk
     asap_object.adata.uns['downsample_size'] = downsample_size
@@ -176,7 +176,7 @@ def generate_pseudobulk(asap_object,tree_depth,normalization_raw,normalization_p
     
     if total_cells<batch_size:
 
-        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full',normalization_raw,normalization_pb)
+        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full',normalization_raw,normalization_pb,z_high_gene_expression,z_high_gene_var)
 
     else:
 
@@ -189,7 +189,7 @@ def generate_pseudobulk(asap_object,tree_depth,normalization_raw,normalization_p
 
             iend = min(istart + batch_size, total_cells)
                             
-            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat,normalization_raw,normalization_pb,result_queue,lock,sema))
+            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat,normalization_raw,normalization_pb,z_high_gene_expression,z_high_gene_var,result_queue,lock,sema))
             
             threads.append(thread)
             thread.start()

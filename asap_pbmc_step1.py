@@ -6,7 +6,7 @@ number_batches = 1
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
 
 normalization_raw='unitnorm'
-normalization_pb='lognorm'
+normalization_pb='mscale'
 
 asappy.generate_pseudobulk(asap_object,tree_depth=10,normalization_raw=normalization_raw,normalization_pb=normalization_pb)
 asappy.asap_nmf(asap_object,num_factors=10)
@@ -33,7 +33,7 @@ asappy.plot_gene_loading(asap_adata,top_n=5,max_thresh=1000)
 
 asappy.leiden_cluster(asap_adata,k=10,mode='corr',resolution=0.1)
 asap_adata.obs.cluster.value_counts()
-asappy.run_umap(asap_adata,distance='cosine',min_dist=0.2)
+asappy.run_umap(asap_adata,distance='cosine',min_dist=0.1)
 asappy.plot_umap(asap_adata,col='cluster')
 
 import pandas as pd
