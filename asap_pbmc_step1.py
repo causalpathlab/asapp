@@ -5,10 +5,19 @@ data_size = 25000
 number_batches = 1
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
 
+<<<<<<< HEAD
+normalize_pb='lscale'
+hvg_selection=True
+gene_mean_z=10
+gene_var_z=2
+normalize_raw=None
+asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_raw=normalize_raw,normalize_pb=normalize_pb,hvg_selection=hvg_selection,gene_mean_z=gene_mean_z,gene_var_z=gene_var_z)
+# asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_raw=normalize_raw,normalize_pb=normalize_pb)
+=======
 normalization_raw='unitnorm'
-normalization_pb='mscale'
+normalization_pb='lognorm'
+>>>>>>> parent of cfd89de... gene selection - working version
 
-asappy.generate_pseudobulk(asap_object,tree_depth=10,normalization_raw=normalization_raw,normalization_pb=normalization_pb)
 asappy.asap_nmf(asap_object,num_factors=10)
 asappy.save_model(asap_object)
 
@@ -33,7 +42,7 @@ asappy.plot_gene_loading(asap_adata,top_n=5,max_thresh=1000)
 
 asappy.leiden_cluster(asap_adata,k=10,mode='corr',resolution=0.1)
 asap_adata.obs.cluster.value_counts()
-asappy.run_umap(asap_adata,distance='cosine',min_dist=0.1)
+asappy.run_umap(asap_adata,distance='cosine',min_dist=0.2)
 asappy.plot_umap(asap_adata,col='cluster')
 
 import pandas as pd

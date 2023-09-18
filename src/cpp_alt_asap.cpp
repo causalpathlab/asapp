@@ -100,7 +100,7 @@ ASAPaltNMFResult ASAPaltNMF::nmf()
         // Estimation of auxiliary variables (i,k)  //
         //////////////////////////////////////////////
 
-        X_nk = standardize(theta_nk.log_mean(), EPS);
+        X_nk = standardize(theta_nk.log_mean(), EPS); 
         logPhi_dk = Y_dn * X_nk;
         logPhi_dk.array().colwise() /= Y_d1.array();
         logPhi_dk += beta_dk.log_mean();
@@ -125,7 +125,7 @@ ASAPaltNMFResult ASAPaltNMF::nmf()
         // Estimation of auxiliary variables (j,k)  //
         //////////////////////////////////////////////
 
-        X_dk = standardize(beta_dk.log_mean(), EPS);
+        X_dk = standardize(beta_dk.log_mean(), EPS); 
         logRho_nk = Y_dn.transpose() * X_dk;
         logRho_nk.array().colwise() /= Y_n1.array();
         logRho_nk += theta_nk.log_mean();

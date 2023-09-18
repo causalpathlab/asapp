@@ -1,6 +1,7 @@
 import threading
 import queue
 import numpy as np
+import pandas as pd
 
 from .rpstruct import projection_data, get_pseudobulk, get_randomprojection
 import logging
@@ -33,7 +34,7 @@ def generate_randomprojection_batch(asap_object,batch_i,start_index,end_index,rp
     else:
         logging.info('Random projection NOT generated for '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(asap_object.adata.uns['number_batches']))
 
-def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat,normalization,result_queue,lock,sema):
+def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat,normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema):
 
     if batch_i <= asap_object.adata.uns['number_batches']:
 
@@ -49,7 +50,11 @@ def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat,n
             rp_mat, 
             asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],
             str(batch_i) +'_' +str(start_index)+'_'+str(end_index),
-            normalization,
+            normalize_raw,
+            normalize_pb,
+            hvg_selection,
+            gene_mean_z,
+            gene_var_z,
             result_queue
             )
         sema.release()			
@@ -94,8 +99,25 @@ def filter_pseudobulk(asap_object,pseudobulk_result,min_size=5):
                 asap_object.adata.uns['pseudobulk']['pb_data'] = pb
                 asap_object.adata.uns['pseudobulk']['pb_hvgs'] = hvgs
             else:
-                asap_object.adata.uns['pseudobulk']['pb_data'] = np.hstack((asap_object.adata.uns['pseudobulk']['pb_data'],pb))
-                asap_object.adata.uns['pseudobulk']['pb_hvgs'] = np.hstack((asap_object.adata.uns['pseudobulk']['pb_hvgs'],hvgs))
+                
+                ### need to correct hvgs index from multiple batches
+                prv_hvgs = asap_object.adata.uns['pseudobulk']['pb_hvgs']
+                combine_hvgs = np.array([a or b for a,b in zip(prv_hvgs,hvgs)])
+                
+                prv_pbdata = asap_object.adata.uns['pseudobulk']['pb_data']
+                
+                updated_prv_pbdata = pd.DataFrame(np.zeros((len(combine_hvgs), prv_pbdata.shape[1])))
+                updated_prv_pbdata.loc[prv_hvgs] = prv_pbdata
+                
+                updated_current_pbdata = pd.DataFrame(np.zeros((len(combine_hvgs), pb.shape[1])))
+                updated_current_pbdata.loc[hvgs] = pb
+                
+                updated_current_pbdata = updated_current_pbdata[combine_hvgs]
+                updated_prv_pbdata = updated_prv_pbdata[combine_hvgs]
+                
+                asap_object.adata.uns['pseudobulk']['pb_data'] = np.hstack((updated_prv_pbdata,updated_current_pbdata))
+                
+                asap_object.adata.uns['pseudobulk']['pb_hvgs'] = combine_hvgs
             
             asap_object.adata.uns['pseudobulk']['pb_map'][[k for k in result_batch.keys()][0]] = pseudobulk_map
 
@@ -150,9 +172,26 @@ def generate_randomprojection(asap_object,tree_depth,normalization='totalcount',
             rp_data_indxes.append(result_indxes_queue.get())
     
         return rp_data,rp_data_indxes
+
     
+def generate_pseudobulk(
+    asap_object,
+    tree_depth,
+    normalize_raw=None,
+    normalize_pb=None,
+    hvg_selection=False,
+    gene_mean_z=10,
+    gene_var_z=2,
+    downsample_pseudobulk=True,
+    downsample_size=100,
+    maxthreads=16,
+    pseudobulk_filter_size=5
+    ):
     
-def generate_pseudobulk(asap_object,tree_depth,normalization_raw,normalization_pb,z_high_gene_expression,z_high_gene_var,downsample_pseudobulk=True,downsample_size=100,maxthreads=16,pseudobulk_filter_size=5):
+<<<<<<< HEAD
+=======
+def generate_pseudobulk(asap_object,tree_depth,normalization_raw,normalization_pb,downsample_pseudobulk=True,downsample_size=100,maxthreads=16,pseudobulk_filter_size=5):
+>>>>>>> parent of cfd89de... gene selection - working version
     asap_object.adata.uns['tree_depth'] = tree_depth
     asap_object.adata.uns['downsample_pseudobulk'] = downsample_pseudobulk
     asap_object.adata.uns['downsample_size'] = downsample_size
@@ -176,7 +215,11 @@ def generate_pseudobulk(asap_object,tree_depth,normalization_raw,normalization_p
     
     if total_cells<batch_size:
 
-        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full',normalization_raw,normalization_pb,z_high_gene_expression,z_high_gene_var)
+<<<<<<< HEAD
+        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full',normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z)
+=======
+        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full',normalization_raw,normalization_pb)
+>>>>>>> parent of cfd89de... gene selection - working version
 
     else:
 
@@ -189,7 +232,11 @@ def generate_pseudobulk(asap_object,tree_depth,normalization_raw,normalization_p
 
             iend = min(istart + batch_size, total_cells)
                             
-            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat,normalization_raw,normalization_pb,z_high_gene_expression,z_high_gene_var,result_queue,lock,sema))
+<<<<<<< HEAD
+            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat,normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema))
+=======
+            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat,normalization_raw,normalization_pb,result_queue,lock,sema))
+>>>>>>> parent of cfd89de... gene selection - working version
             
             threads.append(thread)
             thread.start()

@@ -78,16 +78,7 @@ struct poisson_nmf_t {
         Mat row_sum = row_topic.mean().colwise().sum().transpose();
 
 
-        // std::cout << row_sum << std::endl;
-        // std::cout << "---" << std::endl;
-        // std::cout << "---" << std::endl;
-        // std::cout << "---" << std::endl;
-
-
         Mat row_sum_tcol = (row_sum * onesN.transpose()).transpose();
-
-        // std::cout << row_sum_tcol << std::endl;
-        // std::cout << "---" << std::endl;
 
         column_topic.update( aux_r_c,row_sum_tcol);
 

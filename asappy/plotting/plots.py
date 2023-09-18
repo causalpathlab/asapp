@@ -150,13 +150,12 @@ def plot_blockwise_totalgene_bp(mtx,outfile,mode,ngroups=5):
 		data = mtx.var(0)
 	elif mode == 'mean':
 		data = mtx.mean(0)
-  
 	maxv = data.max()
 	minv = data.min()
 	widthv = (maxv - minv)/ngroups
 
 	x = []
-	for i in range(ngroups):
+	for i in range(5):
 		if i ==0:
 			start = minv
 			end = minv+widthv
@@ -170,7 +169,7 @@ def plot_blockwise_totalgene_bp(mtx,outfile,mode,ngroups=5):
 	for i in x:
 		
 		block_start = i[0]
-		block_end = i[1]+1
+		block_end = i[1]
 
 		block = data[(data > block_start) & (data <= block_end)]
 		block_counts.append(len(block))
@@ -200,7 +199,7 @@ def plot_blockwise_totalgene_depth_sp(mtx,outfile,mode,ngroups=5):
 	widthv = (maxv - minv)/ngroups
 
 	x = []
-	for i in range(ngroups):
+	for i in range(5):
 		if i ==0:
 			start = minv
 			end = minv+widthv
@@ -320,3 +319,4 @@ def plot_pbulk_celltyperatio(df,outfile):
 
 # 			ax[i].set_title(g)
 # 	fig.savefig(fn+'_umap_marker_genes_legend.png',dpi=600);plt.close()
+

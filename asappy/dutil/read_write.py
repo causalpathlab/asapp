@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 class CreateDatasetFromH5:
 
-	def __init__(self,inpath):
+	def __init__(self,inpath,sample):
 		self.inpath = inpath
 		self.outpath = './results/'
-		self.datasets = glob.glob(inpath+'*.h5')
+		self.datasets = glob.glob(inpath+sample+'.h5')
 
 
 	def peek_datasets(self):
@@ -92,10 +92,10 @@ class CreateDatasetFromH5:
 			print('completed.')
 
 class CreateDatasetFromH5AD:
-	def __init__(self,inpath):
+	def __init__(self,inpath,sample):
 		self.inpath = inpath
 		self.outpath = './results/'
-		self.datasets = glob.glob(inpath+'*.h5ad')
+		self.datasets = glob.glob(inpath+sample+'.h5ad')
 
 	def check_label(self):
 		for ds in self.datasets:
@@ -351,7 +351,7 @@ def data_fileformat():
 	datasets = glob.glob(fpath)
 	ftypes = []
 	for f in datasets:
-		ftypes.append(f.split('.')[2])
+		ftypes.append(f.split('.')[len(f.split('.'))-1])
 	if len(np.unique(ftypes)) == 1:
 		return ftypes[0]
 	else:

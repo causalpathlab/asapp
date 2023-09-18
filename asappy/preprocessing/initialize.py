@@ -39,11 +39,11 @@ def create_asap_data(sample,select_genes=None):
 	filetype = data_fileformat()
 	## read source files and create dataset for asap
 	if filetype == 'h5':
-		ds = CreateDatasetFromH5('./data/') 
+		ds = CreateDatasetFromH5('./data/',sample) 
 		print(ds.peek_datasets())
 		ds.create_asapdata(sample,select_genes) 
 	elif filetype == 'h5ad':
-		ds = CreateDatasetFromH5AD('./data/') 
+		ds = CreateDatasetFromH5AD('./data/',sample) 
 		print(ds.peek_datasets())
 		ds.create_asapdata(sample,select_genes) 
 	
