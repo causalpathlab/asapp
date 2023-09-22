@@ -108,4 +108,23 @@ def pmf2topic(beta, theta, eps=1e-8):
     return {'beta': beta, 'prop': prop, 'depth': zz}
 
 
+def row_col_order(dfm):
+
+	from scipy.cluster import hierarchy
+
+	df = dfm.copy()
+ 
+	Z = hierarchy.ward(df.to_numpy())
+	ro = hierarchy.leaves_list(hierarchy.optimal_leaf_ordering(Z, df.to_numpy()))
+
+	df['topic'] = df.index.values
+	dfm = pd.melt(df,id_vars='topic')
+	dfm.columns = ['row','col','values']
+	M = dfm[['row', 'col', 'values']].copy()
+	M['row'] = pd.Categorical(M['row'], categories=ro)
+	M = M.pivot(index='row', columns='col', values='values').fillna(0)
+	co = np.argsort(-M.values.max(axis=0))
+	co = M.columns[co]
+ 
+	return ro,co
 

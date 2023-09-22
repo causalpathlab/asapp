@@ -3,11 +3,14 @@ import sys
 
 
 sample = sys.argv[1]
-# sample = 'sim_p_0.8_d_0.1_r_0.9_s_1_sd_1'
+# sample = 'sim_r_0.8_s_50_sd_1'
 print(sample)
 
-data_size = 15000
+data_size = 150000
 number_batches = 1
+
+asappy.create_asap_data(sample)
+
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
 
 

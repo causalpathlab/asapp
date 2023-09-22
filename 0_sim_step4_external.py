@@ -10,7 +10,7 @@ from sklearn.cluster import KMeans
 
 
 
-def _ligerpipeline(mtx,var,obs,outpath):
+def _ligerpipeline(mtx,var,obs,outpath,K):
     adata = an.AnnData(mtx)
     dfvars = pd.DataFrame(var)
     dfobs = pd.DataFrame(obs)
@@ -40,7 +40,7 @@ def _ligerpipeline(mtx,var,obs,outpath):
     pyliger.scale_not_center(ifnb_liger)
     pyliger.optimize_ALS(ifnb_liger, k = K)
     pyliger.quantile_norm(ifnb_liger)
-    pyliger.leiden_cluster(ifnb_liger, resolution=0.1,k=10)
+    pyliger.leiden_cluster(ifnb_liger, resolution=0.1,k=K)
 
     df1 = ifnb_liger.adata_list[0].obs[['cell','cluster']]
     df2 = ifnb_liger.adata_list[1].obs[['cell','cluster']]
@@ -48,9 +48,12 @@ def _ligerpipeline(mtx,var,obs,outpath):
     df.to_csv(outpath+'_liger.csv.gz',index=False, compression='gzip')
     
 
-def _scanpy(adata):
+def _pca(ad,pc_n):
 
-        sc.tl.pca(adata, svd_solver='arpack')
+        adata = ad.copy()
+        sc.pp.highly_variable_genes(adata)
+        adata = adata[:, adata.var.highly_variable]
+        sc.tl.pca(adata,n_comps=pc_n ,svd_solver='arpack')
         # sc.pl.pca(adata)
         # plt.savefig('_scanpy_raw_pipeline_pca.png');plt.close()
 
@@ -67,41 +70,47 @@ def _scanpy(adata):
         df_leiden.index=adata.obs[0]
         df_leiden = df_leiden.reset_index()
         df_leiden.columns = ['cell','cluster']
-        df_leiden.to_csv(outpath+'_scanpy.csv.gz',index=False, compression='gzip')
+        df_leiden.to_csv(outpath+'_pc'+str(pc_n)+'.csv.gz',index=False, compression='gzip')
 
 
-def _pca(adata,n,nc):
+def _randomprojection(mtx,obs,depth):
+        
+        from asappy.projection import rpstruct
+        rp = rpstruct.projection_data(depth,mtx.shape[1])
+        rp_data = rpstruct.get_random_projection_data(mtx.T,rp)
+        
+        df_rp = pd.DataFrame(rp_data)
+        df_rp['cell'] = obs
 
-        if adata.shape[1] < nc:
-                df_pca = pd.DataFrame()
-                df_pca['cell'] = ['error']
-                df_pca['cluster'] = [0]
-                df_pca.to_csv(outpath+'_pc'+str(nc)+'n'+str(n)+'.csv.gz',index=False, compression='gzip')
-                print('PCA-error-->')
-                print(outpath)
-                print(n)
-                print(nc)
+        scaler = StandardScaler()
+        scaled = scaler.fit_transform(df_rp.iloc[:,:-1].to_numpy())
 
-        else:      
-                pca = PCA(n_components=nc)
+        kmeans = KMeans(n_clusters=K, init='k-means++',random_state=0).fit(scaled)
+        df_rp['cluster'] = kmeans.labels_
+        df_rp = df_rp[['cell','cluster']]
 
-                df_pca = pd.DataFrame(pca.fit_transform(adata.to_df().iloc[:,:n]))
-                
-                df_pca['cell'] = adata.obs[0].values
+        df_rp.to_csv(outpath+'_rp'+str(depth)+'.csv.gz',index=False, compression='gzip')
 
-                scaler = StandardScaler()
-                scaled = scaler.fit_transform(df_pca.iloc[:,:-1].to_numpy())
+def _baseline(adata):
 
-                kmeans = KMeans(n_clusters=K, init='k-means++',random_state=0).fit(scaled)
-                df_pca['cluster'] = kmeans.labels_
-                df_pca = df_pca[['cell','cluster']]
+        pc_n=50
+        pca = PCA(n_components=pc_n)
+        df_pca = pd.DataFrame(pca.fit_transform(adata.to_df()))
+        df_pca['cell'] = adata.obs[0].values
 
-                df_pca.to_csv(outpath+'_pc'+str(nc)+'n'+str(n)+'.csv.gz',index=False, compression='gzip')
+        scaler = StandardScaler()
+        scaled = scaler.fit_transform(df_pca.iloc[:,:-1].to_numpy())
+
+        kmeans = KMeans(n_clusters=K, init='k-means++',random_state=0).fit(scaled)
+        df_pca['cluster'] = kmeans.labels_
+        df_pca = df_pca[['cell','cluster']]
+
+        df_pca.to_csv(outpath+'_baseline.csv.gz',index=False, compression='gzip')
 
 
 
 sample = sys.argv[1]
-# sample = 'sim_r_0.9_s_100_sd_1'
+# sample = 'sim_r_0.0_s_10_sd_1'
 print(sample)
 
 data_size = 25000
@@ -111,26 +120,25 @@ asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number
 
 K = 13
 
-# mtx=asap_object.adata.X
-# var = asap_object.adata.var.values.flatten()
-# obs = asap_object.adata.obs.values.flatten()
-# outpath = asap_object.adata.uns['inpath']
-
-
 df = asap_object.adata.construct_batch_df(asap_object.adata.uns['shape'][0])
 var = df.columns.values
 obs = df.index.values
-mtx=df.to_numpy()
+mtx = df.to_numpy()
 outpath = asap_object.adata.uns['inpath']
 
 
 ######## full external nmf model 
 
-_ligerpipeline(mtx,var,obs,outpath)
+_ligerpipeline(mtx,var,obs,outpath,K)
+
+######## random projection 
+
+_randomprojection(mtx,obs,5)
+_randomprojection(mtx,obs,10)
+_randomprojection(mtx,obs,50)
 
 
- ### pca and scanpy pipeline
-
+# ######## PCA and baseline 
 
 adata = an.AnnData(mtx)
 dfvars = pd.DataFrame(var)
@@ -144,13 +152,11 @@ sc.pp.filter_cells(adata, min_genes=0)
 sc.pp.filter_genes(adata, min_cells=0)
 sc.pp.normalize_total(adata)
 sc.pp.log1p(adata)
-sc.pp.highly_variable_genes(adata)
-adata = adata[:, adata.var.highly_variable]
+
 
 
 ########
-
-_pca(adata,10,2)
-_pca(adata,100,10)
-_pca(adata,1000,50)
-_scanpy(adata)
+_baseline(adata)
+_pca(adata,50)
+_pca(adata,10)
+_pca(adata,5)

@@ -3,8 +3,10 @@
 /data/
 /node_data/
 /database/
-/results/
+results/
 /node_results/
+data/
+results*/
 
 # Ignore external modules
 /asap/external/

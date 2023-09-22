@@ -10,8 +10,8 @@ import asappy
 import sys
 
 
-sample = str(sys.argv[1])
-# sample = 'sim_r_0.9_s_100_sd_1'
+# sample = str(sys.argv[1])
+sample = 'sim_r_1.0_s_10_sd_1'
 print(sample)
 asappy.create_asap_data(sample)
 

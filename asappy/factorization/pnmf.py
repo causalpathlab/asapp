@@ -43,12 +43,7 @@ def asap_nmf(asap_object,num_factors,maxthreads=16):
         'num_factors : ' + str(num_factors)+'\n'
         )
 
-<<<<<<< HEAD
 		nmf_model = asapc.ASAPdcNMF(asap_object.adata.uns['pseudobulk']['pb_data'],asap_object.adata.uns['num_factors'])
-=======
-
-		nmf_model = asapc.ASAPNMF(asap_object.adata.uns['pseudobulk']['pb_data'],asap_object.adata.uns['num_factors'])
->>>>>>> parent of cfd89de... gene selection - working version
 		nmfres = nmf_model.nmf()
 
 		scaler = StandardScaler()

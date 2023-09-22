@@ -50,61 +50,27 @@ def sample_pseudo_bulk(pseudobulk_map,sample_size):
             pseudobulk_map_sample[key] = value
     return pseudobulk_map_sample     
 
-<<<<<<< HEAD
 def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normalize_raw=None, normalize_pb=None,hvg_selection=False,gene_mean_z=None,gene_var_z=None,res=None):  
      
     if normalize_raw is not None:
         logging.info('normalize raw data -'+normalize_raw)    
         mtx = normalization_raw(mtx.T,normalize_raw)
  
-=======
-def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normalization_raw, normalization_pb,res=None):   
-
-    logging.info('normalize raw data -'+normalization_raw)    
-    mtx = normalize_raw(mtx,normalization_raw)
-    
->>>>>>> parent of cfd89de... gene selection - working version
     pseudobulk_map = get_projection_map(mtx,rp_mat)
 
     if downsample_pseudobulk:
         pseudobulk_map = sample_pseudo_bulk(pseudobulk_map,downsample_size)
-<<<<<<< HEAD
         
-=======
-
-    logging.info('normalize raw data for aggregation -'+'lognorm')    
-    mtx_norm = normalize_raw(mtx,method='lognorm')
-
-    mtx_norm = mtx
->>>>>>> parent of cfd89de... gene selection - working version
     pseudobulk = []
     for _, value in pseudobulk_map.items():
-        # m = mtx_norm[:,value]    
-        # lambda_estimates = np.mean(m, axis=1)
-        # s = poisson.rvs(mu=lambda_estimates, size=m.shape[0])
-        # pseudobulk.append(s)
+        m = mtx[:,value]    
+        lambda_estimates = np.mean(m, axis=1)
+        s = poisson.rvs(mu=lambda_estimates, size=m.shape[0])
+        pseudobulk.append(s)
 
-        pseudobulk.append(mtx_norm[:,value].sum(1))
+        # pseudobulk.append(mtx_norm[:,value].sum(1))
         
-<<<<<<< HEAD
     pseudobulk = np.array(pseudobulk).astype(np.float64)
-=======
-    pseudobulk = np.array(pseudobulk)
-
-    print(pseudobulk.shape)
-    hvg = 'seurat'
-    logging.info('select highly variable genes pb data -'+hvg)    
-    pseudobulk,hvgenes = select_hvgenes(pseudobulk,method=hvg)
-    print(pseudobulk.shape)
-    logging.info('normalize pb data -'+normalization_pb)    
-    pseudobulk = normalize_pb(pseudobulk,normalization_pb)
-    print(pseudobulk.shape)
-
-    print('pbsum...')
-    print(pseudobulk.sum())
-    
-    pseudobulk = pseudobulk.T 
->>>>>>> parent of cfd89de... gene selection - working version
         
     logging.info('before pseudobulk preprocessing-'+str(pseudobulk.shape)) 
     pseudobulk,gene_filter_index = preprocess_pb(pseudobulk,gene_mean_z)

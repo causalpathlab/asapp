@@ -185,13 +185,10 @@ def generate_pseudobulk(
     downsample_pseudobulk=True,
     downsample_size=100,
     maxthreads=16,
+    pseudobulk_filter=True,
     pseudobulk_filter_size=5
     ):
     
-<<<<<<< HEAD
-=======
-def generate_pseudobulk(asap_object,tree_depth,normalization_raw,normalization_pb,downsample_pseudobulk=True,downsample_size=100,maxthreads=16,pseudobulk_filter_size=5):
->>>>>>> parent of cfd89de... gene selection - working version
     asap_object.adata.uns['tree_depth'] = tree_depth
     asap_object.adata.uns['downsample_pseudobulk'] = downsample_pseudobulk
     asap_object.adata.uns['downsample_size'] = downsample_size
@@ -215,11 +212,7 @@ def generate_pseudobulk(asap_object,tree_depth,normalization_raw,normalization_p
     
     if total_cells<batch_size:
 
-<<<<<<< HEAD
         pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full',normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z)
-=======
-        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full',normalization_raw,normalization_pb)
->>>>>>> parent of cfd89de... gene selection - working version
 
     else:
 
@@ -232,11 +225,7 @@ def generate_pseudobulk(asap_object,tree_depth,normalization_raw,normalization_p
 
             iend = min(istart + batch_size, total_cells)
                             
-<<<<<<< HEAD
             thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat,normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema))
-=======
-            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat,normalization_raw,normalization_pb,result_queue,lock,sema))
->>>>>>> parent of cfd89de... gene selection - working version
             
             threads.append(thread)
             thread.start()
@@ -248,5 +237,10 @@ def generate_pseudobulk(asap_object,tree_depth,normalization_raw,normalization_p
         while not result_queue.empty():
             pseudobulk_result.append(result_queue.get())
     
-    filter_pseudobulk(asap_object,pseudobulk_result,pseudobulk_filter_size)
-        
+    if pseudobulk_filter:
+        filter_pseudobulk(asap_object,pseudobulk_result,pseudobulk_filter_size)
+    else: 
+        asap_object.adata.uns['pseudobulk'] = {}        
+        asap_object.adata.uns['pseudobulk']['pb_data'] = pseudobulk_result['full']['pb_data']
+        asap_object.adata.uns['pseudobulk']['pb_map'] = pseudobulk_result['full']['pb_map'] 
+        asap_object.adata.uns['pseudobulk']['pb_hvgs'] = pseudobulk_result['full']['pb_hvgs'] 
