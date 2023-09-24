@@ -40,8 +40,8 @@ for i,ds in enumerate(datasets):
 
 
 
-f = hf.File('data/gtex_sc.h5ad','r')  
-sc_genes = [x.decode('utf-8') for x in f['var']['feature_name']['categories']]
+f = hf.File('data/gtex_sc.h5','r')  
+sc_genes = [x.decode('utf-8') for x in f['matrix']['features']['id']]
 f.close()
 
 common_genes = [x for x in sc_genes if x in dfmain.columns]
@@ -49,7 +49,7 @@ common_genes = list(set(common_genes))
 common_genes.sort()
 dfmain = dfmain[common_genes]
 dfmain = dfmain.loc[:, ~dfmain.columns.duplicated()]
-pd.DataFrame(common_genes).to_csv(outpath+'common_genes.csv',index=False)
+pd.DataFrame(common_genes).to_csv(outpath+'_sc_common_genes.csv',index=False)
 
 dfmain.to_csv(outpath+'.csv.gz',compression='gzip')
 
@@ -96,8 +96,8 @@ asapadata.obsm['theta'] = model['theta']
 asapadata.obsm['corr'] = model['corr']
 asapadata.uns['inpath'] = outpath
 
-asappy.leiden_cluster(asapadata,k=9,mode='corr',resolution=0.1)
-asappy.run_umap(asapadata,min_dist=0.4)
+asappy.leiden_cluster(asapadata,k=10,mode='corr',resolution=0.1)
+asappy.run_umap(asapadata,min_dist=0.5)
 asappy.plot_umap(asapadata,col='cluster')
 asappy.plot_gene_loading(asapadata)
 
@@ -105,12 +105,4 @@ dfmain = pd.read_csv(outpath+'.csv.gz')
 dfmain.set_index('Unnamed: 0',inplace=True)
 asapadata.obs['celltype'] = [x.split('@')[1] for x in dfmain.index.values]
 asappy.plot_umap(asapadata,col='celltype')
-
-
-# asappy.plot_structure(asapadata,'theta')
-# asappy.plot_structure(asapadata,'corr')
-
-# ntopic =  pmf2topic(asapadata.varm['beta'],asapadata.obsm['theta'])
-# asapadata.obsm['theta_n'] = ntopic['prop']
-# asappy.plot_structure(asapadata,'theta_n')
 
