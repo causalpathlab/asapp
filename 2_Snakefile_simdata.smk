@@ -26,7 +26,7 @@ rule all:
 
 rule sc_simulated_data:
     input:
-        script = scripts_dir + 'sim_step1_data.py',
+        script = scripts_dir + '2_sim_step1_data.py',
         bulk_data = '/data/sishir/database/dice_immune_bulkrna/CD8_NAIVE_TPM.csv'
     output:
         sim_data = input_dir + sim_data_pattern+'.h5'

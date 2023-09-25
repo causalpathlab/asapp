@@ -42,7 +42,7 @@ rule all:
 
 rule run_asap:
     input:
-        script = scripts_dir + 'sim_step2_asap.py',
+        script = scripts_dir + '2_sim_step2_asap.py',
         data = input_dir + sim_data_pattern+'.h5'
     output:
         asap_data = output_dir + sim_data_pattern+'.h5',
@@ -66,7 +66,7 @@ rule run_asap:
 
 rule run_nmf_external:
     input:
-        script = scripts_dir + 'sim_step4_external.py',
+        script = scripts_dir + '2_sim_step4_external.py',
         data = rules.run_asap.output.asap_data
     output:
         pc1 = output_dir + sim_data_pattern+'_pc5.csv.gz',
@@ -85,7 +85,7 @@ rule run_nmf_external:
 
 rule run_nmf_eval:
     input:
-        script = scripts_dir + 'sim_step5_eval.py',
+        script = scripts_dir + '2_sim_step5_eval.py',
         asap = rules.run_asap.output.asap_outdata,
         # asapf = rules.run_asap_full.output.asap_outdata,
         pc1 = rules.run_nmf_external.output.pc1,
