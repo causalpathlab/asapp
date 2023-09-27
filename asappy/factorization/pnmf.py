@@ -55,6 +55,7 @@ def asap_nmf(asap_object,num_factors,maxthreads=16):
 		asap_object.adata.varm = {}
 		asap_object.adata.obsm = {}
 		asap_object.adata.uns['pseudobulk']['pb_beta'] = nmfres.beta
+		asap_object.adata.uns['pseudobulk']['pb_beta_log_scaled'] = beta_log_scaled
 		asap_object.adata.uns['pseudobulk']['pb_theta'] = nmfres.theta
 
 		hvgs = asap_object.adata.uns['pseudobulk']['pb_hvgs']

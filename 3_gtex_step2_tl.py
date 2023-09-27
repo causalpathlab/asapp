@@ -40,24 +40,40 @@ target_sum = np.median(row_sums)
 row_sums = row_sums/target_sum
 dfbulk = dfbulk.to_numpy()/row_sums[:, np.newaxis]
     
-    
-import rpy2.robjects as ro
-import rpy2.robjects.packages as rp
-import rpy2.robjects.numpy2ri
-rpy2.robjects.numpy2ri.activate()
+####correlation
 
-ro.packages.importr('limma')
+import asapc
 
-nr,nc = dfbulk.shape
-ro.r.assign("bulkdata", ro.r.matrix(dfbulk, nrow=nr, ncol=nc))
+beta_log_scaled = asap_adata.uns['pseudobulk']['pb_beta_log_scaled'] 
+pred_model = asapc.ASAPaltNMFPredict(dfbulk.T,beta_log_scaled)
+pred = pred_model.predict()
 
-scnr,scnc = sc_beta.T.shape
-ro.r.assign("scbeta", ro.r.matrix(sc_beta.T.to_numpy(), nrow=scnr, ncol=scnc))
-
-ro.r('fit <- lmFit(bulkdata,scbeta)')
-
-bulk_theta = pd.DataFrame(ro.r('coef(fit)'))
+bulk_corr = pd.DataFrame(pred.corr)
+bulk_corr.index = bulk_sample_ids
+bulk_theta = pd.DataFrame(pred.theta)
 bulk_theta.index = bulk_sample_ids
-bulk_theta.to_csv(outpath+'bulk_theta_lmfit.csv.gz',compression='gzip')
+bulk_corr.to_csv(outpath+'mix_bulk_corr_asap.csv.gz',compression='gzip')
+bulk_theta.to_csv(outpath+'mix_bulk_theta_asap.csv.gz',compression='gzip')
+
+#######lmfit     
+# import rpy2.robjects as ro
+# import rpy2.robjects.packages as rp
+# import rpy2.robjects.numpy2ri
+# rpy2.robjects.numpy2ri.activate()
+
+# ro.packages.importr('limma')
+
+# nr,nc = dfbulk.shape
+# ro.r.assign("bulkdata", ro.r.matrix(dfbulk, nrow=nr, ncol=nc))
+
+# scnr,scnc = sc_beta.T.shape
+# ro.r.assign("scbeta", ro.r.matrix(sc_beta.T.to_numpy(), nrow=scnr, ncol=scnc))
+
+# ro.r('fit <- lmFit(bulkdata,scbeta)')
+
+# bulk_theta = pd.DataFrame(ro.r('coef(fit)'))
+# bulk_theta.index = bulk_sample_ids
+# bulk_theta.to_csv(outpath+'bulk_theta_lmfit.csv.gz',compression='gzip')
+
 
 

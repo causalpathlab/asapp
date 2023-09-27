@@ -315,6 +315,7 @@ def save_model(asap_object):
 		adata.uns[key] = val
 	
 	adata.varm['beta'] = asap_object.adata.uns['pseudobulk']['pb_beta'] 
+	adata.varm['beta_log_scaled'] = asap_object.adata.uns['pseudobulk']['pb_beta_log_scaled'] 
 	adata.obsm['theta'] = asap_object.adata.obsm['theta']
 	adata.obsm['corr'] = asap_object.adata.obsm['corr']
 

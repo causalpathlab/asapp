@@ -33,6 +33,7 @@ Makefile
 
 nohup.out
 
+.vscode
 
 io.py
 scratch.py

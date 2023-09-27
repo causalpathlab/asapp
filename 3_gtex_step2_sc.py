@@ -8,14 +8,14 @@ sample = 'gtex_sc'
 ######################################################
 ##### single cell nmf
 ######################################################
-data_size = 25000
-number_batches = 9
+data_size = 50000
+number_batches =5
 K = 15
 
 import asappy
 import pandas as pd
 
-select_genes = list(pd.read_csv('./results/bulkcommon_genes.csv').values.flatten())
+select_genes = list(pd.read_csv('./results/bulk_sc_common_genes.csv').values.flatten())
 asappy.create_asap_data(sample,select_genes=select_genes)
 
 asappy.create_asap_data(sample)

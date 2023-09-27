@@ -60,7 +60,7 @@ def cluster_vote(clusts, theta_knn, k):
     return clusts
 
 
-def refine_clusts(theta, clusts, k, use_ann, num_trees=None):
+def refine_clusts(theta, clusts, k, num_trees=None):
     theta_knn = run_ann(theta, k, num_trees)
     clusts = cluster_vote(clusts, theta_knn, k)
     return clusts

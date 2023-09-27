@@ -114,7 +114,7 @@ sample = sys.argv[1]
 print(sample)
 
 data_size = 25000
-number_batches = 5
+number_batches = 1
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
 
 
