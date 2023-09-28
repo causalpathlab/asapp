@@ -61,7 +61,7 @@ def _pca(ad,pc_n):
         # plt.savefig('_scanpy_raw_pipeline_pca_var.png');plt.close()
 
         sc.pp.neighbors(adata)
-        sc.tl.umap(adata)
+        # sc.tl.umap(adata)
         sc.tl.leiden(adata)
         # sc.pl.umap(adata, color=['leiden'])
         # plt.savefig('_scanpy_raw_pipeline_umap.png');plt.close()

@@ -5,14 +5,14 @@ modifiled from welch-lab/pyliger
 import numpy as np
 import pandas as pd
 from annoy import AnnoyIndex
-
+from numpy.typing import NDArray
 
 import leidenalg
 import igraph as ig
 from scipy.sparse import csr_matrix
 
 
-def run_ann(theta,k, num_trees=None):
+def run_ann(theta,k, num_trees=None,dist=False):
 
     num_observations = theta.shape[0]
     # decide number of trees
@@ -32,9 +32,55 @@ def run_ann(theta,k, num_trees=None):
         t.add_item(i, theta[i])
     t.build(num_trees)
 
-    # create knn indices matrices
-    theta_knn = np.vstack([t.get_nns_by_vector(theta[i], k) for i in range(num_observations)])
-    return theta_knn
+    if dist:
+    
+        knn_idx =[] 
+        knn_dist = []
+        
+        for i in range(theta.shape[0]):
+            ki,kd = t.get_nns_by_vector(theta[i], k,include_distances=True)
+            knn_idx.append(ki)
+            knn_dist.append(kd)  
+                      
+        return np.asarray(knn_idx), np.asarray(knn_dist)
+    
+    else:
+        
+        theta_knn = np.vstack([t.get_nns_by_vector(theta[i], k) for i in range(num_observations)])
+        return theta_knn
+
+def umap_connect(
+    knn_indices: NDArray[np.int32],
+    knn_dists: NDArray[np.float32],
+    *,
+    n_obs: int,
+    n_neighbors: int,
+    set_op_mix_ratio: float = 1.0,
+    local_connectivity: float = 1.0,
+) -> csr_matrix:
+    """
+    from scanpy/umap module
+    """
+    from umap.umap_ import fuzzy_simplicial_set
+    from scipy.sparse import issparse, csr_matrix, coo_matrix
+    
+    X = coo_matrix(([], ([], [])), shape=(n_obs, 1))
+    connectivities = fuzzy_simplicial_set(
+        X,
+        n_neighbors,
+        None,
+        None,
+        knn_indices=knn_indices,
+        knn_dists=knn_dists,
+        set_op_mix_ratio=set_op_mix_ratio,
+        local_connectivity=local_connectivity,
+    )
+
+    if isinstance(connectivities, tuple):
+        # In umap-learn 0.4, this returns (result, sigmas, rhos)
+        connectivities = connectivities[0]
+
+    return connectivities.tocsr()
 
 
 def cluster_vote(clusts, theta_knn, k):
@@ -110,30 +156,65 @@ def leiden_cluster(asap_adata,
                    prune=1 / 15,
                    random_seed=1,
                    n_iterations=-1,
-                   n_starts=10):
+                   n_starts=10,
+                   method = 'shared_nn'):
 
-    if isinstance(asap_adata,pd.DataFrame):
-        knn = run_ann(asap_adata.to_numpy(),k)
-    else:
-        knn = run_ann(asap_adata.obsm[mode],k)
+    if method == 'shared_nn':
+        if isinstance(asap_adata,pd.DataFrame):
+            knn = run_ann(asap_adata.to_numpy(),k)
+        else:
+            knn = run_ann(asap_adata.obsm[mode],k)
 
-    snn = compute_snn(knn, prune=prune)
+        snn = compute_snn(knn, prune=prune)
 
-    g = build_igraph(snn)
+        g = build_igraph(snn)
 
-    np.random.seed(random_seed)
-    max_quality = -1
-    for i in range(n_starts):  
-        seed = np.random.randint(0, 1000)
-        kwargs = {'weights': g.es['weight'], 'resolution_parameter': resolution, 'seed': seed}  
-        part = leidenalg.find_partition(g, leidenalg.RBConfigurationVertexPartition, n_iterations=n_iterations, **kwargs)
+        np.random.seed(random_seed)
+        max_quality = -1
+        for i in range(n_starts):  
+            seed = np.random.randint(0, 1000)
+            kwargs = {'weights': g.es['weight'], 'resolution_parameter': resolution, 'seed': seed}  
+            part = leidenalg.find_partition(g, leidenalg.RBConfigurationVertexPartition, n_iterations=n_iterations, **kwargs)
 
-        if part.quality() > max_quality:
-            cluster = part.membership
-            max_quality = part.quality()
+            if part.quality() > max_quality:
+                cluster = part.membership
+                max_quality = part.quality()
 
-    if isinstance(asap_adata,pd.DataFrame):
-        return snn, cluster
-    else:
-        asap_adata.obs['cluster'] = cluster
-        asap_adata.obsp['snn'] = snn
+        if isinstance(asap_adata,pd.DataFrame):
+            return snn, cluster
+        else:
+            asap_adata.obs['cluster'] = cluster
+            asap_adata.obsp['snn'] = snn
+
+    elif method == 'fuzzy_con':
+        if isinstance(asap_adata,pd.DataFrame):
+            mtx = asap_adata.to_numpy()
+        else:
+            mtx = asap_adata.obsm[mode]
+
+        knn_idx, knn_dist = run_ann(mtx,k=k,dist=True)
+        connectivities = umap_connect(
+                knn_idx,
+                knn_dist,
+                n_obs=mtx.shape[0],
+                n_neighbors=k,
+            )
+
+        g = build_igraph(connectivities)
+
+        np.random.seed(random_seed)
+        max_quality = -1
+        for i in range(n_starts):  
+            seed = np.random.randint(0, 1000)
+            kwargs = {'weights': g.es['weight'], 'resolution_parameter': resolution, 'seed': seed}  
+            part = leidenalg.find_partition(g, leidenalg.RBConfigurationVertexPartition, n_iterations=n_iterations, **kwargs)
+
+            if part.quality() > max_quality:
+                cluster = part.membership
+                max_quality = part.quality()
+
+        if isinstance(asap_adata,pd.DataFrame):
+            return snn, cluster
+        else:
+            asap_adata.obs['cluster'] = cluster
+            asap_adata.obsp['snn'] = connectivities

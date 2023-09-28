@@ -48,7 +48,7 @@ asap_adata = an.read_h5ad('./results/'+sample+'.h5asap')
 
 asappy.plot_gene_loading(asap_adata,top_n=5,max_thresh=200)
 
-asappy.leiden_cluster(asap_adata,k=10,mode='corr',resolution=0.1)
+asappy.leiden_cluster(asap_adata,k=10,mode='corr',resolution=0.1,method='fuzzy_con')
 asappy.run_umap(asap_adata,min_dist=0.5)
 asappy.plot_umap(asap_adata,col='cluster')
 
