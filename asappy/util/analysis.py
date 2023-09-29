@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import logging
 
 def generate_gene_vals(df,top_n,top_genes,label):
 
@@ -29,11 +30,16 @@ def run_umap(asap_adata,
 			 mode = 'corr',
 			 k=2,
 			 distance="euclidean",
-			 n_neighbors=10,
+			 n_neighbors=15,
 			 min_dist=0.1,
 		 	 use_snn = True,
 			 rand_seed=42):
-
+    
+	logging.info('Running umap embedding....')
+	logging.info('min_dist: '+str(min_dist))
+	logging.info('n_neighbors: '+str(n_neighbors))
+	logging.info('distance: '+str(distance))
+	
 	if use_snn:
 
 		from umap.umap_ import find_ab_params, simplicial_set_embedding

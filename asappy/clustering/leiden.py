@@ -10,6 +10,7 @@ from numpy.typing import NDArray
 import leidenalg
 import igraph as ig
 from scipy.sparse import csr_matrix
+import logging
 
 
 def run_ann(theta,k, num_trees=None,dist=False):
@@ -49,7 +50,7 @@ def run_ann(theta,k, num_trees=None,dist=False):
         theta_knn = np.vstack([t.get_nns_by_vector(theta[i], k) for i in range(num_observations)])
         return theta_knn
 
-def umap_connect(
+def umap_connectivity(
     knn_indices: NDArray[np.int32],
     knn_dists: NDArray[np.float32],
     *,
@@ -62,7 +63,7 @@ def umap_connect(
     from scanpy/umap module
     """
     from umap.umap_ import fuzzy_simplicial_set
-    from scipy.sparse import issparse, csr_matrix, coo_matrix
+    from scipy.sparse import coo_matrix
     
     X = coo_matrix(([], ([], [])), shape=(n_obs, 1))
     connectivities = fuzzy_simplicial_set(
@@ -151,19 +152,29 @@ def compute_snn(knn, prune):
 
 def leiden_cluster(asap_adata,
                    mode = 'corr',
-                   resolution=1.0,
-                   k=10,
-                   prune=1 / 15,
+                   resolution=0.1,
+                   k=15,
+                   prune=1/15,
                    random_seed=1,
                    n_iterations=-1,
                    n_starts=10,
-                   method = 'shared_nn'):
+                   method = 'fuzzy_conn'):
+
+    logging.info('Running leiden cluster....')
+    logging.info('resolution: '+str(resolution))
+    logging.info('k: '+str(k))
+    logging.info('method: '+str(method))
+    
+    if isinstance(asap_adata,pd.DataFrame):
+        mtx = asap_adata.to_numpy()
+    else:
+        mtx = asap_adata.obsm[mode]
+
+    mtx = (mtx - np.mean(mtx, axis=0)) / np.std(mtx, axis=0, ddof=1)
 
     if method == 'shared_nn':
-        if isinstance(asap_adata,pd.DataFrame):
-            knn = run_ann(asap_adata.to_numpy(),k)
-        else:
-            knn = run_ann(asap_adata.obsm[mode],k)
+
+        knn = run_ann(mtx,k)
 
         snn = compute_snn(knn, prune=prune)
 
@@ -186,14 +197,10 @@ def leiden_cluster(asap_adata,
             asap_adata.obs['cluster'] = cluster
             asap_adata.obsp['snn'] = snn
 
-    elif method == 'fuzzy_con':
-        if isinstance(asap_adata,pd.DataFrame):
-            mtx = asap_adata.to_numpy()
-        else:
-            mtx = asap_adata.obsm[mode]
-
+    elif method == 'fuzzy_conn':
+        
         knn_idx, knn_dist = run_ann(mtx,k=k,dist=True)
-        connectivities = umap_connect(
+        connectivities = umap_connectivity(
                 knn_idx,
                 knn_dist,
                 n_obs=mtx.shape[0],
@@ -214,7 +221,7 @@ def leiden_cluster(asap_adata,
                 max_quality = part.quality()
 
         if isinstance(asap_adata,pd.DataFrame):
-            return snn, cluster
+            return connectivities, cluster
         else:
             asap_adata.obs['cluster'] = cluster
             asap_adata.obsp['snn'] = connectivities

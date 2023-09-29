@@ -3,13 +3,13 @@ import sys
 
 
 sample = sys.argv[1]
-# sample = 'sim_r_0.8_s_50_sd_1'
 print(sample)
 
-data_size = 150000
+data_size = 250000
 number_batches = 1
+n_topics = 13
 
-asappy.create_asap_data(sample)
+# asappy.create_asap_data(sample)
 
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
 
@@ -19,7 +19,7 @@ import asapc
 import numpy as np
 from sklearn.preprocessing import StandardScaler 		
 mtx=asap_object.adata.X.T
-nmf_model = asapc.ASAPdcNMF(mtx,13)
+nmf_model = asapc.ASAPdcNMF(mtx,n_topics)
 nmfres = nmf_model.nmf()
 
 scaler = StandardScaler()
@@ -68,8 +68,7 @@ for x in asap_adata.var.index.values:
         gn.append(x)
 
 asap_adata.var.index = gn
-asappy.leiden_cluster(asap_adata,k=10,mode='corr',resolution=0.1)
-asappy.run_umap(asap_adata,distance='cosine',min_dist=0.1)
+asappy.leiden_cluster(asap_adata)
 ct = [ x.replace('@sim','') for x in asap_adata.obs.index.values]
 ct = [ '-'.join(x.split('_')[2:]) for x in ct]
 asap_adata.obs['celltype'] = ct

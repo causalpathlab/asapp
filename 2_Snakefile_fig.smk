@@ -13,13 +13,9 @@ output_dir = config['home'] + config['experiment'] + config['output']
 
 scripts_dir = config['home'] + config['experiment']
 
-RHO = [1.0] # total cell type effect 
-SIZE = [50]
-SEED = [1]
-
-# RHO = [0.1,0.2,0.4,0.6,0.8,1.0] # total cell type effect 
-# SIZE = [1,5,10]
-# SEED = [1,2,3,4,5]
+RHO = [0.4,0.6,0.8,1.0] # total cell type effect 
+SIZE = [10]
+SEED = [1,2,3,4,5]
 
 sim_data_pattern = '_r_{rho}_s_{size}_sd_{seed}'
 sim_data_pattern = sample + sim_data_pattern
@@ -29,7 +25,7 @@ rule all:
         expand(output_dir + sim_data_pattern+'.h5',rho=RHO,size=SIZE,seed=SEED),
         expand(output_dir + sim_data_pattern+'.h5asap',rho=RHO,size=SIZE,seed=SEED),
         expand(output_dir + sim_data_pattern+'.h5asapad',rho=RHO,size=SIZE,seed=SEED),
-        # expand(output_dir + sim_data_pattern+'.h5asap_full',rho=RHO,size=SIZE,seed=SEED),
+        expand(output_dir + sim_data_pattern+'.h5asap_full',rho=RHO,size=SIZE,seed=SEED),
         expand(output_dir + sim_data_pattern+'_pc5.csv.gz',rho=RHO,size=SIZE,seed=SEED),
         expand(output_dir + sim_data_pattern+'_pc10.csv.gz',rho=RHO,size=SIZE,seed=SEED),
         expand(output_dir + sim_data_pattern+'_pc50.csv.gz',rho=RHO,size=SIZE,seed=SEED),
@@ -53,16 +49,16 @@ rule run_asap:
     shell:
         'python {input.script} {params.sim_data_pattern}'
 
-# rule run_asap_full:
-#     input:
-#         script = scripts_dir + 'sim_step3_asapfull.py',
-#         data = rules.run_asap.output.asap_data
-#     output:
-#         asap_outdata = output_dir + sim_data_pattern+'.h5asap_full'
-#     params:
-#         sim_data_pattern = sim_data_pattern
-#     shell:
-#         'python {input.script} {params.sim_data_pattern}'
+rule run_asap_full:
+    input:
+        script = scripts_dir + '2_sim_step3_asapfull.py',
+        data = rules.run_asap.output.asap_data
+    output:
+        asap_outdata = output_dir + sim_data_pattern+'.h5asap_full'
+    params:
+        sim_data_pattern = sim_data_pattern
+    shell:
+        'python {input.script} {params.sim_data_pattern}'
 
 rule run_nmf_external:
     input:
@@ -87,7 +83,7 @@ rule run_nmf_eval:
     input:
         script = scripts_dir + '2_sim_step5_eval.py',
         asap = rules.run_asap.output.asap_outdata,
-        # asapf = rules.run_asap_full.output.asap_outdata,
+        asapf = rules.run_asap_full.output.asap_outdata,
         pc1 = rules.run_nmf_external.output.pc1,
         pc2 = rules.run_nmf_external.output.pc2,
         pc3 = rules.run_nmf_external.output.pc3,

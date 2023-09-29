@@ -14,8 +14,8 @@ output_dir = config['home'] + config['experiment'] + config['output']
 scripts_dir = config['home'] + config['experiment']
 
 RHO = [0.1,0.2,0.4,0.6,0.8,1.0] # total cell type effect 
-SIZE = [50,100]
-SEED = [1]
+SIZE = [5,10]
+SEED = [1,2,3,4,5]
 
 sim_data_pattern = '_r_{rho}_s_{size}_sd_{seed}'
 sim_data_pattern = sample + sim_data_pattern
