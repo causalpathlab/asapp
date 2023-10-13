@@ -1,5 +1,5 @@
 # ######################################################
-# ##### bulk setup
+# ##### setup
 # ######################################################
 
 bk_sample = 'bulk'
@@ -8,7 +8,7 @@ outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/results/mix_'
 
 
 ######################################################
-##### transfer learning
+##### transfer learning visualization
 ######################################################
 
 import asappy
@@ -16,11 +16,11 @@ import anndata as an
 import pandas as pd
 import numpy as np
 
-### get single cell beta, theta, and pbtheta + bulk theta
+### get single cell asap results
 asap_adata = an.read_h5ad('./results/'+sc_sample+'.h5asapad')
 
 
-########## get corr for sc pb 
+########## estimate single cell correlation using single beta
 import asapc
 
 beta_log_scaled = asap_adata.uns['pseudobulk']['pb_beta_log_scaled'] 
@@ -34,14 +34,14 @@ sc_pbcorr.index = ['pb'+str(x) for x in sc_pbcorr.index.values]
 sc_pbcorr.columns = ['t'+str(x) for x in sc_pbcorr.columns]
 ##################################
 
+### get estimated bulk correlation from previous transfer learning step
 bulk_corr = pd.read_csv(outpath+'bulk_corr_asap.csv.gz')
 bulk_corr.index = bulk_corr['Unnamed: 0']
 bulk_corr.drop(columns=['Unnamed: 0'],inplace=True)
 bulk_corr.columns = ['t'+str(x) for x in bulk_corr.columns]
 
-##############
 
-########### normalization ############
+########### normalization for single cell correlation and bulk correlation ############
 
 from asappy.util.analysis import quantile_normalization
 
@@ -60,7 +60,7 @@ bulk_norm.columns = bulk_corr.columns
 def get_umap(df,md):
 	from asappy.clustering import leiden_cluster
 
-	snn,cluster = leiden_cluster(df,resolution=0.1,k=10)
+	snn,cluster = leiden_cluster(df,resolution=0.5)
 
 	from umap.umap_ import find_ab_params, simplicial_set_embedding
 
@@ -97,7 +97,7 @@ def get_umap(df,md):
 		)
 	return umap_coords,cluster
 
-############ plot bulk theta only
+############ plot bulk correlation only
 
 umap_coords,cluster = get_umap(bulk_norm,0.3)
 dfumap = pd.DataFrame(umap_coords[0])
@@ -105,28 +105,17 @@ dfumap['cell'] = bulk_corr.index.values
 dfumap.columns = ['umap1','umap2','cell']
 dfumap['tissue'] = [x.split('@')[1] for x in bulk_corr.index.values]
 dfumap['cluster'] = pd.Categorical(cluster)
-asappy.plot_umap_df(dfumap,'tissue',outpath+'_bulkonly_')
-asappy.plot_umap_df(dfumap,'cluster',outpath+'_bulkonly_')
+asappy.plot_umap_df(dfumap,'tissue',outpath+'_bulk_tl_')
+asappy.plot_umap_df(dfumap,'cluster',outpath+'_bulk_tl_')
 
 
 ############################################################
-####### plot pseudobulk and bulk together
+####### plot pseudobulk and bulk correlation together
 ############################################################
 
-
-     
 df = pd.concat([sc_norm,bulk_norm],axis=0,ignore_index=False)
 
-
-################### plot theta separately 
-import matplotlib.pylab as plt
-import seaborn as sns
-
-sns.clustermap(df.loc[df.index.str.contains('pb'),:]);plt.savefig(outpath+'sc_hmap.png');plt.close()
-sns.clustermap(df.loc[~df.index.str.contains('pb'),:]);plt.savefig(outpath+'bulk_hmap.png');plt.close()
-
-
-################# plot theta umap together 
+################# combined umap
 umap_coords,cluster = get_umap(df,0.1)
 dfumap = pd.DataFrame(umap_coords[0])
 dfumap['cell'] = df.index.values
@@ -191,6 +180,40 @@ def plot_umap_df(dfumap,col,fpath):
 		
 	p.save(filename = fname, height=10, width=15, units ='in', dpi=300)
 
-# plot_umap_df(dfumap,'batch',outpath)
-# plot_umap_df(dfumap,'cluster',outpath)
 plot_umap_df(dfumap,'tissue',outpath)
+asappy.plot_umap_df(dfumap,'batch',outpath)
+asappy.plot_umap_df(dfumap,'cluster',outpath)
+
+
+################# combined proportion heat map between bulk correction and sc correlation
+
+dfh = dfumap[['cell','cluster','tissue']]
+dfh = dfh.groupby(['cluster','tissue'])['cell'].count().reset_index().sort_values(['cluster','cell'])
+dfh = dfh.pivot(index='tissue',columns='cluster',values='cell')
+dfh =  dfh.div(dfh.sum(0))
+dfh.rename(index={'a':'pseudo-bulk'},inplace=True)
+
+import seaborn as sns
+
+import matplotlib.pyplot as plt
+plt.figure(figsize=(10, 6)) 
+
+sns.heatmap(dfh,cmap='viridis')
+plt.tight_layout()
+plt.savefig(outpath+'_prop_hmap.png');plt.close()
+
+
+
+################### plot theta for single cell pseudo bulk and bulk separately 
+import matplotlib.pylab as plt
+import seaborn as sns
+
+pmf2t = asappy.pmf2topic(beta=asap_adata.uns['pseudobulk']['pb_beta'] ,theta=asap_adata.uns['pseudobulk']['pb_theta'])
+dfpb = pd.DataFrame(pmf2t['prop'])
+sns.clustermap(dfpb,cmap='viridis');plt.savefig(outpath+'sc_pbtheta_hmap.png');plt.close()
+
+
+pmf2t = asappy.pmf2topic(beta=asap_adata.uns['pseudobulk']['pb_beta'] ,theta=pred.theta)
+dfbulk = pd.DataFrame(pmf2t['prop'])
+sns.clustermap(dfbulk,cmap='viridis');plt.savefig(outpath+'bulk_predtheta_hmap.png');plt.close()
+

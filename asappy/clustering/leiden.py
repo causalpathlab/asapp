@@ -152,7 +152,7 @@ def compute_snn(knn, prune):
 
 def leiden_cluster(asap_adata,
                    mode = 'corr',
-                   resolution=0.1,
+                   resolution=1.0,
                    k=15,
                    prune=1/15,
                    random_seed=1,

@@ -1,13 +1,13 @@
 ######################################################
 #####  create asap data
 ######################################################
-sample = 'sim_r_1.0_s_10_sd_1'
+sample = 'sim_r_1.0_s_5_sd_1'
 import asappy
 
 
 data_size = 25000
 number_batches = 1
-# asappy.create_asap_data(sample)
+asappy.create_asap_data(sample)
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
 
 #####################################################

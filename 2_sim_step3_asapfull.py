@@ -7,7 +7,7 @@ print(sample)
 
 data_size = 250000
 number_batches = 1
-n_topics = 13
+n_topics = 7
 
 # asappy.create_asap_data(sample)
 
@@ -70,7 +70,7 @@ for x in asap_adata.var.index.values:
 asap_adata.var.index = gn
 asappy.leiden_cluster(asap_adata)
 ct = [ x.replace('@sim','') for x in asap_adata.obs.index.values]
-ct = [ '-'.join(x.split('_')[2:]) for x in ct]
+ct = [ '-'.join(x.split('_')[1:]) for x in ct]
 asap_adata.obs['celltype'] = ct
 asap_adata.write_h5ad('./results/'+sample+'.h5asapad_full')
 

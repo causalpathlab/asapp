@@ -14,19 +14,13 @@ sample = str(sys.argv[1])
 print(sample)
 asappy.create_asap_data(sample)
 
-n_topics = 13
+n_topics = 7
 
 data_size = 25000
 number_batches = 1
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
 
-normalize_pb='lscale'
-hvg_selection=False
-gene_mean_z=10
-gene_var_z=2
-normalize_raw=None
-
-asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_raw=normalize_raw,normalize_pb=normalize_pb,hvg_selection=hvg_selection,gene_mean_z=gene_mean_z,gene_var_z=gene_var_z)
+asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale',downsample_pseudobulk=False,pseudobulk_filter=False)
 
 asappy.asap_nmf(asap_object,num_factors=n_topics)
 asappy.save_model(asap_object)
@@ -50,6 +44,6 @@ asap_adata.var.index = gn
 
 asappy.leiden_cluster(asap_adata)
 ct = [ x.replace('@'+sample,'') for x in asap_adata.obs.index.values]
-ct = [ '-'.join(x.split('_')[2:]) for x in ct]
+ct = [ '-'.join(x.split('_')[1:]) for x in ct]
 asap_adata.obs['celltype'] = ct
 asap_adata.write_h5ad('./results/'+sample+'.h5asapad')

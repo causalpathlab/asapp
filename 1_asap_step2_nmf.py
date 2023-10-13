@@ -8,7 +8,7 @@ from plotnine import *
 import pandas as pd 
 import numpy as np
 
-sample = 'sim_r_1.0_s_10_sd_1'
+sample = 'sim_r_1.0_p_0.0_d_1.0_s_500_sd_1'
 data_size = 25000
 number_batches = 1
 K = 13
@@ -16,7 +16,8 @@ K = 13
 asappy.create_asap_data(sample)
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
 
-asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale')
+asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale',downsample_pseudobulk=False,pseudobulk_filter=False)
+
 asappy.asap_nmf(asap_object,num_factors=K)
 asappy.save_model(asap_object)
 
@@ -81,14 +82,14 @@ asappy.plot_gene_loading(asap_adata,top_n=5,max_thresh=30)
 
 
 ##### cluster and celltype umap
-asappy.leiden_cluster(asap_adata,resolution=0.5)
+asappy.leiden_cluster(asap_adata)
 asap_adata.obs.cluster.value_counts()
 asappy.run_umap(asap_adata,distance='cosine',min_dist=0.1)
 
 asappy.plot_umap(asap_adata,col='cluster')
 
 ct = [ x.replace('@'+sample,'') for x in asap_adata.obs.index.values]
-ct = [ '-'.join(x.split('_')[2:]) for x in ct]
+ct = [ '-'.join(x.split('_')[1:]) for x in ct]
 asap_adata.obs['celltype'] = ct
 asappy.plot_umap(asap_adata,col='celltype')
 

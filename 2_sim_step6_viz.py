@@ -27,10 +27,10 @@ def plot_eval(dfm,method):
     df.columns = df.columns.map('_'.join).str.strip('_')
     df = df.drop(columns=['seed_mean','seed_std'])
     # df = df.dropna()
-    # df = df.fillna(0.01)
+    df = df.fillna(0.01)
 
 
-    df['size'] = df['size'] * 1000
+    df['size'] = df['size'] * 13
 
     # df = df[df['model'] !="base"]
 

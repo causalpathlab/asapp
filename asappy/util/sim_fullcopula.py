@@ -1,14 +1,11 @@
 import numpy as np
-import random
-import random 
 import pandas as pd
 
 import scipy.sparse
 from sklearn.preprocessing import QuantileTransformer
 from sklearn.preprocessing import StandardScaler
 from sklearn.feature_selection import VarianceThreshold
-
-from ..util._lina import rsvd
+from ._lina import rsvd
 from ..dutil.read_write import write_h5
 
 import glob, os
@@ -53,35 +50,34 @@ def fit_model(x):
 		m = gene.mean()
 		v = gene.var()
 		
-		# try : 
-		# 	gene_with_intercept = add_constant(np.zeros_like(gene) + 1, prepend=False)
-		# 	nb_model = sm.GLM(gene, gene_with_intercept, family=sm.families.NegativeBinomial(alpha=1.0)).fit()
-		# 	params.append([0.0, nb_model.scale, np.exp(nb_model.params[0])])
+		try : 
+			gene_with_intercept = add_constant(np.zeros_like(gene) + 1, prepend=False)
+			nb_model = sm.GLM(gene, gene_with_intercept, family=sm.families.NegativeBinomial(alpha=1.0)).fit()
+			params.append([0.0, nb_model.scale, np.exp(nb_model.params[0])])
 		
-		# except :
-		# 	## fit poisson
-		# 	params.append([0.0,1.0,m])
-		params.append([0.0,1.0,m])
+		except :
+			## fit poisson
+			params.append([0.0,1.0,m])
 
 	return params
 
 
 
 def nb_convert_params(mu, theta,epsilon=1e-8):
-	"""
-	Convert mean/dispersion parameterization of a negative binomial to the ones scipy supports
-	See https://en.wikipedia.org/wiki/Negative_binomial_distribution#Alternative_formulations
-	"""
-	r = theta
-	var = mu + 1 / r * mu ** 2
-	p = (var - mu) / (var + epsilon)
-	return r, 1 - p
+    """
+    Convert mean/dispersion parameterization of a negative binomial to the ones scipy supports
+    See https://en.wikipedia.org/wiki/Negative_binomial_distribution#Alternative_formulations
+    """
+    r = theta
+    var = mu + 1 / r * mu ** 2
+    p = (var - mu) / (var + epsilon)
+    return r, 1 - p
 
 def nb_cdf(counts, mu, theta):
-	return nbinom.cdf(counts, *nb_convert_params(mu, theta))
+    return nbinom.cdf(counts, *nb_convert_params(mu, theta))
 
 def poisson_cdf(counts,mu):
-	return poisson.cdf(counts,mu)
+    return poisson.cdf(counts,mu)
 
 def distribution_transformation(params,x,epsilon=1e-8):
 	p, n = x.shape
@@ -93,13 +89,13 @@ def distribution_transformation(params,x,epsilon=1e-8):
 
 		'''
   		gene is not an integer, need to consider both gene and gene - 1 to 
-		capture the probability mass that may be spread between two consecutive integer values.
+    	capture the probability mass that may be spread between two consecutive integer values.
   		'''
 		## from negative binomial
 		# u1 = nb_cdf(gene, mu=param[2], theta=param[1])
 		# u2 = nb_cdf(gene-1, mu=param[2], theta=param[1])
 
-		# # from poisson
+		# from poisson
 		u1 = poisson_cdf(gene, mu=param[2])
 		u2 = poisson_cdf(gene-1, mu=param[2])
 		
@@ -123,36 +119,14 @@ def distribution_transformation(params,x,epsilon=1e-8):
 def simdata_from_bulk_copula(bulk_path,sim_data_path,size,phi,delta,rho,seed):
 
 	np.random.seed(seed)
-	
-	## dice bulk data
+ 
 	df,cts = get_bulkdata(bulk_path)
 	nz_cutoff = 10
 	df= df[df.iloc[:,2:].sum(1)>nz_cutoff].reset_index(drop=True)
 	genes = df['gene'].values
 	glens = df['length'].values
 	df = df.drop(columns=['gene','length'])
-
-	## pbmc 20k data
-	# df = pd.read_csv('pbmc_ct.csv.gz')
-	# df = df.T
-	# df.columns = df.iloc[0,:]
-	# df = df.iloc[1:,:]
-	# nz_cutoff = 10
-	# df= df[df.sum(1)>nz_cutoff]
-	# df.columns = [x.split('@')[1] for x in df.columns]
-	# cts = list(df.columns.unique())
-	# df.columns = [str(x)+'_'+y for x,y in enumerate(df.columns)]
-	# df = df.astype(float)
-	# genes = df.index.values
- 
-	
- 	## scale up
-	x_sum = df.values.sum(0)
-	df = (df/x_sum)*1e4
-
- 	## generate noise
-	z_uncorr = np.random.normal(size=(df.shape[0], size))
-
+ 	 
 	dfsc = pd.DataFrame()
 	all_indx = []
 
@@ -161,8 +135,7 @@ def simdata_from_bulk_copula(bulk_path,sim_data_path,size,phi,delta,rho,seed):
 		print('generating single cell data for...'+str(ct))
 
 		x_ct = df[[x for x in df.columns if ct in x]].values
-		
-  
+
 		model_params = fit_model(x_ct)
 		x_continous = distribution_transformation(model_params,x_ct)
 
@@ -170,45 +143,43 @@ def simdata_from_bulk_copula(bulk_path,sim_data_path,size,phi,delta,rho,seed):
 		qt = QuantileTransformer(random_state=0)
 		x_all_q = qt.fit_transform(x_continous)
   
-		rank = 50  
 		mu_ct = x_continous.mean(1)
+		
+
+
+		rank = 50  
 		u,d,_ = np.linalg.svd(x_all_q, full_matrices=False)
 		L_ct = np.dot(u[:, :rank],np.diag(d[:rank]))  
   
-		## sample mvn of given size with 
-		z_ct =  np.dot(L_ct, np.random.normal(size=(rank, size))) +   mu_ct[:, np.newaxis]
-
-  		## sample original data by column index
-		sc_idx = np.array([[random.randint(0, x_ct.shape[1]-1) for _ in range(x_ct.shape[0])] for _ in range(size)])
+		## sample mvn of given size
+		random_data = np.random.normal(size=(rank, size))
+		z_ct = np.dot(L_ct, random_data) + mu_ct[:, np.newaxis]
+		z_ct = z_ct.T
   
 		sc_ct = np.empty_like(z_ct)
-		sc_random = np.empty_like(z_ct)
-  
+
+		# ## get cdf for mvn and then use it for ppf 
+		for i in range(z_ct.shape[1]): 
+			param = model_params[i]
+			# sc_ct[:, i] = norm.cdf(z_ct[:, i])
+
+			## negative binomial
+			# sc_ct[:, i] = nbinom.ppf(norm.cdf(z_ct[:, i]), n= param[1], p=param[1] / (param[1] + param[2]))
+
+			## poisson
+			sc_ct[:, i] = poisson.ppf(norm.cdf(z_ct[:, i]),  param[2])
+   
+
+		max_value = 1e6
+		inf_mask = np.isinf(sc_ct)
+		sc_ct = np.where(inf_mask, max_value, sc_ct)
+
 		for i in range(size):
+			all_indx.append(str(i) + '_' + ct)
 
-			## sample single cell from original data
-			sc = x_ct[np.arange(x_ct.shape[0])[:,np.newaxis],sc_idx[i][:, np.newaxis]].flatten()
-
-			## rank gene values
-			sc_ct[:,i] = np.sort(sc)
-
-			## shulffle gene values for random sc data
-			np.random.shuffle(sc)
-			sc_random[:,i] = sc
-
-		sc_ct = sc_ct[np.arange(z_ct.shape[0])[:, np.newaxis], np.argsort(z_ct)].T
-  
-		sc_random = sc_random[np.arange(z_ct.shape[0])[:, np.newaxis], np.argsort(z_uncorr)].T
-
-		sc_all = (rho * sc_ct) + ((1-rho)*sc_random) 
-  
-		## get index ids
-		for i in range(size): all_indx.append(str(i) + '_' + ct)
-
-		dfsc = pd.concat([dfsc,pd.DataFrame(sc_all,columns=genes)],axis=0,ignore_index=True)
+		dfsc = pd.concat([dfsc,pd.DataFrame(sc_ct,columns=genes)],axis=0,ignore_index=True)
  
 	print(dfsc.shape)
-	dfsc = dfsc.astype(int)
 	smat = scipy.sparse.csr_matrix(dfsc.values)
 	dt = h5py.special_dtype(vlen=str) 
 	all_indx = np.array(np.array(all_indx).flatten(), dtype=dt) 

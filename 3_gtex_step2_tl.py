@@ -21,7 +21,7 @@ asap_adata = an.read_h5ad('./results/'+sc_sample+'.h5asapad')
 sc_beta = pd.DataFrame(asap_adata.uns['pseudobulk']['pb_beta'].T)
 sc_beta.columns = asap_adata.var.index.values
 
-## read bulk
+## read bulk raw data 
 dfbulk = pd.read_csv(outpath+'bulk.csv.gz')
 dfbulk.set_index('Unnamed: 0',inplace=True)
 dfbulk = dfbulk.astype(float)
@@ -40,8 +40,7 @@ target_sum = np.median(row_sums)
 row_sums = row_sums/target_sum
 dfbulk = dfbulk.to_numpy()/row_sums[:, np.newaxis]
     
-####correlation
-
+#### estimate correlation and theta using single cell beta
 import asapc
 
 beta_log_scaled = asap_adata.uns['pseudobulk']['pb_beta_log_scaled'] 
@@ -54,26 +53,5 @@ bulk_theta = pd.DataFrame(pred.theta)
 bulk_theta.index = bulk_sample_ids
 bulk_corr.to_csv(outpath+'mix_bulk_corr_asap.csv.gz',compression='gzip')
 bulk_theta.to_csv(outpath+'mix_bulk_theta_asap.csv.gz',compression='gzip')
-
-#######lmfit     
-# import rpy2.robjects as ro
-# import rpy2.robjects.packages as rp
-# import rpy2.robjects.numpy2ri
-# rpy2.robjects.numpy2ri.activate()
-
-# ro.packages.importr('limma')
-
-# nr,nc = dfbulk.shape
-# ro.r.assign("bulkdata", ro.r.matrix(dfbulk, nrow=nr, ncol=nc))
-
-# scnr,scnc = sc_beta.T.shape
-# ro.r.assign("scbeta", ro.r.matrix(sc_beta.T.to_numpy(), nrow=scnr, ncol=scnc))
-
-# ro.r('fit <- lmFit(bulkdata,scbeta)')
-
-# bulk_theta = pd.DataFrame(ro.r('coef(fit)'))
-# bulk_theta.index = bulk_sample_ids
-# bulk_theta.to_csv(outpath+'bulk_theta_lmfit.csv.gz',compression='gzip')
-
 
 
