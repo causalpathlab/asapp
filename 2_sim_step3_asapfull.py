@@ -2,14 +2,12 @@ import asappy
 import sys
 
 
-sample = sys.argv[1]
+sample = str(sys.argv[1])
+n_topics = int(sys.argv[2])
 print(sample)
 
 data_size = 250000
 number_batches = 1
-n_topics = 7
-
-# asappy.create_asap_data(sample)
 
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
 
@@ -54,29 +52,3 @@ adata.obsm['corr'] = asap_object.adata.obsm['corr']
 
 adata.write_h5ad(asap_object.adata.uns['inpath']+'.h5asap_full')
 
-#### nmf analysis
-from pyensembl import ensembl_grch38
-
-asap_adata = an.read_h5ad('./results/'+sample+'.h5asap_full')
-
-gn = []
-for x in asap_adata.var.index.values:
-    try:
-        g = ensembl_grch38.gene_by_id(x.split('.')[0]).gene_name 
-        gn.append(g)
-    except:
-        gn.append(x)
-
-asap_adata.var.index = gn
-asappy.leiden_cluster(asap_adata)
-ct = [ x.replace('@sim','') for x in asap_adata.obs.index.values]
-ct = [ '-'.join(x.split('_')[1:]) for x in ct]
-asap_adata.obs['celltype'] = ct
-asap_adata.write_h5ad('./results/'+sample+'.h5asapad_full')
-
-
-# asappy.plot_gene_loading(asap_adata,top_n=5,max_thresh=10)
-# asappy.plot_gene_loading(asap_adata,top_n=5,max_thresh=100)
-# asappy.plot_gene_loading(asap_adata,top_n=5,max_thresh=1000)
-# asappy.plot_umap(asap_adata,col='cluster')
-# asappy.plot_umap(asap_adata,col='celltype')

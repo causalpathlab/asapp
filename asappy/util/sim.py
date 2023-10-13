@@ -120,7 +120,7 @@ def distribution_transformation(params,x,epsilon=1e-8):
 	return u
 
 
-def simdata_from_bulk_copula(bulk_path,sim_data_path,size,phi,delta,rho,seed):
+def simdata_from_bulk_copula(bulk_path,sim_data_path,size,rho,depth,seed):
 
 	np.random.seed(seed)
 	
@@ -132,7 +132,7 @@ def simdata_from_bulk_copula(bulk_path,sim_data_path,size,phi,delta,rho,seed):
 	glens = df['length'].values
 	df = df.drop(columns=['gene','length'])
 
-	## pbmc 20k data
+	# pbmc 20k data
 	# df = pd.read_csv('pbmc_ct.csv.gz')
 	# df = df.T
 	# df.columns = df.iloc[0,:]
@@ -148,7 +148,7 @@ def simdata_from_bulk_copula(bulk_path,sim_data_path,size,phi,delta,rho,seed):
 	
  	## scale up
 	x_sum = df.values.sum(0)
-	df = (df/x_sum)*1e4
+	df = (df/x_sum)*depth
 
  	## generate noise
 	z_uncorr = np.random.normal(size=(df.shape[0], size))

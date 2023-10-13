@@ -8,7 +8,8 @@ from plotnine import *
 import pandas as pd 
 import numpy as np
 
-sample = 'sim_r_1.0_p_0.0_d_1.0_s_500_sd_1'
+
+sample = 'sim_r_0.95_d_10000_s_250_s_2_t_13_r_0.1'
 data_size = 25000
 number_batches = 1
 K = 13
