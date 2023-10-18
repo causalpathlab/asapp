@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 import numba as nb
+import pandas as pd
 from math import sqrt
 logger = logging.getLogger(__name__)
 
@@ -54,10 +55,22 @@ def select_hvgenes(mtx,genef_index,gene_var_z,method='apearson'):
         theta = np.float64(100)
         clip = np.float64(np.sqrt(n_cell))
         norm_gene_var = calc_res(mtx,sum_gene,sum_cell,sum_total,theta,clip,n_gene,n_cell)
-        select_genes = norm_gene_var>gene_var_z 
-        
-        norm_gene_var = calc_res(mtx,sum_gene,sum_cell,sum_total,theta,clip,n_gene,n_cell)
-        
-        select_genes = norm_gene_var>z_cuttoff
-        
+        select_genes = norm_gene_var>gene_var_z         
         return mtx[:,select_genes], df['select'].values
+
+def get_gene_norm_var(mtx):
+        
+    sum_gene = np.array(mtx.sum(axis=0)).ravel()
+    sum_cell = np.array(mtx.sum(axis=1)).ravel()
+    sum_total = np.float64(np.sum(sum_gene).ravel())
+    n_gene = mtx.shape[1]
+    n_cell = mtx.shape[0]
+    
+    theta = np.float64(100)
+    clip = np.float64(np.sqrt(n_cell))
+    
+    norm_gene_var = calc_res(mtx,sum_gene,sum_cell,sum_total,theta,clip,n_gene,n_cell)
+    
+    norm_gene_var = np.nan_to_num(norm_gene_var)
+    
+    return norm_gene_var    

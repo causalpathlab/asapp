@@ -1,3 +1,9 @@
+from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning,NumbaWarning
+import warnings
+warnings.simplefilter('ignore', category=NumbaWarning)
+warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
+warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
+
 ######################################################
 ##### asap step 2 - nmf and pseudobulk analysis
 ######################################################
@@ -9,12 +15,13 @@ import pandas as pd
 import numpy as np
 
 
-sample = 'sim_r_0.95_d_10000_s_250_s_2_t_13_r_0.1'
+sample = 'sim_r_0.95_d_1000_s_250_s_2_t_13_r_0.1'
+# sample = 'pbmc'
 data_size = 25000
 number_batches = 1
 K = 13
 
-asappy.create_asap_data(sample)
+# asappy.create_asap_data(sample)
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
 
 asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale',downsample_pseudobulk=False,pseudobulk_filter=False)
@@ -79,15 +86,24 @@ asap_adata.var.index = gn
 
 
 ##### beta heatmap
-asappy.plot_gene_loading(asap_adata,top_n=5,max_thresh=30)
+asappy.plot_gene_loading(asap_adata,top_n=3,max_thresh=30)
 
 
 ##### cluster and celltype umap
-asappy.leiden_cluster(asap_adata)
-asap_adata.obs.cluster.value_counts()
+asappy.leiden_cluster(asap_adata,resolution=0.5)
+print(asap_adata.obs.cluster.value_counts())
 asappy.run_umap(asap_adata,distance='cosine',min_dist=0.1)
 
 asappy.plot_umap(asap_adata,col='cluster')
+
+
+# f='/home/BCCRC.CA/ssubedi/projects/experiments/asapp/node_results/pbmc_results/pbmc_scanpy_label.csv.gz'
+# dfl = pd.read_csv(f)
+# lmap = {x.split('@')[0]:y  for x,y in zip(dfl['cell'].values,dfl['leiden'].values)}
+# asap_adata.obs['celltype'] = [lmap[x] if x in lmap.keys() else 'others' for x in asap_adata.obs.index.values]
+# asap_adata.obs['celltype']  = pd.Categorical(asap_adata.obs['celltype']  )
+# asappy.plot_umap(asap_adata,col='celltype')
+
 
 ct = [ x.replace('@'+sample,'') for x in asap_adata.obs.index.values]
 ct = [ '-'.join(x.split('_')[1:]) for x in ct]
@@ -102,7 +118,7 @@ def calc_score(ct,cl):
     ari = adjusted_rand_score(ct,cl)
     return nmi,ari
 
-asap_s1,asap_s2 =  calc_score(asap_adata.obs['celltype'].values,asap_adata.obs['cluster'].values)
+asap_s1,asap_s2 =  calc_score([str(x) for x in asap_adata.obs['celltype'].values],asap_adata.obs['cluster'].values)
 
 print('NMI:'+str(asap_s1))
 print('ARI:'+str(asap_s2))

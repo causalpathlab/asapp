@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 def generate_random_projection_data(var_dims,tree_depth):
     return projection_data(tree_depth,var_dims)
 
-def generate_randomprojection_batch(asap_object,batch_i,start_index,end_index,rp_mat,normalization,result_queue,result_indxes_queue,lock,sema):
+def generate_randomprojection_batch(asap_object,batch_i,start_index,end_index,rp_mat_list,normalization,result_queue,result_indxes_queue,lock,sema):
 
     if batch_i <= asap_object.adata.uns['number_batches']:
 
@@ -25,7 +25,7 @@ def generate_randomprojection_batch(asap_object,batch_i,start_index,end_index,rp
         lock.release()
 
         get_randomprojection(local_mtx.T, 
-            rp_mat, 
+            rp_mat_list, 
             str(batch_i) +'_' +str(start_index)+'_'+str(end_index),
             normalization,
             result_queue
@@ -34,7 +34,7 @@ def generate_randomprojection_batch(asap_object,batch_i,start_index,end_index,rp
     else:
         logging.info('Random projection NOT generated for '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(asap_object.adata.uns['number_batches']))
 
-def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat,normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema):
+def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat_list,min_pseudobulk_size,normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema):
 
     if batch_i <= asap_object.adata.uns['number_batches']:
 
@@ -47,7 +47,8 @@ def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat,n
         lock.release()
 
         get_pseudobulk(local_mtx.T, 
-            rp_mat, 
+            rp_mat_list, 
+            min_pseudobulk_size,
             asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],
             str(batch_i) +'_' +str(start_index)+'_'+str(end_index),
             normalize_raw,
@@ -138,11 +139,11 @@ def generate_randomprojection(asap_object,tree_depth,normalization='totalcount',
     logging.info('Batch size... '+str(batch_size))
     logging.info('Data batch to process... '+str(asap_object.adata.uns['number_batches']))
 
-    rp_mat = generate_random_projection_data(asap_object.adata.uns['shape'][1],asap_object.adata.uns['tree_depth'])
+    rp_mat_list = generate_random_projection_data(asap_object.adata.uns['shape'][1],asap_object.adata.uns['tree_depth'])
     
     if total_cells<batch_size:
 
-        rp_data = get_randomprojection(asap_object.adata.X.T, rp_mat,'full',normalization)
+        rp_data = get_randomprojection(asap_object.adata.X.T, rp_mat_list,'full',normalization)
         return rp_data
 
     else:
@@ -157,7 +158,7 @@ def generate_randomprojection(asap_object,tree_depth,normalization='totalcount',
 
             iend = min(istart + batch_size, total_cells)
                             
-            thread = threading.Thread(target=generate_randomprojection_batch, args=(asap_object,i,istart,iend, rp_mat,normalization,result_queue,result_indxes_queue,lock,sema))
+            thread = threading.Thread(target=generate_randomprojection_batch, args=(asap_object,i,istart,iend, rp_mat_list,normalization,result_queue,result_indxes_queue,lock,sema))
             
             threads.append(thread)
             thread.start()
@@ -182,6 +183,7 @@ def generate_pseudobulk(
     hvg_selection=False,
     gene_mean_z=10,
     gene_var_z=2,
+    min_pseudobulk_size = 50,
     downsample_pseudobulk=True,
     downsample_size=100,
     maxthreads=16,
@@ -208,11 +210,11 @@ def generate_pseudobulk(
     logging.info('Batch size... '+str(batch_size))
     logging.info('Data batch to process... '+str(asap_object.adata.uns['number_batches']))
 
-    rp_mat = generate_random_projection_data(asap_object.adata.uns['shape'][1],asap_object.adata.uns['tree_depth'])
+    rp_mat_list = generate_random_projection_data(asap_object.adata.uns['shape'][1],asap_object.adata.uns['tree_depth'])
     
     if total_cells<batch_size:
 
-        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full',normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z)
+        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat_list,min_pseudobulk_size,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full',normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z)
 
     else:
 
@@ -225,7 +227,7 @@ def generate_pseudobulk(
 
             iend = min(istart + batch_size, total_cells)
                             
-            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat,normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema))
+            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat_list,min_pseudobulk_size,normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema))
             
             threads.append(thread)
             thread.start()

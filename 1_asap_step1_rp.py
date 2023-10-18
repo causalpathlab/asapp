@@ -1,7 +1,14 @@
+from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning,NumbaWarning
+import warnings
+warnings.simplefilter('ignore', category=NumbaWarning)
+warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
+warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
+
 ######################################################
 #####  create asap data
 ######################################################
-sample = 'sim_r_1.0_s_5_sd_1'
+sample = 'sim_r_0.95_d_1000_s_250_s_2_t_13_r_0.1'
+# sample = 'pbmc'
 import asappy
 
 
@@ -21,14 +28,21 @@ from umap.umap_ import find_ab_params, simplicial_set_embedding
 
 ### get random projection
 rp_data = asappy.generate_randomprojection(asap_object,tree_depth=10)
-rp_index = asap_object.adata.load_datainfo_batch(1,0,11530)
-rp = rp_data['full']
-df=pd.DataFrame(rp)
+rp_data = rp_data['full']
+rp_index = asap_object.adata.load_datainfo_batch(1,0,rp_data.shape[0])
+df=pd.DataFrame(rp_data)
 df.index = rp_index
 
+# from asappy.projection.rpstruct import projection_data
+# rp_mat_list = projection_data(10,asap_object.adata.uns['shape'][1])
+# mtx = asap_object.adata.load_data_batch(1,0,3250)
+# mtx = mtx.T
+
+
 ### draw nearest neighbour graph and cluster
-snn,cluster = leiden_cluster(df,resolution=0.1,k=10)
+snn,cluster = leiden_cluster(df,resolution=0.5)
 pd.Series(cluster).value_counts() 
+
 
 
 ## umap cluster using neighbour graph
@@ -67,30 +81,53 @@ output_dens=False
 dfumap = pd.DataFrame(umap_coords[0])
 dfumap['cell'] = rp_index
 dfumap.columns = ['umap1','umap2','cell']
+
 ct = [ x.replace('@'+sample,'') for x in dfumap.cell.values]
-ct = [ '-'.join(x.split('_')[2:]) for x in ct]
+ct = [ '-'.join(x.split('_')[1:]) for x in ct]
 dfumap['celltype'] = pd.Categorical(ct)
-asappy.plot_umap_df(dfumap,'celltype',asap_object.adata.uns['inpath']+'_fig_1a_')
+asappy.plot_umap_df(dfumap,'celltype',asap_object.adata.uns['inpath']+'_rp_')
+
+
+# f='/home/BCCRC.CA/ssubedi/projects/experiments/asapp/node_results/pbmc_results/pbmc_scanpy_label.csv.gz'
+# dfl = pd.read_csv(f)
+# lmap = {x.split('@')[0]:y  for x,y in zip(dfl['cell'].values,dfl['leiden'].values)}
+# dfumap['cell'] = [ x.split('@')[0] for x in dfumap['cell']]
+# dfumap['celltype'] = [lmap[x] if x in lmap.keys() else 'others' for x in dfumap.cell.values]
+# dfumap['celltype'] = pd.Categorical(dfumap['celltype'] )
+# asappy.plot_umap_df(dfumap,'celltype',asap_object.adata.uns['inpath']+'_rp_')
+
+from sklearn.metrics import normalized_mutual_info_score
+from sklearn.metrics.cluster import adjusted_rand_score
+
+def calc_score(ct,cl):
+    nmi =  normalized_mutual_info_score(ct,cl)
+    ari = adjusted_rand_score(ct,cl)
+    return nmi,ari
+
+asap_rp_s1,asap_rp_s2 =  calc_score([ str(x) for x in dfumap['celltype']],cluster)
+
+print('NMI:'+str(asap_rp_s1))
+print('ARI:'+str(asap_rp_s2))
 
 #### plot rp1 to 10 scatter plot 
 
-dfrp = df.copy()
-dfrp.columns = ['rp'+str(x) for x in dfrp.columns]
-dfrp.index = [x.split('@')[0] for x in dfrp.index.values]
-dfrp['celltype'] = dfumap['celltype'].values
-asappy.plot_randomproj(dfrp,'celltype',asap_object.adata.uns['inpath'])
+# dfrp = df.copy()
+# dfrp.columns = ['rp'+str(x) for x in dfrp.columns]
+# dfrp.index = [x.split('@')[0] for x in dfrp.index.values]
+# dfrp['celltype'] = dfumap['celltype'].values
+# asappy.plot_randomproj(dfrp,'celltype',asap_object.adata.uns['inpath'])
 
 ####################################################
 ###  pseudobulk  analysis
 ####################################################
 
-asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale')
-asappy.pbulk_cellcounthist(asap_object)
+# asappy.generate_pseudobulk(asap_object,min_pseudobulk_size=100,tree_depth=10,normalize_pb='lscale')
+# asappy.pbulk_cellcounthist(asap_object)
 
-ct = [ x[0].replace('@'+sample,'') for x in asap_object.adata.obs.values]
-ct = [ '-'.join(x.split('_')[2:]) for x in ct]
-pbulk_batchratio  = asappy.get_psuedobulk_batchratio(asap_object,ct)
-asappy.plot_pbulk_celltyperatio(pbulk_batchratio,asap_object.adata.uns['inpath'])
+# ct = [ x[0].replace('@'+sample,'') for x in asap_object.adata.obs.values]
+# ct = [ '-'.join(x.split('_')[1:]) for x in ct]
+# pbulk_batchratio  = asappy.get_psuedobulk_batchratio(asap_object,ct)
+# asappy.plot_pbulk_celltyperatio(pbulk_batchratio,asap_object.adata.uns['inpath'])
 
 
 # asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb=None,pseudobulk_filter=False)

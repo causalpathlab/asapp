@@ -11,9 +11,10 @@ output_dir = config['home'] + config['experiment'] + config['output']
 scripts_dir = config['home'] + config['experiment']
 
 
-RHO = [0.2,0.4,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1.0] 
-DEPTH = [10000]
-SIZE = [250]
+# RHO = [0.2,0.4,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95,1.0] 
+RHO = [0.01] 
+DEPTH = [1000,10000]
+SIZE = [250,1000]
 SEED = [1,2]
 TOPIC = [13]
 RES =[0.1,0.25,0.5,0.75,1.0]
