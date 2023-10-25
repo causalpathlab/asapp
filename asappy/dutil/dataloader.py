@@ -9,9 +9,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 class DataSet:
-	def __init__(self,sample,number_batches):
+	def __init__(self,sample,number_batches,sample_path):
 		self.uns = {}
-		self.uns['inpath'] = './results/'+sample
+		self.uns['inpath'] = sample_path+'results/'+sample
 		self.uns['number_batches'] = number_batches
 
 	def get_datainfo(self):

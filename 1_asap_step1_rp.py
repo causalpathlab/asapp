@@ -7,14 +7,15 @@ warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
 ######################################################
 #####  create asap data
 ######################################################
-sample = 'sim_r_0.95_d_1000_s_250_s_2_t_13_r_0.1'
-# sample = 'pbmc'
+# sample = 'sim_r_0.95_d_1000_s_250_s_2_t_13_r_0.1'
+sample = 'pbmc'
+# sample = 'bc_80k'
 import asappy
 
 
 data_size = 25000
 number_batches = 1
-asappy.create_asap_data(sample)
+# asappy.create_asap_data(sample)
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
 
 #####################################################
@@ -29,9 +30,18 @@ from umap.umap_ import find_ab_params, simplicial_set_embedding
 ### get random projection
 rp_data = asappy.generate_randomprojection(asap_object,tree_depth=10)
 rp_data = rp_data['full']
-rp_index = asap_object.adata.load_datainfo_batch(1,0,rp_data.shape[0])
+rpi = asap_object.adata.load_datainfo_batch(1,0,rp_data.shape[0])
 df=pd.DataFrame(rp_data)
-df.index = rp_index
+df.index = rpi
+
+# rp_data,rp_index = asappy.generate_randomprojection(asap_object,tree_depth=10)
+# rp = rp_data[0]['1_0_25000']['rp_data']
+# for d in rp_data[1:]:
+#     rp = np.vstack((rp,d[list(d.keys())[0]]['rp_data']))
+# rpi = np.array(rp_index[0])
+# for i in rp_index[1:]:rpi = np.hstack((rpi,i))
+# df=pd.DataFrame(rp)
+# df.index = rpi
 
 # from asappy.projection.rpstruct import projection_data
 # rp_mat_list = projection_data(10,asap_object.adata.uns['shape'][1])
@@ -40,13 +50,13 @@ df.index = rp_index
 
 
 ### draw nearest neighbour graph and cluster
-snn,cluster = leiden_cluster(df,resolution=0.5)
+snn,cluster = leiden_cluster(df,resolution=1.0)
 pd.Series(cluster).value_counts() 
 
 
 
 ## umap cluster using neighbour graph
-min_dist = 0.1
+min_dist = 0.5
 n_components = 2
 spread: float = 1.0
 alpha: float = 1.0
@@ -79,22 +89,34 @@ output_dens=False
 )
 
 dfumap = pd.DataFrame(umap_coords[0])
-dfumap['cell'] = rp_index
+dfumap['cell'] = rpi
 dfumap.columns = ['umap1','umap2','cell']
 
-ct = [ x.replace('@'+sample,'') for x in dfumap.cell.values]
-ct = [ '-'.join(x.split('_')[1:]) for x in ct]
-dfumap['celltype'] = pd.Categorical(ct)
+# ct = [ x.replace('@'+sample,'') for x in dfumap.cell.values]
+# ct = [ '-'.join(x.split('_')[1:]) for x in ct]
+# dfumap['celltype'] = pd.Categorical(ct)
+# asappy.plot_umap_df(dfumap,'celltype',asap_object.adata.uns['inpath']+'_rp_')
+
+
+f='/home/BCCRC.CA/ssubedi/projects/experiments/asapp/node_results/pbmc_results/pbmc_scanpy_label.csv.gz'
+dfl = pd.read_csv(f)
+lmap = {x.split('@')[0]:y  for x,y in zip(dfl['cell'].values,dfl['leiden'].values)}
+dfumap['cell'] = [ x.split('@')[0] for x in dfumap['cell']]
+dfumap['celltype'] = [lmap[x] if x in lmap.keys() else 'others' for x in dfumap.cell.values]
+dfumap['celltype'] = pd.Categorical(dfumap['celltype'] )
 asappy.plot_umap_df(dfumap,'celltype',asap_object.adata.uns['inpath']+'_rp_')
 
 
-# f='/home/BCCRC.CA/ssubedi/projects/experiments/asapp/node_results/pbmc_results/pbmc_scanpy_label.csv.gz'
+# f='/home/BCCRC.CA/ssubedi/projects/experiments/asapp/node_data/breastcancer/1_d_celltopic_label.csv.gz'
 # dfl = pd.read_csv(f)
-# lmap = {x.split('@')[0]:y  for x,y in zip(dfl['cell'].values,dfl['leiden'].values)}
-# dfumap['cell'] = [ x.split('@')[0] for x in dfumap['cell']]
+# dfl = dfl.loc[dfl['cell'].str.contains('GSE176078' ),:]
+# dfl['cell'] = [ x.replace('_GSE176078','') for x in dfl['cell']]
+# lmap = {x:y  for x,y in zip(dfl['cell'].values,dfl['celltype'].values)}
+# dfumap['cell']= [ x.replace('@bc_80k','') for x in dfumap['cell']]
 # dfumap['celltype'] = [lmap[x] if x in lmap.keys() else 'others' for x in dfumap.cell.values]
-# dfumap['celltype'] = pd.Categorical(dfumap['celltype'] )
+# dfumap['celltype']  = pd.Categorical(dfumap['celltype']  )
 # asappy.plot_umap_df(dfumap,'celltype',asap_object.adata.uns['inpath']+'_rp_')
+
 
 from sklearn.metrics import normalized_mutual_info_score
 from sklearn.metrics.cluster import adjusted_rand_score

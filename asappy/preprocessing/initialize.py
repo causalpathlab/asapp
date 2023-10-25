@@ -13,7 +13,7 @@ from ..util.logging import setlogger
 import logging
 logger = logging.getLogger(__name__)
 
-def create_asap_data(sample,select_genes=None):
+def create_asap_data(sample,working_dirpath,select_genes=None):
 	
 	"""        
     Attributes:
@@ -25,7 +25,7 @@ def create_asap_data(sample,select_genes=None):
 			The total number of batches to use for analysis, each batch will have data_size cells.
 	"""
 
-	setlogger(sample)
+	setlogger(sample=sample,sample_dir=working_dirpath)
 	
 	number_of_selected_genes = 0
 	if isinstance(select_genes,list):
@@ -36,22 +36,22 @@ def create_asap_data(sample,select_genes=None):
 	'number_of_selected_genes :' + str(number_of_selected_genes)+'\n'
 	)
 
-	filetype = data_fileformat()
+	filetype = data_fileformat(working_dirpath)
 	## read source files and create dataset for asap
 	if filetype == 'h5':
-		ds = CreateDatasetFromH5('./data/',sample) 
+		ds = CreateDatasetFromH5(working_dirpath,sample) 
 		print(ds.peek_datasets())
 		ds.create_asapdata(sample,select_genes) 
 	elif filetype == 'h5ad':
-		ds = CreateDatasetFromH5AD('./data/',sample) 
+		ds = CreateDatasetFromH5AD(working_dirpath,sample) 
 		print(ds.peek_datasets())
 		ds.create_asapdata(sample,select_genes) 
 	
 	logging.info('Completed asap data.')
 
-def create_asap_object(sample,data_size,number_batches=1):
+def create_asap_object(sample,data_size,working_dirpath,number_batches=1):
 
-	setlogger(sample)
+	setlogger(sample,working_dirpath)
 
 	logging.info('Creating asap object... \n'+
 		'data_size :' + str(data_size)+'\n'+
@@ -59,7 +59,7 @@ def create_asap_object(sample,data_size,number_batches=1):
 		)
 
 	## create anndata like object for asap 
-	adata = DataSet(sample,number_batches)
+	adata = DataSet(sample,number_batches,working_dirpath)
 	dataset_list = adata.get_dataset_names()
 	adata.initialize_data(dataset_list=dataset_list,batch_size=data_size)
 	return asap(adata)

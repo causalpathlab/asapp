@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 class CreateDatasetFromH5:
 
-	def __init__(self,inpath,sample):
-		self.inpath = inpath
-		self.outpath = './results/'
-		self.datasets = glob.glob(inpath+sample+'.h5')
+	def __init__(self,sample_path,sample):
+		self.inpath = sample_path+'data/'
+		self.outpath = sample_path+'results/'
+		self.datasets = glob.glob(self.inpath+sample+'.h5')
 
 
 	def peek_datasets(self):
@@ -88,14 +88,15 @@ class CreateDatasetFromH5:
 			print('Generating common genes...')
 			self.merge_genes(select_genes)
 			print('Merging datasets...')
+			print('processing...'+self.outpath+fname)
 			self.merge_data(fname)
 			print('completed.')
 
 class CreateDatasetFromH5AD:
-	def __init__(self,inpath,sample):
-		self.inpath = inpath
-		self.outpath = './results/'
-		self.datasets = glob.glob(inpath+sample+'.h5ad')
+	def __init__(self,sample_path,sample):
+		self.inpath = sample_path+'data/'
+		self.outpath = sample_path+'results/'
+		self.datasets = glob.glob(self.inpath+sample+'.h5ad')
 
 	def check_label(self):
 		for ds in self.datasets:
@@ -321,19 +322,19 @@ def save_model(asap_object):
 
 	adata.write_h5ad(asap_object.adata.uns['inpath']+'.h5asap')
 
-def write_h5(fname,rows_names,col_names,smat):
+def write_h5(fname,row_names,col_names,smat):
 
 	f = hf.File(fname+'.h5','w')
 
 	grp = f.create_group('matrix')
 
-	grp.create_dataset('barcodes', data = rows_names ,compression='gzip')
+	grp.create_dataset('barcodes', data = row_names ,compression='gzip')
 
 	grp.create_dataset('indptr',data=smat.indptr,compression='gzip')
 	grp.create_dataset('indices',data=smat.indices,compression='gzip')
 	grp.create_dataset('data',data=smat.data,compression='gzip')
 
-	data_shape = np.array([len(rows_names),len(col_names)])
+	data_shape = np.array([len(row_names),len(col_names)])
 	grp.create_dataset('shape',data=data_shape)
 	
 	f['matrix'].create_group('features')
@@ -347,8 +348,8 @@ def read_config(config_file):
 		params = yaml.safe_load(f)
 	return params
 
-def data_fileformat():
-	fpath = './data/*'
+def data_fileformat(dirpath):
+	fpath = dirpath+'/data/*'
 	datasets = glob.glob(fpath)
 	ftypes = []
 	for f in datasets:

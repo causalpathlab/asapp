@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 def generate_random_projection_data(var_dims,tree_depth):
     return projection_data(tree_depth,var_dims)
 
-def generate_randomprojection_batch(asap_object,batch_i,start_index,end_index,rp_mat_list,normalization,result_queue,result_indxes_queue,lock,sema):
+def generate_randomprojection_batch(asap_object,batch_i,start_index,end_index,rp_mat_list,result_queue,result_indxes_queue,lock,sema):
 
     if batch_i <= asap_object.adata.uns['number_batches']:
 
@@ -27,7 +27,6 @@ def generate_randomprojection_batch(asap_object,batch_i,start_index,end_index,rp
         get_randomprojection(local_mtx.T, 
             rp_mat_list, 
             str(batch_i) +'_' +str(start_index)+'_'+str(end_index),
-            normalization,
             result_queue
             )
         sema.release()			
@@ -124,7 +123,7 @@ def filter_pseudobulk(asap_object,pseudobulk_result,min_size=5):
 
     logging.info('Pseudo-bulk size :' +str(asap_object.adata.uns['pseudobulk']['pb_data'].shape))
 
-def generate_randomprojection(asap_object,tree_depth,normalization='totalcount',maxthreads=16):
+def generate_randomprojection(asap_object,tree_depth,maxthreads=16):
     asap_object.adata.uns['tree_depth'] = tree_depth
 
     logging.info('Random projection generation... \n'+
@@ -143,7 +142,7 @@ def generate_randomprojection(asap_object,tree_depth,normalization='totalcount',
     
     if total_cells<batch_size:
 
-        rp_data = get_randomprojection(asap_object.adata.X.T, rp_mat_list,'full',normalization)
+        rp_data = get_randomprojection(asap_object.adata.X.T, rp_mat_list,'full')
         return rp_data
 
     else:
@@ -158,7 +157,7 @@ def generate_randomprojection(asap_object,tree_depth,normalization='totalcount',
 
             iend = min(istart + batch_size, total_cells)
                             
-            thread = threading.Thread(target=generate_randomprojection_batch, args=(asap_object,i,istart,iend, rp_mat_list,normalization,result_queue,result_indxes_queue,lock,sema))
+            thread = threading.Thread(target=generate_randomprojection_batch, args=(asap_object,i,istart,iend, rp_mat_list,result_queue,result_indxes_queue,lock,sema))
             
             threads.append(thread)
             thread.start()
@@ -183,7 +182,7 @@ def generate_pseudobulk(
     hvg_selection=False,
     gene_mean_z=10,
     gene_var_z=2,
-    min_pseudobulk_size = 50,
+    min_pseudobulk_size = 250,
     downsample_pseudobulk=True,
     downsample_size=100,
     maxthreads=16,

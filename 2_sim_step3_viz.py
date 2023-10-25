@@ -38,7 +38,7 @@ def plot_eval(dfm,method):
     for x,y in pairs:
         p = (
             ggplot(df, aes(x=x,y='score_mean',color='model')) +
-            geom_pointrange(data=df, mapping=aes(x=x, ymin='score_mean - score_std', ymax='score_mean + score_std'),linetype='solid',size=0.5) +
+            geom_pointrange(data=df, mapping=aes(x=x, ymin='score_mean - score_std', ymax='score_mean + score_std'),linetype='solid',size=0.2) +
             scale_color_manual(values=custom_palette) +
             geom_line(data=df, mapping=aes(x=x, y='score_mean', color='model'), linetype='dashed',size=0.5) + 
             facet_wrap('~'+y) +
@@ -55,9 +55,10 @@ pairs = [
     # ('rho','size'),
     # ('rho','depth'),
     ('rho','res'),
+    # ('res','rho'),
     # ('rho','topic'),
 ]
 df = df[((df['depth']==10000) & (df['size']==250) & (df['topic']==13))]
 plot_eval(df,'NMI')
-plot_eval(df,'ARI')
-plot_eval(df,'LR')
+# plot_eval(df,'ARI')
+# plot_eval(df,'LR')

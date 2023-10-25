@@ -15,16 +15,18 @@ import pandas as pd
 import numpy as np
 
 
-sample = 'sim_r_0.95_d_1000_s_250_s_2_t_13_r_0.1'
-# sample = 'pbmc'
+# sample = 'sim_r_0.95_d_1000_s_250_s_2_t_13_r_0.1'
+sample = 'pbmc'
+# sample = 'bc_80k'
 data_size = 25000
 number_batches = 1
-K = 13
+K = 10
 
 # asappy.create_asap_data(sample)
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
 
-asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale',downsample_pseudobulk=False,pseudobulk_filter=False)
+# asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale',downsample_pseudobulk=False,pseudobulk_filter=False)
+asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale',min_pseudobulk_size=500)
 
 asappy.asap_nmf(asap_object,num_factors=K)
 asappy.save_model(asap_object)
@@ -68,7 +70,7 @@ asappy.save_model(asap_object)
 
 
 ################ nmf analysis
-
+import asappy
 import anndata as an
 from pyensembl import ensembl_grch38
 
@@ -86,29 +88,42 @@ asap_adata.var.index = gn
 
 
 ##### beta heatmap
-asappy.plot_gene_loading(asap_adata,top_n=3,max_thresh=30)
+asappy.plot_gene_loading(asap_adata,top_n=5,max_thresh=30)
 
 
 ##### cluster and celltype umap
-asappy.leiden_cluster(asap_adata,resolution=0.5)
+asappy.leiden_cluster(asap_adata,resolution=0.3)
 print(asap_adata.obs.cluster.value_counts())
-asappy.run_umap(asap_adata,distance='cosine',min_dist=0.1)
+asappy.run_umap(asap_adata,distance='euclidean',min_dist=0.1)
 
 asappy.plot_umap(asap_adata,col='cluster')
 
 
-# f='/home/BCCRC.CA/ssubedi/projects/experiments/asapp/node_results/pbmc_results/pbmc_scanpy_label.csv.gz'
+f='/home/BCCRC.CA/ssubedi/projects/experiments/asapp/node_results/pbmc_results/pbmc_scanpy_label.csv.gz'
+dfl = pd.read_csv(f)
+lmap = {x.split('@')[0]:y  for x,y in zip(dfl['cell'].values,dfl['leiden'].values)}
+asap_adata.obs.index = [ x.split('@')[0] for x in asap_adata.obs.index.values]
+asap_adata.obs['celltype'] = [lmap[x] if x in lmap.keys() else 'others' for x in asap_adata.obs.index.values]
+asap_adata.obs['celltype']  = pd.Categorical(asap_adata.obs['celltype']  )
+asappy.plot_umap(asap_adata,col='celltype')
+
+
+# ct = [ x.replace('@'+sample,'') for x in asap_adata.obs.index.values]
+# ct = [ '-'.join(x.split('_')[1:]) for x in ct]
+# asap_adata.obs['celltype'] = ct
+# asappy.plot_umap(asap_adata,col='celltype')
+
+
+# f='/home/BCCRC.CA/ssubedi/projects/experiments/asapp/node_data/breastcancer/1_d_celltopic_label.csv.gz'
 # dfl = pd.read_csv(f)
-# lmap = {x.split('@')[0]:y  for x,y in zip(dfl['cell'].values,dfl['leiden'].values)}
+# dfl = dfl.loc[dfl['cell'].str.contains('GSE176078' ),:]
+# dfl['cell'] = [ x.replace('_GSE176078','') for x in dfl['cell']]
+# lmap = {x:y  for x,y in zip(dfl['cell'].values,dfl['celltype'].values)}
+# asap_adata.obs.index = [ x.replace('@bc_80k','') for x in asap_adata.obs.index.values]
 # asap_adata.obs['celltype'] = [lmap[x] if x in lmap.keys() else 'others' for x in asap_adata.obs.index.values]
 # asap_adata.obs['celltype']  = pd.Categorical(asap_adata.obs['celltype']  )
 # asappy.plot_umap(asap_adata,col='celltype')
 
-
-ct = [ x.replace('@'+sample,'') for x in asap_adata.obs.index.values]
-ct = [ '-'.join(x.split('_')[1:]) for x in ct]
-asap_adata.obs['celltype'] = ct
-asappy.plot_umap(asap_adata,col='celltype')
 
 from sklearn.metrics import normalized_mutual_info_score
 from sklearn.metrics.cluster import adjusted_rand_score

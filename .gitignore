@@ -1,6 +1,7 @@
 
 # Ignore all data files
 /data/
+/data_*
 /node_data/
 /database/
 results/
@@ -8,6 +9,7 @@ results/
 data/
 results*/
 results/
+examples/
 
 # Ignore external modules
 /asap/external/

@@ -29,7 +29,7 @@ def adjust_rp_weight(mtx,rp_mat_list,weight='mean',hvg_percentile=99):
         gene_w = np.std(mtx,axis=1)
     elif weight == 'mean':
         gene_w = np.mean(mtx,axis=1)
-    elif weight == 'hvg':
+    elif weight == 'mean_whvg':
         genes_var = get_gene_norm_var(mtx.T)
         cutoff_percentile = np.percentile(genes_var, hvg_percentile)
         print(cutoff_percentile,genes_var.min(),genes_var.mean(),genes_var.max())
@@ -39,9 +39,10 @@ def adjust_rp_weight(mtx,rp_mat_list,weight='mean',hvg_percentile=99):
         gene_w = np.where(genes_var_sel == 0, gene_w,np.exp(gene_w))
     
     rp_mat_w_list = []
-    for rp_mat in rp_mat_list:    
-        rp_mat_w_list.append(rp_mat * gene_w)
-    rp_mat_w = np.mean(rp_mat_w_list, axis=0)
+    for rp_mat in rp_mat_list:rp_mat_w_list.append(rp_mat * gene_w)
+    
+    rp_mat_w = rp_mat_w_list[0]
+    for rp_mat in rp_mat_w_list[1:]:rp_mat_w = np.vstack((rp_mat_w,rp_mat))
     
     return rp_mat_w
 
@@ -49,61 +50,25 @@ def get_random_projection_data(mtx,rp_mat_list):
     rp_mat_w = adjust_rp_weight(mtx,rp_mat_list)
     return np.dot(rp_mat_w,mtx).T
 
+
 def get_projection_map(mtx,rp_mat_list,min_pseudobulk_size=50):
     
     rp_mat_w = adjust_rp_weight(mtx,rp_mat_list)
-    Q = np.dot(rp_mat_w,mtx)
+    Q = np.dot(rp_mat_w,mtx).T
     
-    ## center for PCA
-    scaler = StandardScaler(with_std=False)
-    Q = scaler.fit_transform(Q.T)
-    pca = PCA(n_components=Q.shape[1])
+    scaler = StandardScaler()
+    Q = scaler.fit_transform(Q)
+    pca = PCA(n_components=min(Q.shape[1],50))
     Z = pca.fit_transform(Q)
-
-    #### binarization method
-    # Z = (np.sign(Z) + 1)/2
-    # df = pd.DataFrame(Z,dtype=int)
-    # df['code'] = df.astype(str).agg(''.join, axis=1)
-    # df = df.reset_index()
-    # df = df[['index','code']]
-    # return df.groupby('code').agg(lambda x: list(x)).reset_index().set_index('code').to_dict()['index']
-    
-    
-    ## quantization method
-    # num_qlevels = 100
-    # min_value,max_value = Z.min(),Z.max()
-    # bin_width = (max_value - min_value) / num_qlevels
-    # df = pd.DataFrame(Z)
-    # Z = np.digitize(Z, np.arange(min_value, max_value, bin_width))
-    # df['code'] = df.astype(str).agg(''.join, axis=1)
-    # df = df.reset_index()
-    # df = df[['index','code']]
-    # print(df['code'].nunique())
-    # return df.groupby('code').agg(lambda x: list(x)).reset_index().set_index('code').to_dict()['index'] 
-    
-    n_clust = min(max(Q.shape[1]/100,min_pseudobulk_size),1000)
+            
+    n_clust = min(max(Z.shape[1]/100,min_pseudobulk_size),1000)
     kmeans = KMeans(n_clusters=n_clust, random_state=0)
     kmeans.fit(Z)
-    cluster_labels = kmeans.labels_ 
     df = pd.DataFrame()
-    bin_code = [str(number) for number in cluster_labels]
-    df['code'] = bin_code 
-    print(df['code'].nunique())
-    df = df.reset_index()
+    df['code'] = [str(number) for number in kmeans.labels_] 
+    df.reset_index(inplace=True)
     return df.groupby('code').agg(lambda x: list(x)).reset_index().set_index('code').to_dict()['index']
     
-    # from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
-    # distance_threshold = 250
-    # linked = linkage(q, method='ward')
-    # cluster_labels = fcluster(linked,  t=distance_threshold, criterion='distance')
-
-    # df = pd.DataFrame()
-    # bin_code = [format(number, '010b') for number in cluster_labels]
-    # df['code'] = bin_code 
-    # print(df.code.nunique())
-    # df = df.reset_index()
-    # return df.groupby('code').agg(lambda x: list(x)).reset_index().set_index('code').to_dict()['index']
-
 
 def sample_pseudo_bulk(pseudobulk_map,sample_size):
     pseudobulk_map_sample = {}
@@ -126,12 +91,11 @@ def get_pseudobulk(mtx,rp_mat,min_pseudobulk_size,downsample_pseudobulk,downsamp
         pseudobulk_map = sample_pseudo_bulk(pseudobulk_map,downsample_size)
         
     pseudobulk = []
-    for _, value in pseudobulk_map.items():
-        m = mtx[:,value]    
-        lambda_estimates = np.mean(m, axis=1)
-        s = poisson.rvs(mu=lambda_estimates, size=m.shape[0])
-        pseudobulk.append(s)
-        # pseudobulk.append(mtx[:,value].sum(1))
+    pseudobulk_depth = 1e4
+    for _, value in pseudobulk_map.items():        
+        pb = mtx[:,value].sum(1)
+        pb = (pb/pb.sum()) * pseudobulk_depth
+        pseudobulk.append(pb)
         
     pseudobulk = np.array(pseudobulk).astype(np.float64)
         
@@ -160,7 +124,7 @@ def get_pseudobulk(mtx,rp_mat,min_pseudobulk_size,downsample_pseudobulk,downsamp
     else:
          res.put({mode:{'pb_data':pseudobulk, 'pb_map':pseudobulk_map, 'pb_hvgs':hvgenes}})
 
-def get_randomprojection(mtx,rp_mat_list,mode,normalization,res=None):   
+def get_randomprojection(mtx,rp_mat_list,mode,res=None):   
 
     rp_mat = get_random_projection_data(mtx,rp_mat_list)
 
