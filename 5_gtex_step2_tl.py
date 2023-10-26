@@ -4,7 +4,8 @@
 
 bk_sample = 'bulk'
 sc_sample ='gtex_sc'
-outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/results/'
+wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/examples/gtex/'
+outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/examples/gtex/results/'
 
 
 ######################################################
@@ -17,7 +18,7 @@ import pandas as pd
 import numpy as np
 
 ### read single cell nmf
-asap_adata = an.read_h5ad('./results/'+sc_sample+'.h5asapad')
+asap_adata = an.read_h5ad(wdir+'/results/'+sc_sample+'.h5asapad')
 sc_beta = pd.DataFrame(asap_adata.uns['pseudobulk']['pb_beta'].T)
 sc_beta.columns = asap_adata.var.index.values
 

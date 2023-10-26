@@ -4,7 +4,8 @@
 
 sample = 'bulk'
 sc_sample ='gtex_sc'
-outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/results/'+sample
+wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/examples/gtex'
+outpath = wdir+'/results/'+sample
 # ######################################################
 # ##### bulk data merge
 # ######################################################
@@ -40,7 +41,7 @@ for i,ds in enumerate(datasets):
 
 
 
-f = hf.File('data/gtex_sc.h5','r')  
+f = hf.File(wdir+'/data/gtex_sc.h5','r')  
 sc_genes = [x.decode('utf-8') for x in f['matrix']['features']['id']]
 f.close()
 
@@ -90,7 +91,7 @@ import pandas as pd
 model = np.load(outpath+'_nmf.npz',allow_pickle=True)
 asapadata = an.AnnData(shape=(model['theta'].shape[0],model['beta'].shape[0]))
 asapadata.obs_names = [ 'b'+str(x) for x in range(model['theta'].shape[0])]
-asapadata.var_names = pd.read_csv('./results/bulkcommon_genes.csv').values.flatten()
+asapadata.var_names = pd.read_csv(wdir+'_sc_common_genes.csv').values.flatten()
 asapadata.varm['beta'] = model['beta']
 asapadata.obsm['theta'] = model['theta']
 asapadata.obsm['corr'] = model['corr']

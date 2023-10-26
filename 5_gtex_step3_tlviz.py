@@ -4,7 +4,8 @@
 
 bk_sample = 'bulk'
 sc_sample ='gtex_sc'
-outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/results/mix_'
+wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/examples/gtex/'
+outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/examples/gtex/results/mix_'
 
 
 ######################################################
@@ -17,10 +18,11 @@ import pandas as pd
 import numpy as np
 
 ### get single cell asap results
-asap_adata = an.read_h5ad('./results/'+sc_sample+'.h5asapad')
+asap_adata = an.read_h5ad(wdir+'/results/'+sc_sample+'.h5asapad')
 
 
-########## estimate single cell correlation using single beta
+###### pseudobulk
+########## estimate single cell pseudobulk correlation using single beta
 import asapc
 
 beta_log_scaled = asap_adata.uns['pseudobulk']['pb_beta_log_scaled'] 
@@ -35,21 +37,21 @@ sc_pbcorr.columns = ['t'+str(x) for x in sc_pbcorr.columns]
 ##################################
 
 ### get estimated bulk correlation from previous transfer learning step
-bulk_corr = pd.read_csv(outpath+'bulk_corr_asap.csv.gz')
+bulk_corr = pd.read_csv(wdir+'/results/mix_bulk_corr_asap.csv.gz')
 bulk_corr.index = bulk_corr['Unnamed: 0']
 bulk_corr.drop(columns=['Unnamed: 0'],inplace=True)
 bulk_corr.columns = ['t'+str(x) for x in bulk_corr.columns]
 
 
-########### normalization for single cell correlation and bulk correlation ############
+########### normalization for single cell pseudobulk correlation and bulk correlation ############
 
 from asappy.util.analysis import quantile_normalization
 
-sc_norm,bulk_norm = quantile_normalization(sc_pbcorr.to_numpy(),bulk_corr.to_numpy())
+sc_pbnorm,bulk_norm = quantile_normalization(sc_pbcorr.to_numpy(),bulk_corr.to_numpy())
 
-sc_norm = pd.DataFrame(sc_norm)
-sc_norm.index = sc_pbcorr.index.values
-sc_norm.columns = sc_pbcorr.columns
+sc_pbnorm = pd.DataFrame(sc_pbnorm)
+sc_pbnorm.index = sc_pbcorr.index.values
+sc_pbnorm.columns = sc_pbcorr.columns
 
 bulk_norm = pd.DataFrame(bulk_norm)
 bulk_norm.index = bulk_corr.index.values
@@ -105,84 +107,168 @@ dfumap['cell'] = bulk_corr.index.values
 dfumap.columns = ['umap1','umap2','cell']
 dfumap['tissue'] = [x.split('@')[1] for x in bulk_corr.index.values]
 dfumap['cluster'] = pd.Categorical(cluster)
-asappy.plot_umap_df(dfumap,'tissue',outpath+'_bulk_tl_')
-asappy.plot_umap_df(dfumap,'cluster',outpath+'_bulk_tl_')
+asappy.plot_umap_df(dfumap,'tissue',outpath+'_bulk_only_tl_')
+asappy.plot_umap_df(dfumap,'cluster',outpath+'_bulk_only_tl_')
 
 
 ############################################################
 ####### plot pseudobulk and bulk correlation together
 ############################################################
 
-df = pd.concat([sc_norm,bulk_norm],axis=0,ignore_index=False)
+sc_corr = pd.DataFrame(asap_adata.obsm['corr'])
+sc_corr.index = asap_adata.obs.index.values
+sc_corr.columns = ['t'+str(x) for x in sc_corr.columns]
 
+### sample 600 sc cells from each celltype such that total sc is about 5k
+sample_size= 500
+sampled_data = pd.DataFrame()
+grouped = asap_adata.obs.groupby('celltype2')
+
+for group_name, group_data in grouped:
+    if len(group_data) >= sample_size:
+        sampled_group = group_data.sample(n=sample_size, random_state=42)  
+        sampled_data = sampled_data.append(sampled_group)
+    else:
+        sampled_data = sampled_data.append(group_data)
+
+# Get the index values of the sampled data
+sample_indxs = sampled_data.index.values
+sample_celltype = sampled_data.celltype2.values
+
+# sample_indxs = asap_adata.obs.groupby(['celltype2']).sample(n).index.values
+sc_corr = sc_corr.loc[sampled_data.index.values,:]
+sc_corr.index = [x.replace('gtex_sc','sc_'+y)for x,y in zip(sc_corr.index.values,sample_celltype)]
+'''
+now we have three dataframes
+sc_corr - main single cell 200k data with prediction for corr
+sc_pbcorr - pseudobulk from main single cell 200k data with prediction for corr
+bulk_corr - transfer learning from single cell asap
+'''
+
+sc_pbnorm,bulk_norm = quantile_normalization(sc_pbcorr.to_numpy(),bulk_corr.to_numpy())
+sc_pbnorm2,sc_norm = quantile_normalization(sc_pbcorr.to_numpy(),sc_corr.to_numpy())
+
+
+sc_pbnorm = pd.DataFrame(sc_pbnorm)
+sc_pbnorm.index = sc_pbcorr.index.values
+sc_pbnorm.columns = sc_pbcorr.columns
+
+bulk_norm = pd.DataFrame(bulk_norm)
+bulk_norm.index = bulk_corr.index.values
+bulk_norm.columns = bulk_corr.columns
+
+sc_norm = pd.DataFrame(sc_norm)
+sc_norm.index = sc_corr.index.values
+sc_norm.columns = sc_corr.columns
+
+df = pd.concat([sc_pbnorm,bulk_norm,sc_norm],axis=0,ignore_index=False)
+
+    
 ################# combined umap
 umap_coords,cluster = get_umap(df,0.1)
 dfumap = pd.DataFrame(umap_coords[0])
 dfumap['cell'] = df.index.values
 dfumap.columns = ['umap1','umap2','cell']
-dfumap['batch'] = ['pb' if 'pb' in x else 'bulk' for x in dfumap['cell']]
+
+def get_batch(x):
+    if 'pb' in x: return '0_pb'
+    elif 'sc_' in x: return x.split('@')[1]
+    else : return '1_bulk'
+
+def get_tissue(x):
+    if 'pb' in x: return '0_pb'
+    elif 'sc_' in x: return '0_single-cell'
+    else : return x.split('@')[1]
+
+
+
+dfumap['batch'] = dfumap['cell'].apply(get_batch)
 dfumap['cluster'] = cluster
 dfumap['cluster'] = pd.Categorical(dfumap['cluster'])
-dfumap['tissue'] = ['a' for x in sc_pbcorr.index.values] + [x.split('@')[1] for x in bulk_corr.index.values]
+dfumap['tissue'] = dfumap['cell'].apply(get_tissue)
 
-
-from plotnine  import *
-import matplotlib.pylab as plt 
-
-
-size_mapping = {
-'a':2, 
-'heart_atrial_appendage':1, 'esophagus_muscularis':1,
-'skin_sun_exposed_lower_leg':1, 'muscle_skeletal':1, 'prostate':1,
-'skin_not_sun_exposed_suprapubic':1, 'heart_left_ventricle':1,
-'breast_mammary_tissue':1, 'lung':1, 'esophagus_mucosa':1
-}
-shape_mapping = {
-'a':'+', 
-'heart_atrial_appendage':'o', 'esophagus_muscularis':'o',
-'skin_sun_exposed_lower_leg':'o', 'muscle_skeletal':'o', 'prostate':'o',
-'skin_not_sun_exposed_suprapubic':'o', 'heart_left_ventricle':'o',
-'breast_mammary_tissue':'o', 'lung':'o', 'esophagus_mucosa':'o'
-}
-
-custom_palette1= [
-"#e6194B",  
-"#fabed4","#ffd8b1","#fffac8",
-"#aaffc3","#dcbeff","#a9a9a9",
-"#bfef45","#42d4f4","#469990","#c09999"
-]
-
-custom_palette2= [
-"#900808",  
-"#b8d5e6","#b8d5e6","#b8d5e6",
-"#b8d5e6","#b8d5e6","#b8d5e6",
-"#b8d5e6","#b8d5e6","#b8d5e6","#b8d5e6"
-]
-
-def plot_umap_df(dfumap,col,fpath):
-	
-	nlabel = dfumap[col].nunique() 
-	fname = fpath+'_'+col+'_'+'umap.png'
-
-	# pt_size=1.0
-	legend_size=7
-
-	p = (ggplot(data=dfumap, mapping=aes(x='umap1', y='umap2', color=col,shape=col,size=col)) +
-		geom_point() +
-		scale_color_manual(values=custom_palette2)+
-  		scale_size_manual(values=size_mapping) + 
-  		scale_shape_manual(values=shape_mapping) + 
-		guides(color=guide_legend(override_aes={'size': legend_size})))
-
-	p = p + theme(
-		plot_background=element_rect(fill='white'),
-		panel_background = element_rect(fill='white'))
-		
-	p.save(filename = fname, height=10, width=15, units ='in', dpi=300)
-
-plot_umap_df(dfumap,'tissue',outpath)
+asappy.plot_umap_df(dfumap,'tissue',outpath)
 asappy.plot_umap_df(dfumap,'batch',outpath)
-asappy.plot_umap_df(dfumap,'cluster',outpath)
+
+
+### good until here....##
+
+# from plotnine  import *
+# import matplotlib.pylab as plt 
+
+
+# size_mapping = {
+# 'sc_Epithelial cell':1,
+# 'sc_Muscle':1,
+# 'sc_Fibroblast':1,
+# 'sc_Endothelial cell':1,
+# 'sc_Immune (myeloid)':1,
+# 'sc_Immune (lymphocyte)':1,
+# 'sc_Adipocyte':1,
+# 'sc_Epithelial cell (keratinocyte)':1,
+# 'sc_Glia':1,
+# 'sc_Stromal':1,
+# 'sc_Other':1,
+# 'sc_Melanocyte':1,
+# 'sc_Neuron':1,
+# 'pb':2, 
+# 'heart_atrial_appendage':1, 'esophagus_muscularis':1,
+# 'skin_sun_exposed_lower_leg':1, 'muscle_skeletal':1, 'prostate':1,
+# 'skin_not_sun_exposed_suprapubic':1, 'heart_left_ventricle':1,
+# 'breast_mammary_tissue':1, 'lung':1, 'esophagus_mucosa':1
+# }
+
+# shape_mapping = {
+# 'sc_Epithelial cell':'o',
+# 'sc_Muscle':'o',
+# 'sc_Fibroblast':'o',
+# 'sc_Endothelial cell':'o',
+# 'sc_Immune (myeloid)':'o',
+# 'sc_Immune (lymphocyte)':'o',
+# 'sc_Adipocyte':'o',
+# 'sc_Epithelial cell (keratinocyte)':'o',
+# 'sc_Glia':'o',
+# 'sc_Stromal':'o',
+# 'sc_Other':'o',
+# 'sc_Melanocyte':'o',
+# 'sc_Neuron':'o',
+# 'pb':'*', 
+# 'heart_atrial_appendage':'8', 'esophagus_muscularis':'8',
+# 'skin_sun_exposed_lower_leg':'8', 'muscle_skeletal':'8', 'prostate':'8',
+# 'skin_not_sun_exposed_suprapubic':'8', 'heart_left_ventricle':'8',
+# 'breast_mammary_tissue':'8', 'lung':'8', 'esophagus_mucosa':'8'
+# }
+
+# custom_palette = [
+# "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+# "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+# "#aec7e8", "#ffbb78", "#98df8a", "#ff9896", "#c5b0d5",
+# "#c49c94", "#f7b6d2", "#c7c7c7", "#dbdb8d", "#9edae5",
+# '#6b6ecf', '#8ca252',  '#8c6d31', '#bd9e39', '#d6616b'
+# ]
+# def plot_umap_df(dfumap,col,fpath):
+	
+# 	nlabel = dfumap[col].nunique() 
+# 	fname = fpath+'_'+col+'_'+'umap.png'
+
+# 	# pt_size=1.0
+# 	legend_size=7
+
+# 	p = (ggplot(data=dfumap, mapping=aes(x='umap1', y='umap2', color=col,shape=col,size=col)) +
+# 		geom_point() +
+# 		scale_color_manual(values=custom_palette)+
+#   		scale_size_manual(values=size_mapping) + 
+#   		scale_shape_manual(values=shape_mapping) + 
+# 		guides(color=guide_legend(override_aes={'size': legend_size})))
+
+# 	p = p + theme(
+# 		plot_background=element_rect(fill='white'),
+# 		panel_background = element_rect(fill='white'))
+		
+# 	p.save(filename = fname, height=10, width=15, units ='in', dpi=300)
+
+
+# asappy.plot_umap_df(dfumap,'cluster',outpath)
 
 
 ################# combined proportion heat map between bulk correction and sc correlation
@@ -198,7 +284,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 plt.figure(figsize=(10, 6)) 
 
-sns.heatmap(dfh,cmap='viridis')
+sns.heatmap(dfh,cmap='YlOrBr')
 plt.tight_layout()
 plt.savefig(outpath+'_prop_hmap.png');plt.close()
 

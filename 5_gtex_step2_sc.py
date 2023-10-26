@@ -3,35 +3,26 @@
 # ######################################################
 
 sample = 'gtex_sc'
+wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/examples/gtex/'
 
 
 ######################################################
 ##### single cell nmf
 ######################################################
-data_size = 50000
-number_batches =5
-K = 15
 
 import asappy
 import pandas as pd
 
-select_genes = list(pd.read_csv('./results/bulk_sc_common_genes.csv').values.flatten())
-asappy.create_asap_data(sample,select_genes=select_genes)
+select_genes = list(pd.read_csv(wdir+'results/bulk_sc_common_genes.csv').values.flatten())
+asappy.create_asap_data(sample,working_dirpath=wdir)
 
-asappy.create_asap_data(sample)
+n_topics = 15
+data_size = 30000
+number_batches = 7
 
-asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches)
-
-
-normalize_pb='lscale'
-hvg_selection=False
-gene_mean_z=10
-gene_var_z=2
-normalize_raw=None
-
-asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_raw=normalize_raw,normalize_pb=normalize_pb,hvg_selection=hvg_selection,gene_mean_z=gene_mean_z,gene_var_z=gene_var_z)
-
-asappy.asap_nmf(asap_object,num_factors=K)
+asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches,working_dirpath=wdir)
+asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale',min_pseudobulk_size=500)
+asappy.asap_nmf(asap_object,num_factors=n_topics)
 asappy.save_model(asap_object)
 
 
@@ -44,11 +35,11 @@ import asappy
 import anndata as an
 
 
-asap_adata = an.read_h5ad('./results/'+sample+'.h5asap')
+asap_adata = an.read_h5ad(wdir+'results/'+sample+'.h5asap')
 
 asappy.plot_gene_loading(asap_adata,top_n=5,max_thresh=200)
 
-asappy.leiden_cluster(asap_adata,k=10,mode='corr',resolution=0.1,method='fuzzy_con')
+asappy.leiden_cluster(asap_adata,k=10,mode='corr',resolution=0.1)
 asappy.run_umap(asap_adata,min_dist=0.5)
 asappy.plot_umap(asap_adata,col='cluster')
 
@@ -67,4 +58,4 @@ for ind,itm in enumerate(cat):catd[ind]=itm
 asap_adata.obs['celltype2'] = [ catd[x] for x in codes]
 asappy.plot_umap(asap_adata,col='celltype2')
         
-asap_adata.write('./results/'+sample+'.h5asapad')
+asap_adata.write(wdir+'results/'+sample+'.h5asapad')
