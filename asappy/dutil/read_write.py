@@ -305,7 +305,7 @@ def convertMTXtoH5AD(infile,outfile):
 	
 	f.close()
 
-def save_model(asap_object):
+def save_model(asap_object,return_object=False):
 	import anndata as an
 	hgvs = asap_object.adata.var.genes[asap_object.adata.uns['pseudobulk']['pb_hvgs']]
 	adata = an.AnnData(shape=(len(asap_object.adata.obs.barcodes),len(hgvs)))
@@ -320,7 +320,10 @@ def save_model(asap_object):
 	adata.obsm['theta'] = asap_object.adata.obsm['theta']
 	adata.obsm['corr'] = asap_object.adata.obsm['corr']
 
-	adata.write_h5ad(asap_object.adata.uns['inpath']+'.h5asap')
+	if return_object:
+		return adata
+	else:
+		adata.write_h5ad(asap_object.adata.uns['inpath']+'.h5asap')
 
 def write_h5(fname,row_names,col_names,smat):
 

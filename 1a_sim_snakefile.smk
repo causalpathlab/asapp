@@ -30,7 +30,7 @@ rule all:
 
 rule run_rppca:
     input:
-        script = scripts_dir + '2_sim_step2_rppca.py'
+        script = scripts_dir + '1a_sim_step2_rppca.py'
     output:
         eval = output_dir + sim_data_pattern+'_rppca_eval.csv'
     params:

@@ -1,5 +1,6 @@
 from sklearn.metrics import normalized_mutual_info_score
 from sklearn.metrics.cluster import adjusted_rand_score
+from collections import Counter
 import anndata as an
 import asappy
 import pandas as pd
@@ -30,11 +31,10 @@ def getct(ids,sample):
     
     return ct
 
-from collections import Counter
-
 def calculate_purity(true_labels, cluster_labels):
     cluster_set = set(cluster_labels)
-    total_correct = sum(max(Counter(true_labels[i] for i, cl in enumerate(cluster_labels) if cl == cluster).values()) for cluster in cluster_set)
+    total_correct = sum(max(Counter(true_labels[i] for i, cl in enumerate(cluster_labels) if cl == cluster).values()) 
+                        for cluster in cluster_set)
     return total_correct / len(true_labels)
 
 def calc_score(ct,cl,sample):

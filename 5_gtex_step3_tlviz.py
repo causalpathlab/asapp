@@ -5,7 +5,7 @@
 bk_sample = 'bulk'
 sc_sample ='gtex_sc'
 wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/examples/gtex/'
-outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/examples/gtex/results/mix_'
+outpath = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/examples/gtex/results/mix_2_'
 
 
 ######################################################
@@ -145,24 +145,19 @@ sc_pbcorr - pseudobulk from main single cell 200k data with prediction for corr
 bulk_corr - transfer learning from single cell asap
 '''
 
-sc_pbnorm,bulk_norm = quantile_normalization(sc_pbcorr.to_numpy(),bulk_corr.to_numpy())
-sc_pbnorm2,sc_norm = quantile_normalization(sc_pbcorr.to_numpy(),sc_corr.to_numpy())
+bulk_sc_corr = pd.concat([bulk_corr,sc_corr],axis=0,ignore_index=False)
 
+sc_pbnorm,bulk_sc_norm = quantile_normalization(sc_pbcorr.to_numpy(),bulk_sc_corr.to_numpy())
 
 sc_pbnorm = pd.DataFrame(sc_pbnorm)
 sc_pbnorm.index = sc_pbcorr.index.values
 sc_pbnorm.columns = sc_pbcorr.columns
 
-bulk_norm = pd.DataFrame(bulk_norm)
-bulk_norm.index = bulk_corr.index.values
-bulk_norm.columns = bulk_corr.columns
+bulk_sc_norm = pd.DataFrame(bulk_sc_norm)
+bulk_sc_norm.index = bulk_sc_corr.index.values
+bulk_sc_norm.columns = ['t'+str(x) for x in bulk_sc_norm.columns]
 
-sc_norm = pd.DataFrame(sc_norm)
-sc_norm.index = sc_corr.index.values
-sc_norm.columns = sc_corr.columns
-
-df = pd.concat([sc_pbnorm,bulk_norm,sc_norm],axis=0,ignore_index=False)
-
+df = pd.concat([sc_pbnorm,bulk_sc_norm],axis=0,ignore_index=False)
     
 ################# combined umap
 umap_coords,cluster = get_umap(df,0.1)
