@@ -304,8 +304,32 @@ def convertMTXtoH5AD(infile,outfile):
 	g1.create_dataset('categories',data=dataset_f['matrix']['features']['id'],compression='gzip')
 	
 	f.close()
+ 
+def convertH5toMTX(infile,outfile):
+	import gzip
+	from scipy.io import mmwrite
 
-def save_model(asap_object,return_object=False):
+	f = hf.File(infile,'r')
+
+	mtx_indptr = f['matrix']['indptr']
+	mtx_indices = f['matrix']['indices']
+	mtx_data = f['matrix']['data']
+	barcodes = [x.decode('utf-8') for x in f['matrix']['barcodes']]
+	features = [x.decode('utf-8') for x in f['matrix']['features']['id']]
+
+	rows = csr_matrix((mtx_data,mtx_indices,mtx_indptr),shape=(len(barcodes),len(features)))
+	mtx= rows.todense()
+	mtx = mtx.T
+	rows = csr_matrix(mtx)
+	
+	file_name = outfile+'.mtx.gz'
+	with gzip.open(file_name, 'wb') as f: mmwrite(f, rows)
+ 
+	pd.DataFrame(barcodes).to_csv(outfile+'.barcodes.csv.gz',compression='gzip')
+	pd.DataFrame(features).to_csv(outfile+'.features.csv.gz',compression='gzip')
+	
+
+def generate_model(asap_object,return_object=False):
 	import anndata as an
 	hgvs = asap_object.adata.var.genes[asap_object.adata.uns['pseudobulk']['pb_hvgs']]
 	adata = an.AnnData(shape=(len(asap_object.adata.obs.barcodes),len(hgvs)))
@@ -351,8 +375,9 @@ def read_config(config_file):
 		params = yaml.safe_load(f)
 	return params
 
-def data_fileformat(dirpath):
-	fpath = dirpath+'/data/*'
+def data_fileformat(sample,sample_path):
+	fpath = sample_path+'data/'+sample+'*'
+	print('source ...'+fpath)
 	datasets = glob.glob(fpath)
 	ftypes = []
 	for f in datasets:

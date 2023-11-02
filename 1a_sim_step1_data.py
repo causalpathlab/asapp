@@ -13,5 +13,6 @@ seed = int(sys.argv[6])
 
 
 bulk_path = '/data/sishir/database/dice_immune_bulkrna/*.csv'
+# bulk_path = '/data/sishir/database/'
 
 sim.simdata_from_bulk_copula(bulk_path,'data/'+sim_data_path,size,rho,depth,seed)

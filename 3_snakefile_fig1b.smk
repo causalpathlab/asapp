@@ -6,14 +6,14 @@ configfile: 'config.yaml'
 
 
 
-sample = 'lung'
+sample = 'pbmc'
 sample_dir = config['home'] + config['example'] + sample + '/' 
 input_dir = sample_dir +config['input'] 
 output_dir = sample_dir +config['output']
 scripts_dir = config['home'] + config['experiment']
 
-TOPIC = [10]  ### 6-aml/pbmc, 13-sim, 10-lung/brca/pancreas/kidney
-RES = [0.3]
+TOPIC = [8]  
+RES = [0.1,0.25,0.5,0.75,1.0]
 
 sim_data_pattern = '_t_{topic}_r_{res}'
 sim_data_pattern = sample + sim_data_pattern

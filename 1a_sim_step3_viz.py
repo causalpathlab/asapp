@@ -40,7 +40,7 @@ def plot_eval(dfm,method):
             ggplot(df, aes(x=x,y='score_mean',color='model')) +
             geom_pointrange(data=df, mapping=aes(x=x, ymin='score_mean - score_std', ymax='score_mean + score_std'),linetype='solid',size=0.2) +
             scale_color_manual(values=custom_palette) +
-            geom_line(data=df, mapping=aes(x=x, y='score_mean', color='model'), linetype='dashed',size=0.5) + 
+            geom_line(data=df, mapping=aes(x=x, y='score_mean', color='model'), linetype='dashed',size=0.8) + 
             facet_wrap('~'+y) +
             labs(x=x, y=method)
         )
@@ -58,35 +58,42 @@ pairs = [
     # ('res','rho'),
     # ('rho','topic'),
 ]
-df = df[((df['depth']==10000) & (df['size']==1000) & (df['topic']==13))]
+
+def combine_plot(dfm,method):
+    df = dfm[dfm['method']==method].copy()
+    grps = ['method','model','rho','depth','size','topic','res']
+    df = df.groupby(grps).agg(['mean','std' ]).reset_index()
+
+    df.columns = df.columns.map('_'.join).str.strip('_')
+
+    df = df.drop(columns=['seed_mean','seed_std'])
+    grps = ['method','model','rho','depth','size','topic']
+    df2 = df.groupby(grps).agg(['mean','std' ]).reset_index()
+
+    df2.columns = df2.columns.map('_'.join).str.strip('_')
+    df2 = df2.drop(columns=['res_mean','res_std','score_mean_std','score_std_std'])
+
+    p = (
+        ggplot(df2, aes(x='rho',y='score_mean_mean',color='model')) +
+        geom_pointrange(data=df2, mapping=aes(x='rho', ymin='score_mean_mean - score_std_mean', ymax='score_mean_mean + score_std_mean'),linetype='solid',size=0.5) +
+        scale_color_manual(values=custom_palette) +
+        geom_line(data=df2, mapping=aes(x='rho', y='score_mean_mean', color='model'),size=0.8) +
+        labs(x='rho', y=method)
+
+    )
+    p = p + theme(
+            plot_background=element_rect(fill='white'),
+            panel_background = element_rect(fill='white')
+    )
+    p.save(filename = './results/nmf_eval_comb_'+method+'.png', height=6, width=8, units ='in', dpi=300)
+
+
+df = df[((df['depth']==10000) & (df['size']==250) & (df['topic']==13))]
+
+plot_eval(df,'Purity')
+plot_eval(df,'ARI')
 plot_eval(df,'NMI')
 
-
-method='NMI'
-df = df[df['method']==method]
-grps = ['method','model','rho','depth','size','topic','res']
-df = df.groupby(grps).agg(['mean','std' ]).reset_index()
-
-df.columns = df.columns.map('_'.join).str.strip('_')
-
-df = df.drop(columns=['seed_mean','seed_std'])
-grps = ['method','model','rho','depth','size','topic']
-df2 = df.groupby(grps).agg(['mean','std' ]).reset_index()
-
-df2.columns = df2.columns.map('_'.join).str.strip('_')
-df2 = df2.drop(columns=['res_mean','res_std','score_mean_std','score_std_std'])
-
-p = (
-    ggplot(df2, aes(x='rho',y='score_mean_mean',color='model')) +
-    geom_pointrange(data=df2, mapping=aes(x='rho', ymin='score_mean_mean - score_std_mean', ymax='score_mean_mean + score_std_mean'),linetype='solid',size=0.5) +
-    scale_color_manual(values=custom_palette) +
-    geom_line(data=df2, mapping=aes(x='rho', y='score_mean_mean', color='model'),size=0.5) +
-    labs(x='rho', y='NMI')
-
-)
-p = p + theme(
-        plot_background=element_rect(fill='white'),
-        panel_background = element_rect(fill='white')
-)
-p.save(filename = './results/nmf_eval_comb.png', height=6, width=8, units ='in', dpi=300)
-
+combine_plot(df,method='NMI')
+combine_plot(df,method='Purity')
+combine_plot(df,method='ARI')

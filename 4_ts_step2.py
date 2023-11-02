@@ -16,7 +16,7 @@ for ds in asap_object.adata.uns['dataset_list']:
 
 asappy.generate_pseudobulk(asap_object,tree_depth=10)
 asappy.asap_nmf(asap_object,num_factors=K)
-asappy.save_model(asap_object)
+asappy.generate_model(asap_object)
 
 
 #### nmf analysis

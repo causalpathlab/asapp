@@ -132,26 +132,26 @@ def simdata_from_bulk_copula(bulk_path,sim_data_path,size,rho,depth,seed):
 	glens = df['length'].values
 	df = df.drop(columns=['gene','length'])
 
-	# pbmc 20k data
-	# df = pd.read_csv('pbmc_ct.csv.gz')
+	# pbmc 
+	# from scipy.sparse import load_npz
+	# loaded_sparse_matrix = load_npz(bulk_path+'pbmc_sparse_matrix.npz')
+	# with open(bulk_path+'pbmc_row_names.txt', 'r') as f:row_names = f.read().splitlines()
+	# with open(bulk_path+'pbmc_col_names.txt', 'r') as f:col_names = f.read().splitlines()
+	# df = pd.DataFrame(data=loaded_sparse_matrix.toarray(), index=row_names, columns=col_names)
 	# df = df.T
-	# df.columns = df.iloc[0,:]
-	# df = df.iloc[1:,:]
 	# nz_cutoff = 10
 	# df= df[df.sum(1)>nz_cutoff]
-	# df.columns = [x.split('@')[1] for x in df.columns]
-	# cts = list(df.columns.unique())
-	# df.columns = [str(x)+'_'+y for x,y in enumerate(df.columns)]
+	# cts = pd.Series(['_'.join(x.split('_')[1:]) for x in df.columns]).unique()
 	# df = df.astype(float)
 	# genes = df.index.values
  
-	
  	## scale up
 	x_sum = df.values.sum(0)
 	df = (df/x_sum)*depth
-
+	x_mean = df.mean(1)
+ 
  	## generate noise
-	z_uncorr = np.random.normal(size=(df.shape[0], size))
+	# z_uncorr = np.random.normal(size=(df.shape[0], size))
 
 	dfsc = pd.DataFrame()
 	all_indx = []
@@ -182,7 +182,6 @@ def simdata_from_bulk_copula(bulk_path,sim_data_path,size,rho,depth,seed):
 		sc_idx = np.array([[random.randint(0, x_ct.shape[1]-1) for _ in range(x_ct.shape[0])] for _ in range(size)])
   
 		sc_ct = np.empty_like(z_ct)
-		sc_random = np.empty_like(z_ct)
   
 		for i in range(size):
 
@@ -192,14 +191,13 @@ def simdata_from_bulk_copula(bulk_path,sim_data_path,size,rho,depth,seed):
 			## rank gene values
 			sc_ct[:,i] = np.sort(sc)
 
-			## shulffle gene values for random sc data
-			np.random.shuffle(sc)
-			sc_random[:,i] = sc
-
 		sc_ct = sc_ct[np.arange(z_ct.shape[0])[:, np.newaxis], np.argsort(z_ct)].T
-  
-		sc_random = sc_random[np.arange(z_ct.shape[0])[:, np.newaxis], np.argsort(z_uncorr)].T
 
+		sc_prop = np.divide(x_mean, np.sum(x_mean))
+		sc_random = np.empty_like(sc_ct)
+		for i in range(size):
+			sc_random[i,:] = np.random.multinomial(depth,sc_prop,1).T.flatten()
+   		
 		sc_all = (rho * sc_ct) + ((1-rho)*sc_random) 
   
 		## get index ids
@@ -209,6 +207,12 @@ def simdata_from_bulk_copula(bulk_path,sim_data_path,size,rho,depth,seed):
  
 	print(dfsc.shape)
 	dfsc = dfsc.astype(int)
+	
+	##shuffle columns to break ranked order
+	arr = np.arange(dfsc.shape[1])
+	np.random.shuffle(arr)
+	dfsc = dfsc.iloc[:,arr] 
+  
 	smat = scipy.sparse.csr_matrix(dfsc.values)
 	dt = h5py.special_dtype(vlen=str) 
 	all_indx = np.array(np.array(all_indx).flatten(), dtype=dt) 

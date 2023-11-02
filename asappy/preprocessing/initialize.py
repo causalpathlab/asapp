@@ -36,7 +36,7 @@ def create_asap_data(sample,working_dirpath,select_genes=None):
 	'number_of_selected_genes :' + str(number_of_selected_genes)+'\n'
 	)
 
-	filetype = data_fileformat(working_dirpath)
+	filetype = data_fileformat(sample,working_dirpath)
 	## read source files and create dataset for asap
 	if filetype == 'h5':
 		ds = CreateDatasetFromH5(working_dirpath,sample) 

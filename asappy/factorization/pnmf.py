@@ -49,6 +49,13 @@ def asap_nmf(asap_object,num_factors,maxthreads=16):
 		scaler = StandardScaler()
 		beta_log_scaled = scaler.fit_transform(nmfres.beta_log)
 
+		beta_log_scaled[beta_log_scaled<-4]=-4
+		beta_log_scaled[beta_log_scaled>4]=4
+  
+		'''
+		clip -4/+4
+  		'''
+
 		total_cells = asap_object.adata.uns['shape'][0]
 		batch_size = asap_object.adata.uns['batch_size']
 		

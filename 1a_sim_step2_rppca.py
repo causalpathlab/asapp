@@ -15,41 +15,32 @@ from sklearn.preprocessing import label_binarize
 from sklearn.metrics import normalized_mutual_info_score
 from sklearn.metrics.cluster import adjusted_rand_score
 
+from collections import Counter
 
 def calc_score(ct,cl):
-    nmi =  normalized_mutual_info_score(ct,cl)
-    ari = adjusted_rand_score(ct,cl)
-    return nmi,ari
+	nmi =  normalized_mutual_info_score(ct,cl)
+	ari = adjusted_rand_score(ct,cl)
+	return nmi,ari
 
 def getct(ids):
-    ct = [ x.replace('@'+sample,'') for x in ids]
-    ct = [ '-'.join(x.split('_')[1:]) for x in ct]
-    return ct 
+	ct = [ x.replace('@'+sample,'') for x in ids]
+	ct = [ '-'.join(x.split('_')[1:]) for x in ct]
+	return ct 
 
 def save_eval(df_res):
 	df_res.to_csv(result_file,index=False)
 
 def construct_res(model_list,res_list,method,res):
-    for model,r in zip(model_list,res_list):
-        res.append([method,model,rho,depth,size,seed,topic,cluster_resolution,r])
-    return res
+	for model,r in zip(model_list,res_list):
+		res.append([method,model,rho,depth,size,seed,topic,cluster_resolution,r])
+	return res
 
-def fit_logreg(X,y):
+def calculate_purity(true_labels, cluster_labels):
+	cluster_set = set(cluster_labels)
+	total_correct = sum(max(Counter(true_labels[i] for i, cl in enumerate(cluster_labels) if cl == cluster).values()) 
+						for cluster in cluster_set)
+	return total_correct / len(true_labels)
 
-    logistic_model = LogisticRegression(multi_class='ovr')
-
-    predicted_probabilities = cross_val_predict(logistic_model, X, y, cv=5, method='predict_proba')
-
-    classes = pd.Series(y).unique()
-    
-    binarized_labels = label_binarize(y, classes=classes)
-
-    class_auc_values = []
-    for ci in range(len(classes)):
-            auc = roc_auc_score(binarized_labels[:, ci], predicted_probabilities[:, ci])
-            class_auc_values.append(auc)
-
-    return sum(class_auc_values) / len(class_auc_values)
 
 def _randomprojection(mtx,obs,depth,cluster_resolution):
 	
@@ -60,10 +51,8 @@ def _randomprojection(mtx,obs,depth,cluster_resolution):
 	
 	ct = getct(obs)
 	
-	# s1 = fit_logreg(rp_data,ct)
-	s1 = 0
-
-	_,cluster = asappy.leiden_cluster(pd.DataFrame(rp_data),resolution=cluster_resolution)
+	_,cluster = asappy.leiden_cluster(rp_data,resolution=cluster_resolution)
+	s1  = calculate_purity(ct,cluster)
 	s2,s3 = calc_score(ct,cluster)
 	
 	return s1,s2,s3
@@ -74,11 +63,9 @@ def _pca(mtx,obs,pc_n):
 	pc_data = pca.fit_transform(mtx)
 
 	ct = getct(obs)
-	
-	# s1 = fit_logreg(pc_data,ct)
-	s1 = 0
 
-	_,cluster = asappy.leiden_cluster(pd.DataFrame(pc_data),resolution=cluster_resolution)
+	_,cluster = asappy.leiden_cluster(pc_data,resolution=cluster_resolution)
+	s1  = calculate_purity(ct,cluster)
 	s2,s3 = calc_score(ct,cluster)
 	
 	return s1,s2,s3
@@ -128,7 +115,7 @@ res_list1 = [pc1_s1,pc2_s1,pc3_s1,rp1_s1,rp2_s1,rp3_s1]
 res_list2 = [pc1_s2,pc2_s2,pc3_s2,rp1_s2,rp2_s2,rp3_s2]
 res_list3 = [pc1_s3,pc2_s3,pc3_s3,rp1_s3,rp2_s3,rp3_s3]
 res = []
-res = construct_res(model_list,res_list1,'LR',res)
+res = construct_res(model_list,res_list1,'Purity',res)
 res = construct_res(model_list,res_list2,'NMI',res)
 res = construct_res(model_list,res_list3,'ARI',res)
 

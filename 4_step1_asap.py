@@ -27,7 +27,7 @@ number_batches = 4
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches,working_dirpath=wdir)
 asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale',min_pseudobulk_size=500)
 asappy.asap_nmf(asap_object,num_factors=n_topics)
-asappy.save_model(asap_object)
+asappy.generate_model(asap_object)
 
 
 

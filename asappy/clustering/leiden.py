@@ -158,19 +158,21 @@ def leiden_cluster(asap_adata,
                    random_seed=1,
                    n_iterations=-1,
                    n_starts=10,
-                   method = 'fuzzy_conn'):
+                   method = 'fuzzy_conn',
+                   center = True):
 
     logging.info('Running leiden cluster....')
     logging.info('resolution: '+str(resolution))
     logging.info('k: '+str(k))
     logging.info('method: '+str(method))
     
-    if isinstance(asap_adata,pd.DataFrame):
-        mtx = asap_adata.to_numpy()
+    if isinstance(asap_adata,np.ndarray):
+        mtx = asap_adata
     else:
         mtx = asap_adata.obsm[mode]
 
-    mtx = (mtx - np.mean(mtx, axis=0)) / np.std(mtx, axis=0, ddof=1)
+    if center:
+        mtx = (mtx - np.mean(mtx, axis=0)) / np.std(mtx, axis=0, ddof=1)
 
     if method == 'shared_nn':
 
@@ -191,7 +193,7 @@ def leiden_cluster(asap_adata,
                 cluster = part.membership
                 max_quality = part.quality()
 
-        if isinstance(asap_adata,pd.DataFrame):
+        if isinstance(asap_adata,np.ndarray):
             return snn, cluster
         else:
             asap_adata.obs['cluster'] = cluster
@@ -220,7 +222,7 @@ def leiden_cluster(asap_adata,
                 cluster = part.membership
                 max_quality = part.quality()
 
-        if isinstance(asap_adata,pd.DataFrame):
+        if isinstance(asap_adata,np.ndarray):
             return connectivities, cluster
         else:
             asap_adata.obs['cluster'] = cluster

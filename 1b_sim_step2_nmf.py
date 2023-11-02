@@ -52,7 +52,7 @@ def _asap(asap_object,n_topics,cluster_resolution):
 	asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale',downsample_pseudobulk=False,pseudobulk_filter=False)
 	asappy.asap_nmf(asap_object,num_factors=n_topics)
 
-	asap_adata = asappy.save_model(asap_object,return_object=True)
+	asap_adata = asappy.generate_model(asap_object,return_object=True)
  	
 	asappy.leiden_cluster(asap_adata,resolution=cluster_resolution)
 
@@ -115,9 +115,6 @@ def _asapfull(asap_object,n_topics,cluster_resolution):
 	
 	return s1,s2,s3
 
-
-
-
 def _ligerpipeline(mtx,var,obs,K,cluster_resolution):
 
 	from sklearn.model_selection import train_test_split
@@ -144,8 +141,14 @@ def _ligerpipeline(mtx,var,obs,K,cluster_resolution):
 	ifnb_liger = pyliger.create_liger(adata_list,remove_missing=False)
  
 	pyliger.normalize(ifnb_liger)
-	# pyliger.select_genes(ifnb_liger,var_thresh=1e-5)
+ 
 	pyliger.select_genes(ifnb_liger)
+	
+	gene_use = 2000
+	ifnb_liger.adata_list[0].uns['var_gene_idx'] = ifnb_liger.adata_list[0].var['norm_var'].sort_values(ascending=False).index.values[:gene_use]
+	ifnb_liger.adata_list[1].uns['var_gene_idx'] = ifnb_liger.adata_list[1].var['norm_var'].sort_values(ascending=False).index.values[:gene_use]
+	ifnb_liger.var_genes = np.union1d(ifnb_liger.adata_list[0].uns['var_gene_idx'],ifnb_liger.adata_list[1].uns['var_gene_idx'])
+  
 	pyliger.scale_not_center(ifnb_liger)
 	pyliger.optimize_ALS(ifnb_liger, k = K)
 	pyliger.quantile_norm(ifnb_liger)
@@ -171,9 +174,9 @@ def _scanpy(mtx,var,obs,cluster_resolution):
 	adata.obs = dfobs
 	adata.var = dfvars
 
-	sc.pp.filter_cells(adata, min_genes=0)
-	sc.pp.filter_genes(adata, min_cells=0)
-	sc.pp.normalize_total(adata)
+	sc.pp.filter_cells(adata, min_genes=25)
+	sc.pp.filter_genes(adata, min_cells=2)
+	# sc.pp.normalize_total(adata)
 	sc.pp.log1p(adata)
 	sc.pp.highly_variable_genes(adata)
 	adata = adata[:, adata.var.highly_variable]
@@ -211,6 +214,14 @@ def kmeans_cluster(df,k):
 		return kmeans.labels_
 
 	
+# sample = 'sim_r_0.5_d_10000_s_250_s_5_t_13_r_0.5'
+# rho = 0.5
+# depth = 10000
+# size = 250
+# seed = 1
+# topic = 13
+# cluster_resolution = 1.0
+
 sample = sys.argv[1]
 rho = sys.argv[2]
 depth = sys.argv[3]
@@ -224,7 +235,7 @@ print(sample)
 wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/'
 data_size = 25000
 number_batches = 1
-n_topics = 13
+n_topics = topic
 asappy.create_asap_data(sample,working_dirpath=wdir)
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches,working_dirpath=wdir)
 
@@ -252,6 +263,7 @@ baseline_s1,baseline_s2,baseline_s3 = _baseline(mtx,var,obs,cluster_resolution)
 
 print('running liger....')
 liger_s1,liger_s2,liger_s3 = _ligerpipeline(mtx,var,obs,n_topics,cluster_resolution)
+
 print(liger_s1,liger_s2,liger_s3)
 
 
