@@ -12,12 +12,12 @@ ASAPdcNMFResult ASAPdcNMF::nmf()
     const bool eval_llik = true;
     const double a0 = 1.;
     const double b0 = 1.;
-    const std::size_t seed = 42;
 
     const Index D = Y.rows();
     const Index N = Y.cols();
     const Index K = std::min(static_cast<Index>(maxK), N);
 
+    const std::size_t seed = seed;
 
     using RNG = dqrng::xoshiro256plus;
     RNG rng(seed);

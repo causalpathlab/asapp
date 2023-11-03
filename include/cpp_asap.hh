@@ -135,13 +135,14 @@ struct ASAPdcNMFResult {
 
 class ASAPdcNMF {
     public:
-    ASAPdcNMF(const Eigen::MatrixXf in_Y,int in_maxK):Y(in_Y),maxK(in_maxK){}
+    ASAPdcNMF(const Eigen::MatrixXf in_Y,int in_maxK, int in_seed):Y(in_Y),maxK(in_maxK),seed(in_seed){}
 
     ASAPdcNMFResult nmf();
     ASAPdcNMFResult online_nmf(const Eigen::MatrixXf in_beta_a, const Eigen::MatrixXf in_beta_b);
     
     protected:
         int maxK;
+        int seed;
         Eigen::MatrixXf Y;
 };
 

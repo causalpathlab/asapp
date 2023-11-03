@@ -15,7 +15,6 @@ def normalization_raw(mtx,method):
     elif method =='fscale':
         gene_sums = mtx.sum(axis=0)
         target_sum = np.median(gene_sums)
-        # target_sum = 1e4
         gene_sums = gene_sums/target_sum
         mtx_norm = np.divide(mtx,gene_sums)
         return mtx_norm.T
@@ -30,9 +29,10 @@ def normalization_raw(mtx,method):
         return adata.X.T
     
 def normalization_pb(mtx,method):
-    
+    print(mtx.shape)
     if method == 'fscale':
         gene_sums = mtx.sum(axis=0)
+        print(gene_sums.shape)
         target_sum = np.median(gene_sums)
         # target_sum = 1e4
         gene_sums = gene_sums/target_sum
@@ -64,5 +64,5 @@ def preprocess_pb(mtx,gene_mean_z):
     
     ### combine two filters
     genef_index = np.array([a or b for a, b in zip(mean_genef_index, sum_genef_index)])
-    return mtx[:,genef_index], genef_index
+    return genef_index
     

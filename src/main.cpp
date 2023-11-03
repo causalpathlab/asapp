@@ -63,8 +63,9 @@ PYBIND11_MODULE(asapc, m) {
     .def_readwrite("llik_trace", &ASAPdcNMFResult::llik_trace);
 
     py::class_<ASAPdcNMF>(m, "ASAPdcNMF")
-    .def(py::init< Eigen::MatrixXf&, int>(),
+    .def(py::init< Eigen::MatrixXf&, int,int>(),
             py::arg("in_Y"),
+            py::arg("in_seed"),
             py::arg("in_maxK"))
     .def("nmf", &ASAPdcNMF::nmf,py::return_value_policy::reference_internal)
     .def("online_nmf", &ASAPdcNMF::online_nmf,

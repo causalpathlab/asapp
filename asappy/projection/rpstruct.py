@@ -54,7 +54,7 @@ def get_random_projection_data(mtx,rp_mat_list):
     return Z            
 
 
-def get_projection_map(mtx,rp_mat_list,min_pseudobulk_size=50):
+def get_projection_map(mtx,rp_mat_list):
     
     rp_mat_w = adjust_rp_weight(mtx,rp_mat_list)
     Q = np.dot(rp_mat_w,mtx).T
@@ -82,13 +82,13 @@ def sample_pseudo_bulk(pseudobulk_map,sample_size):
             pseudobulk_map_sample[key] = value
     return pseudobulk_map_sample     
 
-def get_pseudobulk(mtx,rp_mat,min_pseudobulk_size,downsample_pseudobulk,downsample_size,mode,normalize_raw=None, normalize_pb=None,hvg_selection=False,gene_mean_z=None,gene_var_z=None,res=None):  
+def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normalize_raw, normalize_pb,hvg_selection,gene_mean_z,gene_var_z,res):  
      
     if normalize_raw is not None:
         logging.info('normalize raw data -'+normalize_raw)    
         mtx = normalization_raw(mtx.T,normalize_raw)
  
-    pseudobulk_map = get_projection_map(mtx,rp_mat,min_pseudobulk_size)
+    pseudobulk_map = get_projection_map(mtx,rp_mat)
 
     if downsample_pseudobulk:
         pseudobulk_map = sample_pseudo_bulk(pseudobulk_map,downsample_size)
@@ -103,23 +103,31 @@ def get_pseudobulk(mtx,rp_mat,min_pseudobulk_size,downsample_pseudobulk,downsamp
     pseudobulk = np.array(pseudobulk).astype(np.float64)
         
     logging.info('before pseudobulk preprocessing-'+str(pseudobulk.shape)) 
-    pseudobulk,gene_filter_index = preprocess_pb(pseudobulk,gene_mean_z)
-    logging.info('after pseudobulk preprocessing-'+str(pseudobulk.shape)) 
+    gene_filter_index = preprocess_pb(pseudobulk,gene_mean_z)
+    logging.info('after pseudobulk preprocessing-'+str(gene_filter_index.sum())) 
 
     if hvg_selection:
         logging.info('before high variable genes selection...')    
-        pseudobulk,hvgenes = select_hvgenes(pseudobulk,gene_filter_index,gene_var_z)
-        logging.info('after high variance genes selection...'+str(pseudobulk.shape))
+        hvgenes = select_hvgenes(pseudobulk,gene_filter_index,gene_var_z)
+        logging.info('after high variable genes selection-'+str(hvgenes.sum()))
     else:
         logging.info('no high variance gene selection-'+str(pseudobulk.shape)) 
         hvgenes = gene_filter_index
+    
+    pseudobulk = pseudobulk[:,hvgenes]
+    logging.info('after preprocessing and high variance genes selection...'+str(pseudobulk.shape))
     
     if normalize_pb != None:
         logging.info('normalize pb data -'+normalize_pb)
         pseudobulk = normalization_pb(pseudobulk,normalize_pb)
         logging.info('pseudobulk shape...'+str(pseudobulk.shape))
         logging.info('pseudobulk data...\n min '+str(pseudobulk.min())+'\n max '+str(pseudobulk.max())+'\n sum '+str(pseudobulk.sum()))
-
+    else:
+        logging.info('normalize pb data - None')
+        pseudobulk = pseudobulk.T
+        logging.info('pseudobulk shape...'+str(pseudobulk.shape))
+        logging.info('pseudobulk data...\n min '+str(pseudobulk.min())+'\n max '+str(pseudobulk.max())+'\n sum '+str(pseudobulk.sum()))
+        
     pseudobulk = pseudobulk.astype(int)
             
     if mode == 'full':

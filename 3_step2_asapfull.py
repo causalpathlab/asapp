@@ -3,23 +3,34 @@ import sys
 
 
 sample = str(sys.argv[1])
-n_topics = int(sys.argv[2])
-cluster_resolution = float(sys.argv[3])
-wdir = sys.argv[4]
-print(sample)
+data_size = int(sys.argv[2])
+n_topics = int(sys.argv[3])
+cluster_resolution = float(sys.argv[4])
+seed = int(sys.argv[5])
+wdir = sys.argv[6]
 
-data_size = 250000
+# sample ='pbmc_t_8_r_1.0'
+# n_topics=8
+# cluster_resolution = 1.0
+# wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/examples/pbmc/'
+
 number_batches = 1
-
+# asappy.create_asap_data(sample)
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches,working_dirpath=wdir)
 
 
+# current_dsize = asap_object.adata.uns['shape'][0]
+df = asap_object.adata.construct_batch_df(data_size)
+var = df.columns.values
+obs = df.index.values
+mtx = df.to_numpy()
+outpath = asap_object.adata.uns['inpath']
 
 import asapc
-import numpy as np
-from sklearn.preprocessing import StandardScaler 		
-mtx=asap_object.adata.X.T
-nmf_model = asapc.ASAPdcNMF(mtx,n_topics)
+from sklearn.preprocessing import StandardScaler 	
+	
+mtx = mtx.T
+nmf_model = asapc.ASAPdcNMF(mtx,n_topics,int(seed))
 nmfres = nmf_model.nmf()
 
 scaler = StandardScaler()
@@ -41,8 +52,8 @@ asap_object.adata.obsm['theta'] = pred.theta
 
 import anndata as an
 hgvs = asap_object.adata.var.genes
-adata = an.AnnData(shape=(len(asap_object.adata.obs.barcodes),len(hgvs)))
-adata.obs_names = [ x for x in asap_object.adata.obs.barcodes]
+adata = an.AnnData(shape=(len(obs),len(hgvs)))
+adata.obs_names = [ x for x in obs]
 adata.var_names = [ x for x in hgvs]
 
 for key,val in asap_object.adata.uns.items():
@@ -59,20 +70,6 @@ import anndata as an
 from pyensembl import ensembl_grch38
 
 asap_adata = an.read_h5ad(wdir+'results/'+sample+'.h5asap_full')
-
-# gn = []
-# for x in asap_adata.var.index.values:
-#     try:
-#         g = ensembl_grch38.gene_by_id(x.split('.')[0]).gene_name 
-#         gn.append(g)
-#     except:
-#         gn.append(x)
-
-# asap_adata.var.index = gn
-
-
-##### beta heatmap
-# asappy.plot_gene_loading(asap_adata,top_n=5,max_thresh=30)
 
 
 ##### cluster and celltype umap

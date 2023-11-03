@@ -32,10 +32,10 @@ def asap_nmf_predict_batch(asap_object,batch_i,start_index,end_index,hgvs,beta,r
 			)
 		sema.release()
 	
-	else:
-		logging.info('NO Prediction for batch '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(asap_object.adata.uns['number_batches']))
+	# else:
+	# 	logging.info('NO Prediction for batch '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(asap_object.adata.uns['number_batches']))
 
-def asap_nmf(asap_object,num_factors,maxthreads=16):
+def asap_nmf(asap_object,num_factors,seed,maxthreads=16):
 		
 		asap_object.adata.uns['num_factors'] = num_factors
 
@@ -43,7 +43,7 @@ def asap_nmf(asap_object,num_factors,maxthreads=16):
         'num_factors : ' + str(num_factors)+'\n'
         )
 
-		nmf_model = asapc.ASAPdcNMF(asap_object.adata.uns['pseudobulk']['pb_data'],asap_object.adata.uns['num_factors'])
+		nmf_model = asapc.ASAPdcNMF(asap_object.adata.uns['pseudobulk']['pb_data'],asap_object.adata.uns['num_factors'],int(seed))
 		nmfres = nmf_model.nmf()
 
 		scaler = StandardScaler()

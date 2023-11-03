@@ -33,7 +33,7 @@ def generate_randomprojection_batch(asap_object,batch_i,start_index,end_index,rp
     else:
         logging.info('Random projection NOT generated for '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(asap_object.adata.uns['number_batches']))
 
-def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat_list,min_pseudobulk_size,normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema):
+def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat_list,normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema):
 
     if batch_i <= asap_object.adata.uns['number_batches']:
 
@@ -47,7 +47,6 @@ def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat_l
 
         get_pseudobulk(local_mtx.T, 
             rp_mat_list, 
-            min_pseudobulk_size,
             asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],
             str(batch_i) +'_' +str(start_index)+'_'+str(end_index),
             normalize_raw,
@@ -58,8 +57,8 @@ def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat_l
             result_queue
             )
         sema.release()			
-    else:
-        logging.info('Pseudo-bulk NOT generated for '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(asap_object.adata.uns['number_batches']))
+    # else:
+    #     logging.info('Pseudo-bulk NOT generated for '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(asap_object.adata.uns['number_batches']))
 
 def filter_pseudobulk(asap_object,pseudobulk_result,min_size=5):
     
@@ -182,7 +181,6 @@ def generate_pseudobulk(
     hvg_selection=False,
     gene_mean_z=10,
     gene_var_z=2,
-    min_pseudobulk_size = 250,
     downsample_pseudobulk=True,
     downsample_size=100,
     maxthreads=16,
@@ -213,7 +211,7 @@ def generate_pseudobulk(
     
     if total_cells<batch_size:
 
-        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat_list,min_pseudobulk_size,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full',normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z)
+        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat_list,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full',normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z)
 
     else:
 
@@ -226,7 +224,7 @@ def generate_pseudobulk(
 
             iend = min(istart + batch_size, total_cells)
                             
-            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat_list,min_pseudobulk_size,normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema))
+            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat_list,normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema))
             
             threads.append(thread)
             thread.start()
