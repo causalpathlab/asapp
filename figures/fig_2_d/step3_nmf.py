@@ -50,7 +50,7 @@ def construct_res(model_list,res_list,method,res):
 def _asap(asap_object,n_topics,cluster_resolution):
 	
 	asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale',downsample_pseudobulk=False,pseudobulk_filter=False)
-	asappy.asap_nmf(asap_object,num_factors=n_topics)
+	asappy.asap_nmf(asap_object,num_factors=n_topics,seed=seed)
 
 	asap_adata = asappy.generate_model(asap_object,return_object=True)
  	
@@ -70,7 +70,7 @@ def _asap(asap_object,n_topics,cluster_resolution):
 def _asapfull(asap_object,n_topics,cluster_resolution):
 
 	mtx=asap_object.adata.X.T
-	nmf_model = asapc.ASAPdcNMF(mtx,n_topics)
+	nmf_model = asapc.ASAPdcNMF(mtx,n_topics,seed)
 	nmfres = nmf_model.nmf()
 
 	scaler = StandardScaler()
@@ -150,7 +150,7 @@ def _ligerpipeline(mtx,var,obs,K,cluster_resolution):
 	ifnb_liger.var_genes = np.union1d(ifnb_liger.adata_list[0].uns['var_gene_idx'],ifnb_liger.adata_list[1].uns['var_gene_idx'])
   
 	pyliger.scale_not_center(ifnb_liger)
-	pyliger.optimize_ALS(ifnb_liger, k = K)
+	pyliger.optimize_ALS(ifnb_liger, k = K,rand_seed=seed)
 	pyliger.quantile_norm(ifnb_liger)
 	pyliger.leiden_cluster(ifnb_liger,resolution=cluster_resolution)
 
@@ -176,11 +176,11 @@ def _scanpy(mtx,var,obs,cluster_resolution):
 
 	sc.pp.filter_cells(adata, min_genes=25)
 	sc.pp.filter_genes(adata, min_cells=2)
-	# sc.pp.normalize_total(adata)
+	sc.pp.normalize_total(adata)
 	sc.pp.log1p(adata)
 	sc.pp.highly_variable_genes(adata)
 	adata = adata[:, adata.var.highly_variable]
-	sc.tl.pca(adata)
+	sc.tl.pca(adata,random_state=seed)
 
 	
 	sc.pp.neighbors(adata)
@@ -226,13 +226,13 @@ sample = sys.argv[1]
 rho = sys.argv[2]
 depth = sys.argv[3]
 size = sys.argv[4]
-seed = sys.argv[5]
+seed = int(sys.argv[5])
 topic = int(sys.argv[6])
 cluster_resolution = float(sys.argv[7])
 result_file = './results/'+sample+'_nmf_eval.csv'
 print(sample)
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/'
+wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_2_d/'
 data_size = 25000
 number_batches = 1
 n_topics = topic
@@ -267,7 +267,7 @@ liger_s1,liger_s2,liger_s3 = _ligerpipeline(mtx,var,obs,n_topics,cluster_resolut
 print(liger_s1,liger_s2,liger_s3)
 
 
-model_list = ['asap','asapf','liger','scanpy','baseline']
+model_list = ['asap','asapf','liger','scanpy','nmf']
 res_list1 = [asap_s1,asapfull_s1,liger_s1,scanpy_s1,baseline_s1]
 res_list2 = [asap_s2,asapfull_s2,liger_s2,scanpy_s2,baseline_s2]
 res_list3 = [asap_s3,asapfull_s3,liger_s3,scanpy_s3,baseline_s3]

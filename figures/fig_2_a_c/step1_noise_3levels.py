@@ -24,16 +24,16 @@ def celltype(cl,sample):
 
 
 ######################################################
+import sys 
+rho = float(sys.argv[1])
+sample = 'sim_r_'+str(rho)+'_d_10000_s_250_s_1_t_13_r_0.1'
 
-rho=1.0
-sample = 'sim_r_'+str(rho)+'_d_10000_s_250_s_1_t_13_r_1.0'
-
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/examples/sim_noise_test/'
+wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_2_a_c/'
 data_size = 25000
 number_batches = 1
 
 
-asappy.create_asap_data(sample,working_dirpath=wdir)
+# asappy.create_asap_data(sample,working_dirpath=wdir)
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches,working_dirpath=wdir)
 
 
@@ -96,7 +96,7 @@ def analyze_randomproject():
 
     ct = celltype(dfumap['cell'].values,sample)
     dfumap['celltype'] = pd.Categorical(ct)
-    asappy.plot_umap_df(dfumap,'celltype',asap_object.adata.uns['inpath']+'_rp_')
+    asappy.plot_umap_df(dfumap,'celltype',asap_object.adata.uns['inpath']+'_rp_',pt_size=2.5)
 
 
 
@@ -107,7 +107,7 @@ def analyze_randomproject():
 
 
 def analyze_pseudobulk():
-    asappy.generate_pseudobulk(asap_object,min_pseudobulk_size=100,tree_depth=10,normalize_pb='lscale')
+    asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale')
     asappy.pbulk_cellcounthist(asap_object)
 
     cl = asap_object.adata.load_datainfo_batch(1,0,data_size)
@@ -123,23 +123,23 @@ def analyze_nmf():
     cluster_resolution= 0.5
     
     asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale')
-    asappy.asap_nmf(asap_object,num_factors=n_topics)
+    asappy.asap_nmf(asap_object,num_factors=n_topics,seed=42)
     
     asap_adata = asappy.generate_model(asap_object,return_object=True)
     asappy.leiden_cluster(asap_adata,resolution=cluster_resolution)
     
     
     print(asap_adata.obs.cluster.value_counts())
-    asappy.run_umap(asap_adata,distance='euclidean',min_dist=0.1)
+    asappy.run_umap(asap_adata,distance='euclidean',min_dist=0.5)
 
-    asappy.plot_umap(asap_adata,col='cluster')
+    asappy.plot_umap(asap_adata,col='cluster',pt_size=2.5)
 
     cl = asap_adata.obs.index.values
     cl = [ x.replace('@'+sample,'') for x in cl]
     ct = celltype(cl,'sim') 
 
     asap_adata.obs['celltype']  = pd.Categorical(ct)
-    asappy.plot_umap(asap_adata,col='celltype')
+    asappy.plot_umap(asap_adata,col='celltype',pt_size=2.5)
     
     asap_s1,asap_s2 =  calc_score([str(x) for x in asap_adata.obs['celltype'].values],asap_adata.obs['cluster'].values)
 
@@ -151,23 +151,44 @@ def noise_heatmap():
     df = asap_object.adata.construct_batch_df(3250)
     cl = [ x.replace('@'+sample,'') for x in df.index.values]
     ct = celltype(cl,'sim')
-    sample_indxs = pd.DataFrame(ct).groupby(0).sample(frac=.1).index.values
+    sample_indxs = pd.DataFrame(ct).groupby(0).sample(frac=.03).index.values
 
-    mtx = df.iloc[sample_indxs].to_numpy()
-    mtx = np.log1p(mtx)
-    mtx[mtx>1]=1
+    # mtx = df.iloc[sample_indxs].to_numpy()
+    # mtx = np.log1p(mtx)
+    # mtx[mtx>1]=1
 
+
+    from anndata import AnnData
+    import scanpy as sc
+    import numpy as np
+
+    df = df.iloc[sample_indxs]
+    adata = AnnData(df.to_numpy())
+    sc.pp.normalize_total(adata, target_sum=1e4)
+    sc.pp.log1p(adata)
+    sc.pp.highly_variable_genes(adata,n_top_genes=200)
+    adata = adata[:, adata.var.highly_variable]
+    mtx = adata.to_df().to_numpy()
+    
     df2 = pd.DataFrame(mtx)
-    df2.index = [x.split('@')[0] for x in df.iloc[sample_indxs].index.values]
+    df2.index = [x.split('@')[0] for x in df.index.values]
     df2.index = ['-'.join(x.split('_')[1:]) for x in df2.index.values]
     print(df2.shape)     
     
     import matplotlib.pylab as plt
     import seaborn as sns
+    from matplotlib.pyplot import figure
+    w=10
+    h=15
+    figure(figsize=(h, w), dpi=300)
 
-    sns.heatmap(df2.T,cmap="Oranges")
-    # sns.heatmap(np.log1p(mtx),cmap="Oranges")
-    plt.savefig(wdir+'results/'+sample+'_hmap.png')
+    # sns.heatmap(df2.T,cmap="viridis")
+    
+    ## for 1.0 case cluster 
+    sns.clustermap(df2.T,cmap="viridis",col_cluster=False)
+    
+    plt.savefig(wdir+'results/'+sample+'_hmap.png',dpi=600)
+    plt.savefig(wdir+'results/'+sample+'_hmap.pdf',dpi=600)
     plt.close()
 
 noise_heatmap()
@@ -177,4 +198,4 @@ noise_heatmap()
 # analyze_pseudobulk()
 
 # analyze_nmf()
-
+ 

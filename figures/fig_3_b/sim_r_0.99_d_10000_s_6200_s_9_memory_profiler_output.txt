@@ -1,0 +1,54 @@
+sim_r_0.99_d_10000_s_6200_s_9
+running asap...
+source .../home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_b/data/sim_r_0.99_d_10000_s_6200_s_9*
+Dataset : sim_r_0.99_d_10000_s_6200_s_9 , cells : 80600, genes : 17204
+None
+Generating common genes...
+Merging datasets...
+processing.../home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_b/results/sim_r_0.99_d_10000_s_6200_s_9
+processing...sim_r_0.99_d_10000_s_6200_s_9
+completed.
+963
+(963, 1782)
+969
+(969, 1815)
+1010
+884
+(1010, 1754)
+(884, 1764)
+Filename: /home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_b/step2_nmf.py
+
+Line #    Mem usage    Increment  Occurrences   Line Contents
+=============================================================
+    49    411.8 MiB    411.8 MiB           1   @profile
+    50                                         def _asap(sample,data_size,wdir,n_topics,cluster_resolution):
+    51                                         	
+    52    466.1 MiB     54.3 MiB           1   	asappy.create_asap_data(sample,working_dirpath=wdir)
+    53                                         	
+    54    466.1 MiB      0.0 MiB           1   	number_batches = 1
+    55    466.1 MiB      0.0 MiB           1   	asap_data_size = 25000
+    56                                          
+    57    466.1 MiB      0.0 MiB           1   	if data_size[0]>asap_data_size: 
+    58    466.1 MiB      0.0 MiB           1   		number_batches = np.ceil(data_size[0]/asap_data_size)
+    59                                           
+    60    469.0 MiB      2.9 MiB           1   	asap_object = asappy.create_asap_object(sample=sample,data_size=asap_data_size,number_batches=number_batches,working_dirpath=wdir)
+    61                                          
+    62   7579.8 MiB   7110.8 MiB           1   	asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale')
+    63   7574.7 MiB     -5.1 MiB           1   	asappy.asap_nmf(asap_object,num_factors=n_topics,seed=seed)
+    64                                         
+    65   7581.1 MiB      6.4 MiB           1   	asap_adata = asappy.generate_model(asap_object,return_object=True)
+    66                                          	
+    67   8178.3 MiB    597.2 MiB           1   	asappy.leiden_cluster(asap_adata,resolution=cluster_resolution)
+    68                                         
+    69   8183.7 MiB      5.4 MiB           1   	ct = getct(asap_adata.obs.index.values)
+    70                                         
+    71   8183.7 MiB      0.0 MiB           1   	cluster = asap_adata.obs.cluster.values
+    72                                         
+    73   8183.7 MiB      0.0 MiB           1   	s1  = calculate_purity(ct,cluster)
+    74                                         
+    75   8183.7 MiB      0.0 MiB           1   	s2,s3 = calc_score(ct,cluster)
+    76                                         	
+    77   8183.7 MiB      0.0 MiB           1   	return s1,s2,s3
+
+
+running liger....

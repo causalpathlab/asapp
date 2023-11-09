@@ -82,7 +82,7 @@ def sample_pseudo_bulk(pseudobulk_map,sample_size):
             pseudobulk_map_sample[key] = value
     return pseudobulk_map_sample     
 
-def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normalize_raw, normalize_pb,hvg_selection,gene_mean_z,gene_var_z,res):  
+def get_pseudobulk(mtx,rp_mat,downsample_pseudobulk,downsample_size,mode,normalize_raw, normalize_pb,hvg_selection,gene_mean_z,gene_var_z,res=None):  
      
     if normalize_raw is not None:
         logging.info('normalize raw data -'+normalize_raw)    

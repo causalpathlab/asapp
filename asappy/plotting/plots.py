@@ -27,14 +27,13 @@ custom_palette50 = [
 "#ffc0cb","#000000","#808080","#dcdcdc","#2f4f4f"
 ]
 
-def plot_umap(asap_adata,col):
+def plot_umap(asap_adata,col,pt_size=1.0):
 	
 	df_umap = pd.DataFrame(asap_adata.obsm['umap_coords'],columns=['umap1','umap2'])
 	df_umap[col] = pd.Categorical(asap_adata.obs[col].values)
 	nlabel = asap_adata.obs[col].nunique() 
 	fname = asap_adata.uns['inpath']+'_'+col+'_'+'umap.png'
 
-	pt_size=1.0
 	legend_size=7
 
 	
@@ -66,12 +65,11 @@ def plot_umap(asap_adata,col):
 	p.save(filename = fname, height=8, width=15, units ='in', dpi=300)
 
 
-def plot_umap_df(df_umap,col,fpath):
+def plot_umap_df(df_umap,col,fpath,pt_size=1.0):
 	
 	nlabel = df_umap[col].nunique() 
 	fname = fpath+'_'+col+'_'+'umap.png'
 
-	pt_size=1.0
 	legend_size=7
 
 	
@@ -260,7 +258,7 @@ def pbulk_cellcounthist(asap_object):
 	sns.histplot(x=pblen)
 	plt.xlabel('Number of cells in pseudo-bulk samples')
 	plt.ylabel('Number of pseudo-bulk samples')
-	plt.savefig(asap_object.adata.uns['inpath']+'_pbulk_hist.png')
+	plt.savefig(asap_object.adata.uns['inpath']+'_pbulk_hist.pdf',format='pdf', dpi=600)
 	plt.close()
 
 def plot_pbulk_celltyperatio(df,outfile):
@@ -277,7 +275,7 @@ def plot_pbulk_celltyperatio(df,outfile):
 		plot_background=element_rect(fill='white'),
 		panel_background = element_rect(fill='white')
 	)
-	p.save(filename = outfile+'_pbulk_ratio.png', height=4, width=8, units ='in', dpi=300)
+	p.save(filename = outfile+'_pbulk_ratio.pdf', height=4, width=8, units ='in', dpi=600)
 	
 
 def plot_marker_genes(fn,df,umap_coords,marker_genes,nr,nc):

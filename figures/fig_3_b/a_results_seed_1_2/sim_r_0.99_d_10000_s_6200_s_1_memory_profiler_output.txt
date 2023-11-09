@@ -1,0 +1,118 @@
+sim_r_0.99_d_10000_s_6200_s_1
+running asap...
+source .../home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_b/data/sim_r_0.99_d_10000_s_6200_s_1*
+Dataset : sim_r_0.99_d_10000_s_6200_s_1 , cells : 80600, genes : 17204
+None
+Generating common genes...
+Merging datasets...
+processing.../home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_b/results/sim_r_0.99_d_10000_s_6200_s_1
+processing...sim_r_0.99_d_10000_s_6200_s_1
+completed.
+979
+(979, 1789)
+973
+(973, 1812)
+1002
+872
+(1002, 1753)
+(872, 1766)
+Filename: /home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_b/step2_nmf.py
+
+Line #    Mem usage    Increment  Occurrences   Line Contents
+=============================================================
+    49    412.0 MiB    412.0 MiB           1   @profile
+    50                                         def _asap(sample,data_size,wdir,n_topics,cluster_resolution):
+    51                                         	
+    52    467.1 MiB     55.2 MiB           1   	asappy.create_asap_data(sample,working_dirpath=wdir)
+    53                                         	
+    54    467.1 MiB      0.0 MiB           1   	number_batches = 1
+    55    467.1 MiB      0.0 MiB           1   	asap_data_size = 25000
+    56                                          
+    57    467.1 MiB      0.0 MiB           1   	if data_size[0]>asap_data_size: 
+    58    467.1 MiB      0.0 MiB           1   		number_batches = np.ceil(data_size[0]/asap_data_size)
+    59                                           
+    60    469.8 MiB      2.6 MiB           1   	asap_object = asappy.create_asap_object(sample=sample,data_size=asap_data_size,number_batches=number_batches,working_dirpath=wdir)
+    61                                          
+    62   5330.5 MiB   4860.8 MiB           1   	asappy.generate_pseudobulk(asap_object,tree_depth=10,normalize_pb='lscale')
+    63   5337.0 MiB      6.5 MiB           1   	asappy.asap_nmf(asap_object,num_factors=n_topics,seed=seed)
+    64                                         
+    65   5343.4 MiB      6.4 MiB           1   	asap_adata = asappy.generate_model(asap_object,return_object=True)
+    66                                          	
+    67   5938.2 MiB    594.8 MiB           1   	asappy.leiden_cluster(asap_adata,resolution=cluster_resolution)
+    68                                         
+    69   5943.3 MiB      5.1 MiB           1   	ct = getct(asap_adata.obs.index.values)
+    70                                         
+    71   5943.3 MiB      0.0 MiB           1   	cluster = asap_adata.obs.cluster.values
+    72                                         
+    73   5943.3 MiB      0.0 MiB           1   	s1  = calculate_purity(ct,cluster)
+    74                                         
+    75   5943.3 MiB      0.0 MiB           1   	s2,s3 = calc_score(ct,cluster)
+    76                                         	
+    77   5943.3 MiB      0.0 MiB           1   	return s1,s2,s3
+
+
+running liger....
+Filename: /home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_b/step2_nmf.py
+
+Line #    Mem usage    Increment  Occurrences   Line Contents
+=============================================================
+    79   5943.6 MiB   5943.6 MiB           1   @profile
+    80                                         def _ligerpipeline(data_file,K,cluster_resolution):
+    81                                         
+    82   5943.6 MiB      0.0 MiB           1   	from sklearn.model_selection import train_test_split
+    83   5945.6 MiB      2.1 MiB           1   	import pyliger
+    84                                          
+    85   5945.6 MiB      0.0 MiB           1   	f = hf.File(data_file,'r')
+    86   5945.6 MiB      0.0 MiB           1   	data_size = tuple(f['matrix']['shape'])
+    87  16525.0 MiB  10579.4 MiB           1   	mtx = csr_matrix((f['matrix']['data'], f['matrix']['indices'], f['matrix']['indptr']), shape=data_size).toarray()
+    88  16527.3 MiB      1.7 MiB       17207   	var = [x.decode('utf-8') for x in list(f['matrix']['features']['id']) ]
+    89  16535.2 MiB      3.2 MiB       80603   	obs = [x.decode('utf-8') for x in list(f['matrix']['barcodes']) ]
+    90  16532.9 MiB     -2.4 MiB           1   	f.close()
+    91                                         
+    92                                         
+    93  16537.5 MiB      4.6 MiB           1   	adata = an.AnnData(mtx)
+    94  16537.5 MiB      0.0 MiB           1   	dfvars = pd.DataFrame(var)
+    95  16537.5 MiB      0.0 MiB           1   	dfobs = pd.DataFrame(obs)
+    96  16533.9 MiB     -3.7 MiB           1   	adata.obs = dfobs
+    97  16533.1 MiB     -0.8 MiB           1   	adata.var = dfvars
+    98  16533.1 MiB      0.0 MiB           1   	adata.var.rename(columns={0:'gene'},inplace=True) 
+    99  16533.1 MiB      0.0 MiB           1   	adata.obs.rename(columns={0:'cell'},inplace=True) 
+   100  16533.1 MiB      0.0 MiB           1   	adata.obs.index.name = 'cell'
+   101  16533.1 MiB      0.0 MiB           1   	adata.var.index.name = 'gene'
+   102                                         
+   103  16533.1 MiB      0.0 MiB           1   	test_size = 0.5
+   104  16533.1 MiB      0.0 MiB           1   	adata_train, adata_test = train_test_split(adata, test_size=test_size, random_state=42)
+   105                                         
+   106  21824.9 MiB   5291.8 MiB           1   	adata_train.uns['sample_name'] = 'train'
+   107  27117.9 MiB   5293.0 MiB           1   	adata_test.uns['sample_name'] = 'test'
+   108  27117.9 MiB      0.0 MiB           1   	adata_list = [adata_train,adata_test]
+   109                                         
+   110                                         
+   111  28595.7 MiB   1477.8 MiB           1   	ifnb_liger = pyliger.create_liger(adata_list,remove_missing=False)
+   112                                          
+   113  19489.6 MiB  -9106.1 MiB           1   	pyliger.normalize(ifnb_liger)
+   114                                          
+   115  19489.9 MiB      0.3 MiB           1   	pyliger.select_genes(ifnb_liger)
+   116                                         	
+   117  19489.9 MiB      0.0 MiB           1   	gene_use = 2000
+   118  19489.9 MiB      0.0 MiB           1   	ifnb_liger.adata_list[0].uns['var_gene_idx'] = ifnb_liger.adata_list[0].var['norm_var'].sort_values(ascending=False).index.values[:gene_use]
+   119  19489.9 MiB      0.0 MiB           1   	ifnb_liger.adata_list[1].uns['var_gene_idx'] = ifnb_liger.adata_list[1].var['norm_var'].sort_values(ascending=False).index.values[:gene_use]
+   120  19489.9 MiB      0.0 MiB           1   	ifnb_liger.var_genes = np.union1d(ifnb_liger.adata_list[0].uns['var_gene_idx'],ifnb_liger.adata_list[1].uns['var_gene_idx'])
+   121                                           
+   122  28327.1 MiB   8837.3 MiB           1   	pyliger.scale_not_center(ifnb_liger)
+   123  26856.2 MiB  -1470.9 MiB           1   	pyliger.optimize_ALS(ifnb_liger, k = K,rand_seed=seed)
+   124  26136.0 MiB   -720.1 MiB           1   	pyliger.quantile_norm(ifnb_liger)
+   125  26158.7 MiB     22.7 MiB           1   	pyliger.leiden_cluster(ifnb_liger,resolution=cluster_resolution)
+   126                                         
+   127  26158.7 MiB      0.0 MiB           1   	obs = list(ifnb_liger.adata_list[0].obs.cell.values) + list(ifnb_liger.adata_list[1].obs.cell.values)
+   128  26159.7 MiB      1.0 MiB           1   	cluster = list(ifnb_liger.adata_list[0].obs.cluster.values) + list(ifnb_liger.adata_list[1].obs.cluster.values)
+   129                                         	
+   130  26164.6 MiB      4.9 MiB           1   	ct = getct(obs)
+   131                                         
+   132  26164.6 MiB      0.0 MiB           1   	s1  = calculate_purity(ct,cluster)
+   133                                         
+   134  26164.6 MiB      0.0 MiB           1   	s2,s3 = calc_score(ct,cluster)
+   135                                         	
+   136  26164.6 MiB      0.0 MiB           1   	return s1,s2,s3
+
+

@@ -5,7 +5,11 @@ import matplotlib.pylab as plt
 import seaborn as sns
 import colorcet as cc
 from plotnine import *
+import os
+import sys 
 
+result = sys.argv[1]
+wdir = os.getcwd()+'/'+result+'/'
 
 custom_palette = [
 "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
@@ -13,7 +17,7 @@ custom_palette = [
 
 
 flist = []
-for name in glob.glob('./results/*_eval.csv'):
+for name in glob.glob(wdir+'*_eval.csv'):
     flist.append(name)
 
 df = pd.DataFrame()
@@ -40,7 +44,7 @@ def plot_eval(dfm,method):
             ggplot(df, aes(x=x,y='score_mean',color='model')) +
             geom_pointrange(data=df, mapping=aes(x=x, ymin='score_mean - score_std', ymax='score_mean + score_std'),linetype='solid',size=0.2) +
             scale_color_manual(values=custom_palette) +
-            geom_line(data=df, mapping=aes(x=x, y='score_mean', color='model'), linetype='dashed',size=0.8) + 
+            geom_line(data=df, mapping=aes(x=x, y='score_mean', color='model'), linetype='solid',size=0.4) + 
             facet_wrap('~'+y) +
             labs(x=x, y=method)
         )
@@ -48,7 +52,7 @@ def plot_eval(dfm,method):
                 plot_background=element_rect(fill='white'),
                 panel_background = element_rect(fill='white')
         )
-        p.save(filename = './results/nmf_eval_'+method+'_'+x+'_'+y+'.png', height=6, width=8, units ='in', dpi=300)
+        p.save(filename = wdir+'nmf_eval_'+method+'_'+x+'_'+y+'.pdf', height=6, width=8, units ='in', dpi=600)
 
 
 pairs = [
@@ -85,7 +89,7 @@ def combine_plot(dfm,method):
             plot_background=element_rect(fill='white'),
             panel_background = element_rect(fill='white')
     )
-    p.save(filename = './results/nmf_eval_comb_'+method+'.png', height=6, width=8, units ='in', dpi=300)
+    p.save(filename = wdir+'nmf_eval_comb_'+method+'.pdf', height=6, width=8, units ='in', dpi=600)
 
 
 df = df[((df['depth']==10000) & (df['size']==250) & (df['topic']==13))]
