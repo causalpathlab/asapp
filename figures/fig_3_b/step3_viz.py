@@ -43,7 +43,7 @@ def plot_eval(dfm,method):
         yh = 1
     elif method in ['Memory']:
         yl = 0
-        yh = df['score_mean'].max()+10
+        yh = df['score_mean'].max()+2000
     else:
         yl = 0
         yh = df['score_mean'].max()+300
@@ -70,8 +70,8 @@ def plot_eval(dfm,method):
 df = df.loc[df['model']!='scanpy']
 df = df.loc[df['model']!='asapf']
 df = df.loc[df['model']!='nmf']
-plot_eval(df,'Purity')
-plot_eval(df,'ARI')
-plot_eval(df,'NMI')
+# plot_eval(df,'Purity')
+# plot_eval(df,'ARI')
+# plot_eval(df,'NMI')
 plot_eval(df,'Memory')
-plot_eval(df,'Time')
+# plot_eval(df,'Time')

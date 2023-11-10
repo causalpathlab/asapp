@@ -19,7 +19,6 @@ scripts_dir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_a
 RHO = [0.99] ## FIX NOISE for figure 3
 DEPTH = [10000]
 SIZE = [80,155,235,310,385,465,540,620,695,770]  
-        # 1550,2350,3100,3850,4650,5400,6200,6950,7700]
 SEED = [4,5,6,7,8,9,10]
 
 topic = 13

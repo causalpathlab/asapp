@@ -15,7 +15,7 @@ class CreateDatasetFromH5:
 	def __init__(self,sample_path,sample):
 		self.inpath = sample_path+'data/'
 		self.outpath = sample_path+'results/'
-		self.datasets = glob.glob(self.inpath+sample+'.h5')
+		self.datasets = glob.glob(self.inpath+sample+'*.h5')
 
 
 	def peek_datasets(self):

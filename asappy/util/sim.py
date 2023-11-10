@@ -12,6 +12,7 @@ from ..util._lina import rsvd
 from ..dutil.read_write import write_h5
 
 import glob, os
+import gc
 import h5py
 
 from scipy.stats import nbinom, norm, poisson
@@ -120,7 +121,7 @@ def distribution_transformation(params,x,epsilon=1e-8):
 	return u
 
 
-def simdata_from_bulk_copula(bulk_path,sim_data_path,size,rho,depth,seed):
+def simdata_from_bulk_copula(bulk_path,sim_data_path,size,rho,depth,seed,batch=False):
 
 	np.random.seed(seed)
 	
@@ -132,89 +133,146 @@ def simdata_from_bulk_copula(bulk_path,sim_data_path,size,rho,depth,seed):
 	glens = df['length'].values
 	df = df.drop(columns=['gene','length'])
 
-	# pbmc 
-	# from scipy.sparse import load_npz
-	# loaded_sparse_matrix = load_npz(bulk_path+'pbmc_sparse_matrix.npz')
-	# with open(bulk_path+'pbmc_row_names.txt', 'r') as f:row_names = f.read().splitlines()
-	# with open(bulk_path+'pbmc_col_names.txt', 'r') as f:col_names = f.read().splitlines()
-	# df = pd.DataFrame(data=loaded_sparse_matrix.toarray(), index=row_names, columns=col_names)
-	# df = df.T
-	# nz_cutoff = 10
-	# df= df[df.sum(1)>nz_cutoff]
-	# cts = pd.Series(['_'.join(x.split('_')[1:]) for x in df.columns]).unique()
-	# df = df.astype(float)
-	# genes = df.index.values
  
  	## scale up
 	x_sum = df.values.sum(0)
 	df = (df/x_sum)*depth
 	x_mean = df.mean(1)
- 
- 	## generate noise
-	# z_uncorr = np.random.normal(size=(df.shape[0], size))
-
-	dfsc = pd.DataFrame()
-	all_indx = []
-
-	for ct in cts:
-
-		print('generating single cell data for...'+str(ct))
-
-		x_ct = df[[x for x in df.columns if ct in x]].values
-		
   
-		model_params = fit_model(x_ct)
-		x_continous = distribution_transformation(model_params,x_ct)
+	if batch:
 
-		# # normalization of raw data sample wise
-		qt = QuantileTransformer(random_state=0)
-		x_all_q = qt.fit_transform(x_continous)
-  
-		rank = 50  
-		mu_ct = x_continous.mean(1)
-		u,d,_ = np.linalg.svd(x_all_q, full_matrices=False)
-		L_ct = np.dot(u[:, :rank],np.diag(d[:rank]))  
-  
-		## sample mvn of given size with 
-		z_ct =  np.dot(L_ct, np.random.normal(size=(rank, size))) +   mu_ct[:, np.newaxis]
+		for ct in cts:
 
-  		## sample original data by column index
-		sc_idx = np.array([[random.randint(0, x_ct.shape[1]-1) for _ in range(x_ct.shape[0])] for _ in range(size)])
-  
-		sc_ct = np.empty_like(z_ct)
-  
-		for i in range(size):
+			print('generating single cell data for...'+str(ct))
 
-			## sample single cell from original data
-			sc = x_ct[np.arange(x_ct.shape[0])[:,np.newaxis],sc_idx[i][:, np.newaxis]].flatten()
-
-			## rank gene values
-			sc_ct[:,i] = np.sort(sc)
-
-		sc_ct = sc_ct[np.arange(z_ct.shape[0])[:, np.newaxis], np.argsort(z_ct)].T
-
-		sc_prop = np.divide(x_mean, np.sum(x_mean))
-		sc_random = np.empty_like(sc_ct)
-		for i in range(size):
-			sc_random[i,:] = np.random.multinomial(depth,sc_prop,1).T.flatten()
-   		
-		sc_all = (rho * sc_ct) + ((1-rho)*sc_random) 
-  
-		## get index ids
-		for i in range(size): all_indx.append(str(i) + '_' + ct)
-
-		dfsc = pd.concat([dfsc,pd.DataFrame(sc_all,columns=genes)],axis=0,ignore_index=True)
- 
-	print(dfsc.shape)
-	dfsc = dfsc.astype(int)
+			x_ct = df[[x for x in df.columns if ct in x]].values
+			
 	
-	##shuffle columns to break ranked order
-	arr = np.arange(dfsc.shape[1])
-	np.random.shuffle(arr)
-	dfsc = dfsc.iloc[:,arr] 
-  
-	smat = scipy.sparse.csr_matrix(dfsc.values)
-	dt = h5py.special_dtype(vlen=str) 
-	all_indx = np.array(np.array(all_indx).flatten(), dtype=dt) 
-	write_h5(sim_data_path,all_indx,genes,smat)
+			model_params = fit_model(x_ct)
+			x_continous = distribution_transformation(model_params,x_ct)
+
+			# # normalization of raw data sample wise
+			qt = QuantileTransformer(random_state=0)
+			x_all_q = qt.fit_transform(x_continous)
+	
+			rank = 50  
+			mu_ct = x_continous.mean(1)
+			u,d,_ = np.linalg.svd(x_all_q, full_matrices=False)
+			L_ct = np.dot(u[:, :rank],np.diag(d[:rank]))  
+	
+			## sample mvn of given size with 
+			z_ct =  np.dot(L_ct, np.random.normal(size=(rank, size))) +   mu_ct[:, np.newaxis]
+
+			## sample original data by column index
+			sc_idx = np.array([[random.randint(0, x_ct.shape[1]-1) for _ in range(x_ct.shape[0])] for _ in range(size)])
+	
+			sc_ct = np.empty_like(z_ct)
+	
+			for i in range(size):
+
+				## sample single cell from original data
+				sc = x_ct[np.arange(x_ct.shape[0])[:,np.newaxis],sc_idx[i][:, np.newaxis]].flatten()
+
+				## rank gene values
+				sc_ct[:,i] = np.sort(sc)
+
+			sc_ct = sc_ct[np.arange(z_ct.shape[0])[:, np.newaxis], np.argsort(z_ct)].T
+
+			sc_prop = np.divide(x_mean, np.sum(x_mean))
+			sc_random = np.empty_like(sc_ct)
+			for i in range(size):
+				sc_random[i,:] = np.random.multinomial(depth,sc_prop,1).T.flatten()
+			
+			sc_all = (rho * sc_ct) + ((1-rho)*sc_random) 
+	
+			## get index ids
+			all_indx = []
+			for i in range(size): all_indx.append(str(i) + '_' + ct)
+
+			dfsc = pd.DataFrame(sc_all,columns=genes)   
+			print(dfsc.shape)
+			dfsc = dfsc.astype(int)
+			
+			##shuffle columns to break ranked order
+			arr = np.arange(dfsc.shape[1])
+			np.random.shuffle(arr)
+			dfsc = dfsc.iloc[:,arr] 
+		
+			smat = scipy.sparse.csr_matrix(dfsc.values)
+			dt = h5py.special_dtype(vlen=str) 
+			all_indx = np.array(np.array(all_indx).flatten(), dtype=dt) 
+			write_h5(sim_data_path+'_'+ct,all_indx,genes,smat)
+
+			##clear memory
+			del sc_all
+			del dfsc
+			del smat
+			del all_indx
+			gc.collect()
+   
+	else:	
+		dfsc = pd.DataFrame()
+		all_indx = []
+
+		for ct in cts:
+
+			print('generating single cell data for...'+str(ct))
+
+			x_ct = df[[x for x in df.columns if ct in x]].values
+			
+	
+			model_params = fit_model(x_ct)
+			x_continous = distribution_transformation(model_params,x_ct)
+
+			# # normalization of raw data sample wise
+			qt = QuantileTransformer(random_state=0)
+			x_all_q = qt.fit_transform(x_continous)
+	
+			rank = 50  
+			mu_ct = x_continous.mean(1)
+			u,d,_ = np.linalg.svd(x_all_q, full_matrices=False)
+			L_ct = np.dot(u[:, :rank],np.diag(d[:rank]))  
+	
+			## sample mvn of given size with 
+			z_ct =  np.dot(L_ct, np.random.normal(size=(rank, size))) +   mu_ct[:, np.newaxis]
+
+			## sample original data by column index
+			sc_idx = np.array([[random.randint(0, x_ct.shape[1]-1) for _ in range(x_ct.shape[0])] for _ in range(size)])
+	
+			sc_ct = np.empty_like(z_ct)
+	
+			for i in range(size):
+
+				## sample single cell from original data
+				sc = x_ct[np.arange(x_ct.shape[0])[:,np.newaxis],sc_idx[i][:, np.newaxis]].flatten()
+
+				## rank gene values
+				sc_ct[:,i] = np.sort(sc)
+
+			sc_ct = sc_ct[np.arange(z_ct.shape[0])[:, np.newaxis], np.argsort(z_ct)].T
+
+			sc_prop = np.divide(x_mean, np.sum(x_mean))
+			sc_random = np.empty_like(sc_ct)
+			for i in range(size):
+				sc_random[i,:] = np.random.multinomial(depth,sc_prop,1).T.flatten()
+			
+			sc_all = (rho * sc_ct) + ((1-rho)*sc_random) 
+	
+			## get index ids
+			for i in range(size): all_indx.append(str(i) + '_' + ct)
+
+			dfsc = pd.concat([dfsc,pd.DataFrame(sc_all,columns=genes)],axis=0,ignore_index=True)
+	
+		print(dfsc.shape)
+		dfsc = dfsc.astype(int)
+		
+		##shuffle columns to break ranked order
+		arr = np.arange(dfsc.shape[1])
+		np.random.shuffle(arr)
+		dfsc = dfsc.iloc[:,arr] 
+	
+		smat = scipy.sparse.csr_matrix(dfsc.values)
+		dt = h5py.special_dtype(vlen=str) 
+		all_indx = np.array(np.array(all_indx).flatten(), dtype=dt) 
+		write_h5(sim_data_path,all_indx,genes,smat)
 

@@ -5,6 +5,7 @@
 /node_data/
 /database/
 results/
+/figures/
 /node_results/
 data/
 results*/
@@ -22,6 +23,9 @@ Makefile
 
 
 *.csv
+*.txt
+*.pdf
+*.h5*
 *.tsv
 *.pkl
 *.npz

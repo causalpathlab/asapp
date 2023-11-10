@@ -7,8 +7,8 @@ warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
 ######################################################
 #####  create asap data
 ######################################################
-# sample = 'sim_r_0.95_d_1000_s_250_s_2_t_13_r_0.1'
-sample = 'pbmc'
+sample = 'sim_r_0.99_d_10000_s_155_s_1'
+# sample = 'pbmc'
 # sample = 'bc_80k'
 import asappy
 
