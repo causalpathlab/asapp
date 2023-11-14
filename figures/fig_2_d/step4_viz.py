@@ -11,10 +11,13 @@ import sys
 result = sys.argv[1]
 wdir = os.getcwd()+'/'+result+'/'
 
-custom_palette = [
-"#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
-"#8c564b", "#e377c2","#7f7f7f", "#bcbd22", "#17becf"]
+custom_palette = ["#7f7f7f",
+"#1f77b4", "#2ca02c","#bcbd22", "#9467bd",
+"#8c564b", "#e377c2" ]
 
+# custom_palette = [
+# "#d62728", "#ff7f0e","#385E0F","#8B6969", "#325C74" ]
+# # asap, asapf, liger -green, nmf-brown, scanpy-blue
 
 flist = []
 for name in glob.glob(wdir+'*_eval.csv'):
@@ -81,7 +84,7 @@ def combine_plot(dfm,method):
         ggplot(df2, aes(x='rho',y='score_mean_mean',color='model')) +
         geom_pointrange(data=df2, mapping=aes(x='rho', ymin='score_mean_mean - score_std_mean', ymax='score_mean_mean + score_std_mean'),linetype='solid',size=0.5) +
         scale_color_manual(values=custom_palette) +
-        geom_line(data=df2, mapping=aes(x='rho', y='score_mean_mean', color='model'),size=0.8) +
+        geom_line(data=df2, mapping=aes(x='rho', y='score_mean_mean', color='model'),size=2.0) +
         labs(x='rho', y=method)
 
     )

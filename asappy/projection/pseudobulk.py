@@ -60,7 +60,7 @@ def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat_l
     # else:
     #     logging.info('Pseudo-bulk NOT generated for '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(asap_object.adata.uns['number_batches']))
 
-def filter_pseudobulk(asap_object,pseudobulk_result,min_size=5):
+def filter_pseudobulk(asap_object,pseudobulk_result,min_size):
     
     asap_object.adata.uns['pseudobulk'] = {}
 
@@ -236,10 +236,10 @@ def generate_pseudobulk(
         while not result_queue.empty():
             pseudobulk_result.append(result_queue.get())
     
+    pb_min_size = 0
     if pseudobulk_filter:
-        filter_pseudobulk(asap_object,pseudobulk_result,pseudobulk_filter_size)
-    else: 
-        asap_object.adata.uns['pseudobulk'] = {}        
-        asap_object.adata.uns['pseudobulk']['pb_data'] = pseudobulk_result['full']['pb_data']
-        asap_object.adata.uns['pseudobulk']['pb_map'] = pseudobulk_result['full']['pb_map'] 
-        asap_object.adata.uns['pseudobulk']['pb_hvgs'] = pseudobulk_result['full']['pb_hvgs'] 
+        pb_min_size = pseudobulk_filter_size
+
+    filter_pseudobulk(asap_object,pseudobulk_result,pb_min_size)
+    
+    

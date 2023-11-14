@@ -27,12 +27,16 @@ custom_palette50 = [
 "#ffc0cb","#000000","#808080","#dcdcdc","#2f4f4f"
 ]
 
-def plot_umap(asap_adata,col,pt_size=1.0):
+def plot_umap(asap_adata,col,pt_size=1.0,ftype='png'):
 	
 	df_umap = pd.DataFrame(asap_adata.obsm['umap_coords'],columns=['umap1','umap2'])
 	df_umap[col] = pd.Categorical(asap_adata.obs[col].values)
 	nlabel = asap_adata.obs[col].nunique() 
-	fname = asap_adata.uns['inpath']+'_'+col+'_'+'umap.png'
+ 
+	if ftype == 'pdf':
+		fname = asap_adata.uns['inpath']+'_'+col+'_'+'umap.pdf'
+	else:
+		fname = asap_adata.uns['inpath']+'_'+col+'_'+'umap.png'
 
 	legend_size=7
 
@@ -62,16 +66,19 @@ def plot_umap(asap_adata,col,pt_size=1.0):
 			plot_background=element_rect(fill='white'),
 			panel_background = element_rect(fill='white'))
 		
-	p.save(filename = fname, height=8, width=15, units ='in', dpi=300)
+	p.save(filename = fname, height=8, width=15, units ='in', dpi=600)
 
 
-def plot_umap_df(df_umap,col,fpath,pt_size=1.0):
+def plot_umap_df(df_umap,col,fpath,pt_size=1.0,ftype='png'):
 	
 	nlabel = df_umap[col].nunique() 
-	fname = fpath+'_'+col+'_'+'umap.png'
 
-	legend_size=7
-
+	if ftype == 'pdf':
+		fname = fpath+'_'+col+'_'+'umap.pdf'
+	else:
+		fname = fpath+'_'+col+'_'+'umap.png'
+	
+	legend_size = 7
 	
 	if nlabel <= 25 :
 
@@ -98,7 +105,7 @@ def plot_umap_df(df_umap,col,fpath,pt_size=1.0):
 			plot_background=element_rect(fill='white'),
 			panel_background = element_rect(fill='white'))
 		
-	p.save(filename = fname, height=10, width=15, units ='in', dpi=300)
+	p.save(filename = fname, height=10, width=15, units ='in', dpi=600)
 
 def plot_randomproj(dfrp,col,fname):
 	sns.set(style="ticks")
@@ -128,19 +135,19 @@ def plot_structure(asap_adata,mode):
 		plot_background=element_rect(fill='white'),
 		panel_background = element_rect(fill='white'),
 		axis_text_x=element_blank())
-	p.save(filename = asap_adata.uns['inpath']+'_'+mode+'_'+'struct.png', height=5, width=15, units ='in', dpi=300)
+	p.save(filename = asap_adata.uns['inpath']+'_'+mode+'_'+'struct.png', height=5, width=15, units ='in', dpi=600)
 
 def plot_gene_loading(asap_adata,top_n=3,max_thresh=100):
-    df_beta = pd.DataFrame(asap_adata.varm['beta'].T)
-    df_beta.columns = asap_adata.var.index.values
-    df_beta = df_beta.loc[:, ~df_beta.columns.duplicated(keep='first')]
-    df_top = get_topic_top_genes(df_beta.iloc[:,:],top_n)
-    df_beta = df_beta.loc[:,df_top['Gene'].unique()]
-    ro,co = row_col_order(df_beta)
-    df_beta = df_beta.loc[ro,co]
-    df_beta[df_beta>max_thresh] = max_thresh
-    sns.clustermap(df_beta.T,cmap='viridis')
-    plt.savefig(asap_adata.uns['inpath']+'_beta'+'_th_'+str(max_thresh)+'.png');plt.close()
+	df_beta = pd.DataFrame(asap_adata.varm['beta'].T)
+	df_beta.columns = asap_adata.var.index.values
+	df_beta = df_beta.loc[:, ~df_beta.columns.duplicated(keep='first')]
+	df_top = get_topic_top_genes(df_beta.iloc[:,:],top_n)
+	df_beta = df_beta.loc[:,df_top['Gene'].unique()]
+	ro,co = row_col_order(df_beta)
+	df_beta = df_beta.loc[ro,co]
+	df_beta[df_beta>max_thresh] = max_thresh
+	sns.clustermap(df_beta.T,cmap='viridis')
+	plt.savefig(asap_adata.uns['inpath']+'_beta'+'_th_'+str(max_thresh)+'.png');plt.close()
  
  
 def plot_blockwise_totalgene_bp(mtx,outfile,mode,ngroups=5):
@@ -185,7 +192,7 @@ def plot_blockwise_totalgene_bp(mtx,outfile,mode,ngroups=5):
 		plot_background=element_rect(fill='white'),
 		panel_background = element_rect(fill='white')
 	) + labs(title='Gene mean var analysis', x='Gene '+mode, y='Number of genes')
-	p.save(filename = outfile+'_blockwise_totalgene_bp.png', height=6, width=8, units ='in', dpi=300)
+	p.save(filename = outfile+'_blockwise_totalgene_bp.png', height=6, width=8, units ='in', dpi=600)
 
 def plot_blockwise_totalgene_depth_sp(mtx,outfile,mode,ngroups=5):
 
@@ -247,7 +254,7 @@ def plot_dmv_distribution(mtx,outfile):
 		plot_background=element_rect(fill='white'),
 		panel_background = element_rect(fill='white')
 	) + ggtitle('stats')
-	p.save(filename = outfile+'_dmv_dist.png', height=6, width=8, units ='in', dpi=300)
+	p.save(filename = outfile+'_dmv_dist.png', height=6, width=8, units ='in', dpi=600)
 
 def pbulk_cellcounthist(asap_object):
 	

@@ -55,21 +55,20 @@ def get_random_projection_data(mtx,rp_mat_list):
 
 
 def get_projection_map(mtx,rp_mat_list):
-    
     rp_mat_w = adjust_rp_weight(mtx,rp_mat_list)
     Q = np.dot(rp_mat_w,mtx).T
     
-    pca = PCA(n_components=rp_mat_list[0].shape[0])
-    Z = pca.fit_transform(Q)  
-    scaler = StandardScaler()
-    Z = scaler.fit_transform(Z)
+    # pca = PCA(n_components=rp_mat_list[0].shape[0])
+    # Z = pca.fit_transform(Q)  
+    # scaler = StandardScaler()
+    # Z = scaler.fit_transform(Z)
 
+    Z=Q
     Z = (np.sign(Z) + 1)/2
     df = pd.DataFrame(Z,dtype=int)
     df['code'] = df.astype(str).agg(''.join, axis=1)
     df = df.reset_index()
     df = df[['index','code']]
-    print(df['code'].nunique())
     return df.groupby('code').agg(lambda x: list(x)).reset_index().set_index('code').to_dict()['index']
     
     

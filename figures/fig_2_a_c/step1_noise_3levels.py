@@ -96,7 +96,7 @@ def analyze_randomproject():
 
     ct = celltype(dfumap['cell'].values,sample)
     dfumap['celltype'] = pd.Categorical(ct)
-    asappy.plot_umap_df(dfumap,'celltype',asap_object.adata.uns['inpath']+'_rp_',pt_size=2.5)
+    asappy.plot_umap_df(dfumap,'celltype',asap_object.adata.uns['inpath']+'_rp_',pt_size=2.5,ftype='pdf')
 
 
 
@@ -132,14 +132,14 @@ def analyze_nmf():
     print(asap_adata.obs.cluster.value_counts())
     asappy.run_umap(asap_adata,distance='euclidean',min_dist=0.5)
 
-    asappy.plot_umap(asap_adata,col='cluster',pt_size=2.5)
+    asappy.plot_umap(asap_adata,col='cluster',pt_size=2.5,ftype='pdf')
 
     cl = asap_adata.obs.index.values
     cl = [ x.replace('@'+sample,'') for x in cl]
     ct = celltype(cl,'sim') 
 
     asap_adata.obs['celltype']  = pd.Categorical(ct)
-    asappy.plot_umap(asap_adata,col='celltype',pt_size=2.5)
+    asappy.plot_umap(asap_adata,col='celltype',pt_size=2.5,ftype='pdf')
     
     asap_s1,asap_s2 =  calc_score([str(x) for x in asap_adata.obs['celltype'].values],asap_adata.obs['cluster'].values)
 
@@ -191,11 +191,11 @@ def noise_heatmap():
     plt.savefig(wdir+'results/'+sample+'_hmap.pdf',dpi=600)
     plt.close()
 
-noise_heatmap()
+# noise_heatmap()
 
-# analyze_randomproject()
+analyze_randomproject()
 
 # analyze_pseudobulk()
 
-# analyze_nmf()
+analyze_nmf()
  

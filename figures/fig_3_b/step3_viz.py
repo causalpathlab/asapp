@@ -11,11 +11,12 @@ import sys
 # results = sys.argv[1]
 # wdir = os.getcwd()+'/'+results+'/'
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_b/results/'
-custom_palette = [
-"#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
-"#8c564b", "#e377c2","#7f7f7f", "#bcbd22", "#17becf"]
+wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_b/final_results/'
 
+custom_palette = [
+"#d62728","#385E0F" ]
+# "#d62728", "#ff7f0e","#385E0F","#8B6969", "#325C74" ]
+# asap, asapf, liger -green, nmf-brown, scanpy-blue
 
 flist = []
 for name in glob.glob(wdir+'*_result.csv'):
@@ -43,17 +44,17 @@ def plot_eval(dfm,method):
         yh = 1
     elif method in ['Memory']:
         yl = 0
-        yh = df['score_mean'].max()+2000
+        yh = df['score_mean'].max()+2
     else:
         yl = 0
-        yh = df['score_mean'].max()+300
+        yh = df['score_mean'].max()+5
 
     x= 'size'
     p = (
         ggplot(df, aes(x=x,y='score_mean',color='model')) +
         geom_pointrange(data=df, mapping=aes(x=x, ymin='score_mean - score_std', ymax='score_mean + score_std'),linetype='solid',size=0.5) +
         scale_color_manual(values=custom_palette) +
-        geom_line(data=df, mapping=aes(x=x, y='score_mean', color='model'), linetype='solid',size=0.8) + 
+        geom_line(data=df, mapping=aes(x=x, y='score_mean', color='model'), linetype='solid',size=2.0) + 
         # facet_wrap('~'+y) +
         labs(x=x, y=method)+
         ylim(yl, yh)
@@ -70,8 +71,13 @@ def plot_eval(dfm,method):
 df = df.loc[df['model']!='scanpy']
 df = df.loc[df['model']!='asapf']
 df = df.loc[df['model']!='nmf']
-# plot_eval(df,'Purity')
-# plot_eval(df,'ARI')
-# plot_eval(df,'NMI')
+plot_eval(df,'Purity')
+plot_eval(df,'ARI')
+plot_eval(df,'NMI')
+
+
+df.loc[df['method']=='Memory',['score']] = df.loc[df['method']=='Memory',['score']] * 0.001048576 
+df.loc[df['method']=='Time',['score']] = df.loc[df['method']=='Time',['score']] / 60
+
 plot_eval(df,'Memory')
-# plot_eval(df,'Time')
+plot_eval(df,'Time')
