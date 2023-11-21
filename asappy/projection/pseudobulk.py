@@ -33,7 +33,7 @@ def generate_randomprojection_batch(asap_object,batch_i,start_index,end_index,rp
     else:
         logging.info('Random projection NOT generated for '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(asap_object.adata.uns['number_batches']))
 
-def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat_list,normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema):
+def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat_list,normalize_raw,normalize_pb,pb_aggregation,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema):
 
     if batch_i <= asap_object.adata.uns['number_batches']:
 
@@ -47,7 +47,9 @@ def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat_l
 
         get_pseudobulk(local_mtx.T, 
             rp_mat_list, 
-            asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],
+            asap_object.adata.uns['downsample_pseudobulk'],
+            asap_object.adata.uns['downsample_size'],
+            pb_aggregation,
             str(batch_i) +'_' +str(start_index)+'_'+str(end_index),
             normalize_raw,
             normalize_pb,
@@ -171,13 +173,13 @@ def generate_randomprojection(asap_object,tree_depth,maxthreads=16):
             rp_data_indxes.append(result_indxes_queue.get())
     
         return rp_data,rp_data_indxes
-
-    
+ 
 def generate_pseudobulk(
     asap_object,
     tree_depth,
     normalize_raw=None,
     normalize_pb=None,
+    pb_aggregation = 'SVD',
     hvg_selection=False,
     gene_mean_z=10,
     gene_var_z=2,
@@ -211,7 +213,7 @@ def generate_pseudobulk(
     
     if total_cells<batch_size:
 
-        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat_list,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],'full',normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z)
+        pseudobulk_result = get_pseudobulk(asap_object.adata.X.T, rp_mat_list,asap_object.adata.uns['downsample_pseudobulk'],asap_object.adata.uns['downsample_size'],pb_aggregation,'full',normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z)
 
     else:
 
@@ -224,7 +226,7 @@ def generate_pseudobulk(
 
             iend = min(istart + batch_size, total_cells)
                             
-            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat_list,normalize_raw,normalize_pb,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema))
+            thread = threading.Thread(target=generate_pseudobulk_batch, args=(asap_object,i,istart,iend, rp_mat_list,normalize_raw,normalize_pb,pb_aggregation,hvg_selection,gene_mean_z,gene_var_z,result_queue,lock,sema))
             
             threads.append(thread)
             thread.start()
@@ -243,3 +245,8 @@ def generate_pseudobulk(
     filter_pseudobulk(asap_object,pseudobulk_result,pb_min_size)
     
     
+'''
+1. dont create pseudobulk after you run pca for entire dataset
+2. we can keep buffer size 
+3. down sampling - sub sampling cells in the pseudobulk -> benefit is to create a homogeneous pseudobulk samples
+'''

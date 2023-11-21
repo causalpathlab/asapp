@@ -96,7 +96,7 @@ class CreateDatasetFromH5AD:
 	def __init__(self,sample_path,sample):
 		self.inpath = sample_path+'data/'
 		self.outpath = sample_path+'results/'
-		self.datasets = glob.glob(self.inpath+sample+'.h5ad')
+		self.datasets = glob.glob(self.inpath+sample+'*.h5ad')
 
 	def check_label(self):
 		for ds in self.datasets:
