@@ -5,33 +5,16 @@ import seaborn as sns
 import matplotlib.pylab as plt
 
 from ..util.analysis import get_topic_top_genes,row_col_order
+from .palette import get_colors
 
-custom_palette = [
-"#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
-"#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
-"#aec7e8", "#ffbb78", "#98df8a", "#ff9896", "#c5b0d5",
-"#c49c94", "#f7b6d2", "#c7c7c7", "#dbdb8d", "#9edae5",
-'#6b6ecf', '#8ca252',  '#8c6d31', '#bd9e39', '#d6616b'
-]
 
-custom_palette50 = [
-"#556b2f","#a0522d","#228b22","#7f0000","#191970",
-"#808000","#3cb371","#008080","#b8860b","#4682b4",
-"#d2691e","#9acd32","#00008b","#32cd32","#7f007f",
-"#8fbc8f","#b03060","#d2b48c","#9932cc","#ff4500",
-"#ff8c00","#ffd700","#6a5acd","#ffff00","#0000cd",
-"#00ff00","#00fa9a","#dc143c","#00ffff","#00bfff",
-"#f4a460","#a020f0","#f08080","#adff2f","#ff6347",
-"#da70d6","#ff00ff","#1e90ff","#f0e68c","#dda0dd",
-"#90ee90","#87ceeb","#ff1493","#7fffd4","#ff69b4",
-"#ffc0cb","#000000","#808080","#dcdcdc","#2f4f4f"
-]
 
 def plot_umap(asap_adata,col,pt_size=1.0,ftype='png'):
 	
 	df_umap = pd.DataFrame(asap_adata.obsm['umap_coords'],columns=['umap1','umap2'])
 	df_umap[col] = pd.Categorical(asap_adata.obs[col].values)
-	nlabel = asap_adata.obs[col].nunique() 
+	nlabel = asap_adata.obs[col].nunique()
+	custom_palette = get_colors(nlabel) 
  
 	if ftype == 'pdf':
 		fname = asap_adata.uns['inpath']+'_'+col+'_'+'umap.pdf'
@@ -40,38 +23,24 @@ def plot_umap(asap_adata,col,pt_size=1.0,ftype='png'):
 
 	legend_size=7
 
+	p = (ggplot(data=df_umap, mapping=aes(x='umap1', y='umap2', color=col)) +
+		geom_point(size=pt_size) +
+		scale_color_manual(values=custom_palette)  +
+		guides(color=guide_legend(override_aes={'size': legend_size})))
 	
-	if nlabel <= 25 :
+	p = p + theme(
+		plot_background=element_rect(fill='white'),
+		panel_background = element_rect(fill='white'))
+	
 
-		cp = custom_palette[:nlabel]
-		
-		
-		p = (ggplot(data=df_umap, mapping=aes(x='umap1', y='umap2', color=col)) +
-			geom_point(size=pt_size) +
-			scale_color_manual(values=custom_palette)  +
-			guides(color=guide_legend(override_aes={'size': legend_size})))
-		
-		p = p + theme(
-			plot_background=element_rect(fill='white'),
-			panel_background = element_rect(fill='white'))
-		
-
-	else :
-		p = (ggplot(data=df_umap, mapping=aes(x='umap1', y='umap2', color=col)) +
-			geom_point(size=pt_size) +
-			scale_color_manual(values=custom_palette50) +
-			guides(color=guide_legend(override_aes={'size': legend_size})))
-		
-		p = p + theme(
-			plot_background=element_rect(fill='white'),
-			panel_background = element_rect(fill='white'))
-		
 	p.save(filename = fname, height=8, width=15, units ='in', dpi=600)
 
 
 def plot_umap_df(df_umap,col,fpath,pt_size=1.0,ftype='png'):
 	
-	nlabel = df_umap[col].nunique() 
+	nlabel = df_umap[col].nunique()
+	custom_palette = get_colors(nlabel) 
+ 
 
 	if ftype == 'pdf':
 		fname = fpath+'_'+col+'_'+'umap.pdf'
@@ -79,35 +48,21 @@ def plot_umap_df(df_umap,col,fpath,pt_size=1.0,ftype='png'):
 		fname = fpath+'_'+col+'_'+'umap.png'
 	
 	legend_size = 7
+		
+	p = (ggplot(data=df_umap, mapping=aes(x='umap1', y='umap2', color=col)) +
+		geom_point(size=pt_size) +
+		scale_color_manual(values=custom_palette)  +
+		guides(color=guide_legend(override_aes={'size': legend_size})))
 	
-	if nlabel <= 25 :
-
-		cp = custom_palette[:nlabel]
-		
-		
-		p = (ggplot(data=df_umap, mapping=aes(x='umap1', y='umap2', color=col)) +
-			geom_point(size=pt_size) +
-			scale_color_manual(values=custom_palette)  +
-			guides(color=guide_legend(override_aes={'size': legend_size})))
-		
-		p = p + theme(
-			plot_background=element_rect(fill='white'),
-			panel_background = element_rect(fill='white'))
-		
-
-	else :
-		p = (ggplot(data=df_umap, mapping=aes(x='umap1', y='umap2', color=col)) +
-			geom_point(size=pt_size) +
-			scale_color_manual(values=custom_palette50)+
-			guides(color=guide_legend(override_aes={'size': legend_size})))
-		
-		p = p + theme(
-			plot_background=element_rect(fill='white'),
-			panel_background = element_rect(fill='white'))
-		
+	p = p + theme(
+		plot_background=element_rect(fill='white'),
+		panel_background = element_rect(fill='white'))
+	
 	p.save(filename = fname, height=10, width=15, units ='in', dpi=600)
 
 def plot_randomproj(dfrp,col,fname):
+	nlabel = dfrp[col].nuique()
+	custom_palette = get_colors(nlabel) 
 	sns.set(style="ticks")
 	sns.pairplot(dfrp, kind='scatter',hue=col,palette=custom_palette,plot_kws = {"s":5})
 	plt.savefig(fname+'_rproj.png');plt.close()
@@ -125,6 +80,9 @@ def plot_structure(asap_adata,mode):
 	dfm['cluster'] = pd.Categorical(dfm['cluster'])
 	dfm['topic'] = pd.Categorical(dfm['topic'])
 	
+	nlabel = dfm['topic'].nunique()
+	custom_palette = get_colors(nlabel) 
+
 	
 	p = (ggplot(data=dfm, mapping=aes(x='id', y='value', fill='topic')) +
 		geom_bar(position="stack", stat="identity", size=0) +
@@ -274,6 +232,8 @@ def plot_pbulk_celltyperatio(df,outfile):
 	df = df.reset_index().rename(columns={'index': 'pbindex'})
 	dfm = pd.melt(df,id_vars='pbindex')
 	dfm = dfm.sort_values(['variable','value'])
+	nlabel = dfm['variable'].nunique()
+	custom_palette = get_colors(nlabel) 
 
 	p = (ggplot(dfm, aes(x='pbindex', y='value',fill='variable')) + 
 		geom_bar(position="stack",stat="identity",size=0) +
