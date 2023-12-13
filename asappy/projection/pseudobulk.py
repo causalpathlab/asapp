@@ -59,8 +59,6 @@ def generate_pseudobulk_batch(asap_object,batch_i,start_index,end_index,rp_mat_l
             result_queue
             )
         sema.release()			
-    # else:
-    #     logging.info('Pseudo-bulk NOT generated for '+str(batch_i) +'_' +str(start_index)+'_'+str(end_index)+ ' '+str(batch_i) + ' > ' +str(asap_object.adata.uns['number_batches']))
 
 def filter_pseudobulk(asap_object,pseudobulk_result,min_size):
     
@@ -180,15 +178,17 @@ def generate_pseudobulk(
     normalize_raw=None,
     normalize_pb=None,
     pb_aggregation = 'SVD',
-    hvg_selection=False,
-    gene_mean_z=10,
-    gene_var_z=2,
     downsample_pseudobulk=True,
     downsample_size=100,
-    maxthreads=16,
     pseudobulk_filter=True,
-    pseudobulk_filter_size=5
+    pseudobulk_filter_size=5,
+    maxthreads=16
     ):
+
+    # dont expose high variable gene selection for ver 1
+    hvg_selection=False
+    gene_mean_z=10
+    gene_var_z=2
     
     asap_object.adata.uns['tree_depth'] = tree_depth
     asap_object.adata.uns['downsample_pseudobulk'] = downsample_pseudobulk
@@ -245,8 +245,3 @@ def generate_pseudobulk(
     filter_pseudobulk(asap_object,pseudobulk_result,pb_min_size)
     
     
-'''
-1. dont create pseudobulk after you run pca for entire dataset
-2. we can keep buffer size 
-3. down sampling - sub sampling cells in the pseudobulk -> benefit is to create a homogeneous pseudobulk samples
-'''
