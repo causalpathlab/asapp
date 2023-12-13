@@ -33,7 +33,7 @@ data_size = 25000
 number_batches = 1
 
 
-# asappy.create_asap_data(sample,working_dirpath=wdir)
+asappy.create_asap_data(sample,working_dirpath=wdir)
 asap_object = asappy.create_asap_object(sample=sample,data_size=data_size,number_batches=number_batches,working_dirpath=wdir)
 
 
@@ -185,17 +185,17 @@ def noise_heatmap():
     # sns.heatmap(df2.T,cmap="viridis")
     
     ## for 1.0 case cluster 
-    sns.clustermap(df2.T,cmap="viridis",col_cluster=False)
+    sns.clustermap(df2.T,cmap="Oranges",col_cluster=False)
     
     plt.savefig(wdir+'results/'+sample+'_hmap.png',dpi=600)
     plt.savefig(wdir+'results/'+sample+'_hmap.pdf',dpi=600)
     plt.close()
 
-# noise_heatmap()
+noise_heatmap()
 
-analyze_randomproject()
+# analyze_randomproject()
 
 # analyze_pseudobulk()
 
-analyze_nmf()
+# analyze_nmf()
  
