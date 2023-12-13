@@ -31,7 +31,7 @@ topic = int(sys.argv[6])
 cluster_resolution = float(sys.argv[7])
 infile = sys.argv[8]
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_b/'
+wdir = 'experiments/asapp/figures/fig_3_b/'
 result_file1 = wdir+'results/'+sample+'_nmf_eval.csv'
 result_file2 = wdir+'results/'+sample+'_result.csv'
 print(sample)

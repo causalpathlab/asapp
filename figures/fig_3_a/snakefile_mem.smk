@@ -3,18 +3,9 @@ onsuccess:
     shutil.rmtree(".snakemake")
 
 sample = 'sim'
-input_dir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_a/data/'
-output_dir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_a/results/'
-scripts_dir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_a/'
-
-# RHO = [1.0] 
-# DEPTH = [10000]
-# SIZE = [250]
-# SEED = [1]
-# TOPIC = [13]
-# RES =[0.1]
-
-
+input_dir = 'experiments/asapp/figures/fig_3_a/data/'
+output_dir = 'experiments/asapp/figures/fig_3_a/results/'
+scripts_dir = 'experiments/asapp/figures/fig_3_a/'
 
 RHO = [0.99] ## FIX NOISE for figure 3
 DEPTH = [10000]

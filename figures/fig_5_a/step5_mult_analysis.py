@@ -11,7 +11,7 @@ import asapc
 
 
 samples = ['gtex_sc_1','gtex_sc_2','gtex_sc_3','gtex_sc_4']
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_5_a/'
+wdir = 'experiments/asapp/figures/fig_5_a/'
 
 for seed,sample in enumerate(samples):
 

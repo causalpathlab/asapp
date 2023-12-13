@@ -4,7 +4,7 @@
 
 sample = 'bulk'
 sc_sample ='gtex_sc'
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_5_a/'
+wdir = 'experiments/asapp/figures/fig_5_a/'
 outpath = wdir+'results/'+sample
 # ######################################################
 # ##### bulk data merge

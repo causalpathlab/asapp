@@ -4,7 +4,7 @@
 
 bk_sample = 'bulk'
 sc_sample ='gtex_sc'
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_5_a/'
+wdir = 'experiments/asapp/figures/fig_5_a/'
 outpath = wdir+'results/'
 
 
@@ -126,7 +126,7 @@ df.to_csv(outpath+'_bulk_pbulk_norm_data.csv.gz',compression='gzip')
 
 bk_sample = 'bulk'
 sc_sample ='gtex_sc'
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_5_a/'
+wdir = 'experiments/asapp/figures/fig_5_a/'
 outpath = wdir+'results/'
 
 import asappy

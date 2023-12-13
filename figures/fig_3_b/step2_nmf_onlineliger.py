@@ -142,7 +142,7 @@ cluster_resolution = 1.0
 # topic = int(sys.argv[6])
 # cluster_resolution = float(sys.argv[7])
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_b/'
+wdir = 'experiments/asapp/figures/fig_3_b/'
 data_file = wdir+'data/'+sample+'.h5'
 
 
@@ -165,13 +165,6 @@ asap_time = end_time - start_time
 
 
 ####### other models  ##########
-'''
-idea:
-for 20k , take 10k two files and read backed in liger
-
-
-
-'''
 
 data_file_p1 = wdir+'data/'+sample.replace('2350','1550')+'.h5'
 data_file_p2 = wdir+'data/'+sample.replace('2350','770')+'.h5'
@@ -261,8 +254,3 @@ df_res = pd.DataFrame(res)
 df_res.columns = cols
 
 save_eval(df_res)
-
-
-'''
-switch to online version for liger ...
-'''

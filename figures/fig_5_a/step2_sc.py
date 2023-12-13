@@ -3,7 +3,7 @@
 # ######################################################
 
 sample = 'gtex_sc'
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_5_a/'
+wdir = 'experiments/asapp/figures/fig_5_a/'
 
 
 ######################################################
@@ -155,7 +155,7 @@ p.save(filename = fname, height=8, width=20, units ='in', dpi=600)
 ##########################
 
 sample = 'gtex_sc'
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_5_a/'
+wdir = 'experiments/asapp/figures/fig_5_a/'
 asap_adata = an.read_h5ad(wdir+'results/'+sample+'.h5asapad')
 #### cells by factor plot 
 

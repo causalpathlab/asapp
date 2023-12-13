@@ -232,7 +232,7 @@ cluster_resolution = float(sys.argv[7])
 result_file = './results/'+sample+'_nmf_eval.csv'
 print(sample)
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_2_d/'
+wdir = 'experiments/asapp/figures/fig_2_d/'
 data_size = 25000
 number_batches = 1
 n_topics = topic

@@ -11,12 +11,9 @@ import sys
 # results = sys.argv[1]
 # wdir = os.getcwd()+'/'+results+'/'
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_c/25k_results/'
+wdir = 'experiments/asapp/figures/fig_3_c/25k_results/'
 
-custom_palette = [
-"#d62728","#385E0F" ]
-# "#d62728", "#ff7f0e","#385E0F","#8B6969", "#325C74" ]
-# asap, asapf, liger -green, nmf-brown, scanpy-blue
+custom_palette = ["#d62728","#385E0F" ]
 
 flist = []
 for name in glob.glob(wdir+'*_all_result.csv'):
@@ -33,8 +30,6 @@ def plot_eval(dfm,method):
     df = df.groupby(grps).agg(['mean','std' ]).reset_index()
     df.columns = df.columns.map('_'.join).str.strip('_')
     df = df.drop(columns=['seed_mean','seed_std'])
-    # df = df.dropna()
-    # df = df.fillna(0.01)
 
 
     df['size'] = df['size'] * 13
@@ -66,8 +61,6 @@ def plot_eval(dfm,method):
     p.save(filename = wdir+'nmf_eval_'+method+'_'+x+'_.pdf', height=6, width=8, units ='in',dpi=600)
 
 
-
-# df = df[((df['depth']==10000) & (df['size']==250) & (df['topic']==13))]
 df = df.loc[df['model']!='scanpy']
 df = df.loc[df['model']!='asapf']
 df = df.loc[df['model']!='nmf']

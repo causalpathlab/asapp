@@ -1,5 +1,5 @@
 import sys
-sys.path.append("/home/BCCRC.CA/ssubedi/projects/experiments/asapp/")
+sys.path.append("experiments/asapp/")
 import pandas as pd
 import asappy.util.sim as sim
 
@@ -12,7 +12,6 @@ size = int(sys.argv[5])
 seed = int(sys.argv[6])
 
 
-bulk_path = '/data/sishir/database/dice_immune_bulkrna/*.csv'
-# bulk_path = '/data/sishir/database/'
+bulk_path = 'database/dice_immune_bulkrna/*.csv'
 
 sim.simdata_from_bulk_copula(bulk_path,'data/'+sim_data_path,size,rho,depth,seed)

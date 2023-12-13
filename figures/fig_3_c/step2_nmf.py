@@ -104,7 +104,7 @@ seed = int(sys.argv[5])
 topic = int(sys.argv[6])
 cluster_resolution = float(sys.argv[7])
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_c/'
+wdir = 'experiments/asapp/figures/fig_3_c/'
 
 
 # asap_data_size =  25000

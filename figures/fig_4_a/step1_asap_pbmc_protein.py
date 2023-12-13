@@ -33,7 +33,7 @@ def getct(ids,sample):
 import sys 
 sample = 'pbmcprot'
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_4_a/'
+wdir = 'experiments/asapp/figures/fig_4_a/'
 
 data_size = 90000
 number_batches = 2

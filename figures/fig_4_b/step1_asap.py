@@ -34,7 +34,7 @@ def getct(ids,sample,minor=False):
 import sys 
 sample = 'brca'
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_4_b/'
+wdir = 'experiments/asapp/figures/fig_4_b/'
 
 data_size = 110000
 number_batches = 1
@@ -49,17 +49,6 @@ def analyze_randomproject():
 	from asappy.clustering.leiden import leiden_cluster
 	from umap.umap_ import find_ab_params, simplicial_set_embedding
 
-
-	### get random projection
-	# rp_data,rp_index = asappy.generate_randomprojection(asap_object,tree_depth=10)
-	# rp = rp_data[0]['1_0_25000']['rp_data']
-	# for d in rp_data[1:]:
-	#     rp = np.vstack((rp,d[list(d.keys())[0]]['rp_data']))
-	# rpi = np.array(rp_index[0])
-	# for i in rp_index[1:]:rpi = np.hstack((rpi,i))
-	# df=pd.DataFrame(rp)
-	# df.index = rpi
-
 	rp_data = asappy.generate_randomprojection(asap_object,tree_depth=10)
 	rp_data = rp_data['full']
 	rpi = asap_object.adata.load_datainfo_batch(1,0,rp_data.shape[0])
@@ -69,8 +58,6 @@ def analyze_randomproject():
 	### draw nearest neighbour graph and cluster
 	snn,cluster = leiden_cluster(df.to_numpy(),resolution=1.0)
 	pd.Series(cluster).value_counts() 
-
-
 
 	## umap cluster using neighbour graph
 	min_dist = 0.6

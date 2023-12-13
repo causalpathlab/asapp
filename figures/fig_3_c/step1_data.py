@@ -1,5 +1,5 @@
 import sys
-sys.path.append("/home/BCCRC.CA/ssubedi/projects/experiments/asapp/")
+sys.path.append("experiments/asapp/")
 import pandas as pd
 import asappy.util.sim as sim
 

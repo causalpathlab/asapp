@@ -11,15 +11,11 @@ import sys
 # results = sys.argv[1]
 # wdir = os.getcwd()+'/'+results+'/'
 
-# custom_palette = [
-# "#d62728", "#ff7f0e","#385E0F","#8B6969", "#325C74" ]
-# # asap, asapf, liger -green, nmf-brown, scanpy-blue
-
 custom_palette = [
 "#c40233" ,"#800020","#f08080" ]
 
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_c/25k_results/'
+wdir = 'experiments/asapp/figures/fig_3_c/25k_results/'
 flist = []
 for name in glob.glob(wdir+'*_all_result.csv'):
     flist.append(name)
@@ -29,7 +25,7 @@ for f in flist:
     dfc = pd.read_csv(f)
     df1 = pd.concat([df1,dfc],axis=0,ignore_index=True)
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_c/100k_results/'
+wdir = 'experiments/asapp/figures/fig_3_c/100k_results/'
 flist = []
 for name in glob.glob(wdir+'*_all_result.csv'):
     flist.append(name)
@@ -39,7 +35,7 @@ for f in flist:
     dfc = pd.read_csv(f)
     df2 = pd.concat([df2,dfc],axis=0,ignore_index=True)
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_c/200k_results/'
+wdir = 'experiments/asapp/figures/fig_3_c/200k_results/'
 flist = []
 for name in glob.glob(wdir+'*_all_result.csv'):
     flist.append(name)
@@ -55,7 +51,7 @@ df2['model'] = [x+'_100k' for x in df2['model']]
 df3['model'] = [x+'_200k' for x in df3['model']]
 df = pd.concat([df1,df2,df3],axis=0,ignore_index=True)
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_c/'
+wdir = 'experiments/asapp/figures/fig_3_c/'
 
 def plot_eval(dfm,method):
     df = dfm[dfm['method']==method]

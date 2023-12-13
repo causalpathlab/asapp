@@ -15,10 +15,6 @@ custom_palette = ["#7f7f7f",
 "#1f77b4", "#2ca02c","#bcbd22", "#9467bd",
 "#8c564b", "#e377c2" ]
 
-# custom_palette = [
-# "#d62728", "#ff7f0e","#385E0F","#8B6969", "#325C74" ]
-# # asap, asapf, liger -green, nmf-brown, scanpy-blue
-
 flist = []
 for name in glob.glob(wdir+'*_eval.csv'):
     flist.append(name)

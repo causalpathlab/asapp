@@ -51,7 +51,7 @@ f.close()
 import sys 
 sample = 'brca_sp'
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_5_b/'
+wdir = 'experiments/asapp/figures/fig_5_b/'
 
 data_size = 10000
 number_batches = 1
@@ -129,7 +129,7 @@ import pandas as pd
 import anndata as an
 sample = 'brca_sp'
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_5_b/'
+wdir = 'experiments/asapp/figures/fig_5_b/'
 
 adata = an.read_h5ad('results/_scanpy.h5asap')
 asap_adata = an.read_h5ad(wdir+'results/'+sample+'.h5asapad')

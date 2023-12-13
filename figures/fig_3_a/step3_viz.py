@@ -11,7 +11,7 @@ import sys
 # results = sys.argv[1]
 # wdir = os.getcwd()+'/'+results+'/'
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_a/final_results/'
+wdir = 'experiments/asapp/figures/fig_3_a/final_results/'
 
 
 custom_palette = [

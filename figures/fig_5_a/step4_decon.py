@@ -1,7 +1,7 @@
 
 bk_sample = 'bulk'
 sc_sample ='gtex_sc'
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_5_a/'
+wdir = 'experiments/asapp/figures/fig_5_a/'
 outpath = wdir+'results/'
 
 import asappy
@@ -186,7 +186,7 @@ from plotnine import *
 from asappy.plotting.palette import get_colors
 bk_sample = 'bulk'
 sc_sample ='gtex_sc'
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_5_a/'
+wdir = 'experiments/asapp/figures/fig_5_a/'
 outpath = wdir+'results/'
 
 dfnm = pd.read_csv(outpath+'_bulk_deconv_results_theta.csv')

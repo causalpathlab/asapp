@@ -127,8 +127,8 @@ class CMakeBuild(build_ext):
 # logic and declaration, and simpler if you include description/version in a file.
 setup(
     name="asappy",
-    version="0.0.1",
-    author='Sishir Subedi, Yongjin Park',
+    version="0.1.0",
+    author='Sishir Subedi,Tomokazu S Sumida, Yongjin Park',
     description='ASAPP: Annotating large-scale Single-cell data matrix by Approximate Projection in Pseudobulk estimation',
     ext_modules=[CMakeExtension("asapc")],
     cmdclass={"build_ext": CMakeBuild},

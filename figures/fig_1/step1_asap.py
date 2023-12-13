@@ -32,7 +32,7 @@ def getct(ids,sample):
 import sys 
 sample = 'pancreas'
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_1/'
+wdir = 'experiments/asapp/figures/fig_1/'
 
 data_size = 20000
 number_batches = 1

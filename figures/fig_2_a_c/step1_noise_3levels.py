@@ -28,7 +28,7 @@ import sys
 rho = float(sys.argv[1])
 sample = 'sim_r_'+str(rho)+'_d_10000_s_250_s_1_t_13_r_0.1'
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_2_a_c/'
+wdir = 'experiments/asapp/figures/fig_2_a_c/'
 data_size = 25000
 number_batches = 1
 

@@ -81,7 +81,7 @@ cluster_resolution = float(sys.argv[7])
 result_file = './results/'+sample+'_rppca_eval.csv'
 print(sample)
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/'
+wdir = 'experiments/asapp/'
 data_size = 25000
 number_batches = 1
 asappy.create_asap_data(sample,working_dirpath=wdir)

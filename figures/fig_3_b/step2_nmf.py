@@ -153,7 +153,7 @@ seed = int(sys.argv[5])
 topic = int(sys.argv[6])
 cluster_resolution = float(sys.argv[7])
 
-wdir = '/home/BCCRC.CA/ssubedi/projects/experiments/asapp/figures/fig_3_b/'
+wdir = 'experiments/asapp/figures/fig_3_b/'
 data_file = wdir+'data/'+sample+'.h5'
 
 
