@@ -1,4 +1,4 @@
-## Annotation of Single-cell by fActorized Pseudobulk Projection
+## ASAPP : Annotation of Single-cell data by Approximate Pseudo-bulk projection
 
 
 <div align="center">
